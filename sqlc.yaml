@@ -1,0 +1,14 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    schema: "internal/db/migrations"   # migration .sql files
+    queries: "internal/repository"     # folder containing your queries.sql files
+    gen:
+      go:
+        package: "db"                  # package name for generated code
+        out: "internal/db/gen"  
+        sql_package: "pgx/v5"       # generated Go code location
+        # emit_json_tags: true           # add JSON tags for API responses
+        # emit_prepared_queries: true    # generate prepared statements
+        # emit_interface: true           # generate interface for mocking
+        # emit_db_tags: true             # add db tags for struct fields
