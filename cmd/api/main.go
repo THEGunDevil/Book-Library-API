@@ -31,6 +31,7 @@ func main() {
 	defer db.Close()
 
 	r := gin.Default()
+	r.Use(middleware.CORSMiddleware())
 
 	// Health check
 	r.GET("/", func(c *gin.Context) {
