@@ -90,7 +90,15 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	token, _ := service.GenerateJWT(user.ID.String())
+	token, err := service.GenerateJWT(user.ID.String())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+		return
+	}
 
-	c.JSON(http.StatusOK, gin.H{"token": token})
+	// Return token and role
+	c.JSON(http.StatusOK, gin.H{
+		"token": token,
+		"role":  user.Role,
+	})
 }
