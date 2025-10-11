@@ -12,19 +12,19 @@ func AddBook(req models.CreateBookRequest, imageURL string) (models.BookResponse
 		Title:  req.Title,
 		Author: req.Author,
 		PublishedYear: pgtype.Int4{
-			Int32: int32(req.PublishedYear),
-			Valid: true,
+			Int32: req.PublishedYear,
+			Valid: req.PublishedYear != 0,
 		},
 		Isbn: pgtype.Text{
 			String: req.Isbn,
-			Valid:  true,
+			Valid:  len(req.Isbn) > 0,
 		},
-		TotalCopies: int32(req.TotalCopies),
+		TotalCopies: req.TotalCopies,
 		AvailableCopies: pgtype.Int4{
-			Int32: int32(req.TotalCopies),
+			Int32: req.TotalCopies,
 			Valid: true,
 		},
-		ImageUrl: imageURL,
+		ImageUrl: imageURL, // ✅ direct string — works fine
 	})
 
 	if err != nil {
@@ -35,12 +35,13 @@ func AddBook(req models.CreateBookRequest, imageURL string) (models.BookResponse
 		ID:              book.ID.String(),
 		Title:           book.Title,
 		Author:          book.Author,
-		PublishedYear:   int32(book.PublishedYear.Int32),
+		PublishedYear:   book.PublishedYear.Int32,
 		Isbn:            book.Isbn.String,
-		AvailableCopies: int32(book.AvailableCopies.Int32),
-		TotalCopies:     int32(book.TotalCopies),
-		ImageURL:        book.ImageUrl, // 👈 map back
+		AvailableCopies: book.AvailableCopies.Int32,
+		TotalCopies:     book.TotalCopies,
+		ImageURL:        book.ImageUrl, // ✅ this will now have your uploaded URL
 		CreatedAt:       book.CreatedAt.Time,
 		UpdatedAt:       book.UpdatedAt.Time,
 	}, nil
 }
+

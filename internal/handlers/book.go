@@ -20,7 +20,7 @@ func CreateBookHandler(c *gin.Context) {
 	var req models.CreateBookRequest
 
 	// Bind JSON input
-	if err := c.ShouldBind(&req); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
 	}

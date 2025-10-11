@@ -7,7 +7,7 @@ SELECT * FROM books
 WHERE id = $1;
 
 -- name: CreateBook :one
-INSERT INTO books (title, author, published_year, isbn, total_copies, available_copies,image_url)
+INSERT INTO books (title, author, published_year, isbn, total_copies, available_copies, image_url)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
