@@ -6,13 +6,14 @@ import (
 )
 
 type CreateBookRequest struct {
-	Title         string                `form:"title" binding:"required"`
-	Author        string                `form:"author" binding:"required"`
-	PublishedYear int32                 `form:"published_year"`
-	Isbn          string                `form:"isbn"`
-	Image           *multipart.FileHeader  `form:"image"` // optional file upload
-	TotalCopies   int32                 `form:"total_copies"`
+    Title         string                `form:"title" json:"title"`
+    Author        string                `form:"author" json:"author"`
+    PublishedYear int                   `form:"published_year" json:"published_year"`
+    Isbn          string                `form:"isbn" json:"isbn"`
+    TotalCopies   int                   `form:"total_copies" json:"total_copies"`
+    Image         *multipart.FileHeader `form:"image"`
 }
+
 
 type BookResponse struct {
 	ID              string    `json:"id"`
