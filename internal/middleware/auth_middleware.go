@@ -26,6 +26,7 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		claims := token.Claims.(jwt.MapClaims)
 		c.Set("userID", claims["sub"])
+		c.Set("role", claims["role"]) // ✅ save role in context
 
 		c.Next()
 	}
@@ -42,6 +43,7 @@ func AdminOnly() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
 
 func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
