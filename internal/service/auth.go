@@ -19,11 +19,12 @@ func HashPassword(password string) (string, error) {
 func CheckPassword(password, hashed string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashed), []byte(password))
 }
-func GenerateJWT(userID string) (string, error) {
-	claims := jwt.MapClaims{
-		"sub": userID,
-		"exp": time.Now().Add(time.Hour * 24).Unix(),
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(JwtSecret)
+func GenerateJWT(userID string, role string) (string, error) {
+    claims := jwt.MapClaims{
+        "sub":  userID,
+        "role": role, // ✅ include role
+        "exp":  time.Now().Add(time.Hour * 24).Unix(),
+    }
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+    return token.SignedString(JwtSecret)
 }

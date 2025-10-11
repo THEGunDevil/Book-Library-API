@@ -69,36 +69,44 @@ func RegisterHandler(c *gin.Context) {
 }
 
 func LoginHandler(c *gin.Context) {
-	var req struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
+    var req struct {
+        Email    string `json:"email"`
+        Password string `json:"password"`
+    }
 
-	if err := c.BindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
-		return
-	}
+    if err := c.BindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+        return
+    }
 
-	user, err := db.Q.GetUserByEmail(c, req.Email)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
-		return
-	}
+    user, err := db.Q.GetUserByEmail(c, req.Email)
+    if err != nil {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+        return
+    }
 
-	if err := service.CheckPassword(req.Password, user.PasswordHash); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
-		return
-	}
+    if err := service.CheckPassword(req.Password, user.PasswordHash); err != nil {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+        return
+    }
 
-	token, err := service.GenerateJWT(user.ID.String())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
-		return
-	}
+    // Convert pgtype.Text to string
+    var role string
+    if user.Role.Valid {
+        role = user.Role.String
+    } else {
+        role = "member" // default
+    }
 
-	// Return token and role
-	c.JSON(http.StatusOK, gin.H{
-		"token": token,
-		"role":  user.Role,
-	})
+    token, err := service.GenerateJWT(user.ID.String(), role)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "token": token,
+        "role":  role,
+    })
 }
+
