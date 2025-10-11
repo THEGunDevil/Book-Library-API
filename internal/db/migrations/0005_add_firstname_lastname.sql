@@ -3,6 +3,10 @@
 ALTER TABLE users
 ADD COLUMN IF NOT EXISTS first_name TEXT NOT NULL DEFAULT '';
 
+-- Add token_version column
+ALTER TABLE users
+ADD COLUMN IF NOT EXISTS token_version INT NOT NULL DEFAULT 1;
+
 -- Copy data from name to first_name (optional)
 UPDATE users SET first_name = name;
 

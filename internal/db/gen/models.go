@@ -58,4 +58,5 @@ type User struct {
 	UpdatedAt    pgtype.Timestamp
 	LastName     string
 	PhoneNumber  pgtype.Text
+	TokenVersion int32
 }

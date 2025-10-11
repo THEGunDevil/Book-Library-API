@@ -9,39 +9,39 @@ import (
 )
 
 func AuthMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		tokenString := c.GetHeader("Authorization")
-		if tokenString == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing token"})
-			return
-		}
+    return func(c *gin.Context) {
+        tokenString := c.GetHeader("Authorization")
+        if tokenString == "" {
+            c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing token"})
+            return
+        }
 
-		token, err := jwt.Parse(tokenString[7:], func(token *jwt.Token) (interface{}, error) {
-			return service.JwtSecret, nil
-		})
-		if err != nil || !token.Valid {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
-			return
-		}
+        token, err := jwt.Parse(tokenString[7:], func(token *jwt.Token) (interface{}, error) {
+            return service.JwtSecret, nil
+        })
+        if err != nil || !token.Valid {
+            c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+            return
+        }
 
-		claims := token.Claims.(jwt.MapClaims)
-		c.Set("userID", claims["sub"])
-		c.Set("role", claims["role"]) // ✅ save role in context
-
-		c.Next()
-	}
+        claims := token.Claims.(jwt.MapClaims)
+        c.Set("userID", claims["sub"])
+        c.Set("role", claims["role"])
+        c.Set("token_version", claims["token_version"])
+        c.Next()
+    }
 }
 
+
 func AdminOnly() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		role, exists := c.Get("role")
-		if !exists || role != "admin" {
-			c.JSON(http.StatusForbidden, gin.H{"error": "admin access required"})
-			c.Abort()
-			return
-		}
-		c.Next()
-	}
+    return func(c *gin.Context) {
+        role, _ := c.Get("role")
+        if role != "admin" {
+            c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "admin access required"})
+            return
+        }
+        c.Next()
+    }
 }
 
 

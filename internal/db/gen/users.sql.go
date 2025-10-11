@@ -12,9 +12,9 @@ import (
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (first_name, last_name, email, password_hash, phone_number)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, first_name, email, password_hash, role, created_at, updated_at, last_name, phone_number
+INSERT INTO users (first_name, last_name, email, password_hash, phone_number, token_version)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, first_name, email, password_hash, role, created_at, updated_at, last_name, phone_number, token_version
 `
 
 type CreateUserParams struct {
@@ -23,6 +23,7 @@ type CreateUserParams struct {
 	Email        string
 	PasswordHash string
 	PhoneNumber  pgtype.Text
+	TokenVersion int32
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
@@ -32,6 +33,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		arg.Email,
 		arg.PasswordHash,
 		arg.PhoneNumber,
+		arg.TokenVersion,
 	)
 	var i User
 	err := row.Scan(
@@ -44,12 +46,13 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.UpdatedAt,
 		&i.LastName,
 		&i.PhoneNumber,
+		&i.TokenVersion,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, first_name, email, password_hash, role, created_at, updated_at, last_name, phone_number FROM users
+SELECT id, first_name, email, password_hash, role, created_at, updated_at, last_name, phone_number, token_version FROM users
 WHERE email = $1
 `
 
@@ -66,6 +69,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.UpdatedAt,
 		&i.LastName,
 		&i.PhoneNumber,
+		&i.TokenVersion,
 	)
 	return i, err
 }
@@ -77,7 +81,7 @@ SET
   last_name = COALESCE($3, last_name),
   phone_number = COALESCE($4, phone_number)
 WHERE id = $1
-RETURNING id, first_name, email, password_hash, role, created_at, updated_at, last_name, phone_number
+RETURNING id, first_name, email, password_hash, role, created_at, updated_at, last_name, phone_number, token_version
 `
 
 type UpdateUserByIDParams struct {
@@ -105,6 +109,7 @@ func (q *Queries) UpdateUserByID(ctx context.Context, arg UpdateUserByIDParams) 
 		&i.UpdatedAt,
 		&i.LastName,
 		&i.PhoneNumber,
+		&i.TokenVersion,
 	)
 	return i, err
 }
