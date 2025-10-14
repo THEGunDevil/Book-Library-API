@@ -7,6 +7,11 @@ RETURNING *;
 SELECT * FROM users
 WHERE email = $1;
 
+-- name: GetAllUsers :many
+
+SELECT * FROM users;
+
+
 -- name: UpdateUserByID :one
 UPDATE users
 SET

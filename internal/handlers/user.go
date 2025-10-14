@@ -39,6 +39,29 @@ func GetUserHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 
 }
+func GetAllUsersHandler(c *gin.Context) {
+	users, err := db.Q.GetAllUsers(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch users"})
+		return
+	}
+
+	// Convert users to response format
+	var resp []models.UserResponse
+	for _, u := range users {
+		resp = append(resp, models.UserResponse{
+			ID:          u.ID.String(),
+			FirstName:   u.FirstName,
+			LastName:    u.LastName,
+			Email:       u.Email,
+			PhoneNumber: u.PhoneNumber.String,
+			CreatedAt:   u.CreatedAt.Time,
+		})
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
 
 func UpdateUserByIDHandler(c *gin.Context) {
     // 1️⃣ Parse UUID from URL
