@@ -49,7 +49,8 @@ func main() {
 	userGroup := r.Group("/users")
 	userGroup.Use(middleware.AuthMiddleware())
 	{
-		userGroup.GET("/get", middleware.AdminOnly(),handlers.GetUserHandler)
+		userGroup.GET("/", middleware.AdminOnly(),handlers.GetAllUsersHandler)
+		userGroup.GET("/user",handlers.GetUserHandler)
 		// only admin can update user info
 		userGroup.PATCH("/:id", handlers.UpdateUserByIDHandler)
 	}
