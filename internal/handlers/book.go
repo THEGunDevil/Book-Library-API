@@ -18,71 +18,70 @@ import (
 
 // CreateBookHandler handles adding books
 func CreateBookHandler(c *gin.Context) {
-    // Get form values
-    title := c.PostForm("title")
-    author := c.PostForm("author")
-    publishedYearStr := c.PostForm("published_year")
-    isbn := c.PostForm("isbn")
-    totalCopiesStr := c.PostForm("total_copies")
+	// Get form values
+	title := c.PostForm("title")
+	author := c.PostForm("author")
+	publishedYearStr := c.PostForm("published_year")
+	isbn := c.PostForm("isbn")
+	totalCopiesStr := c.PostForm("total_copies")
 
-    // Validate required fields
-    if len(title) == 0 || len(title) > 255 {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "title must be 1-255 characters"})
-        return
-    }
-    if len(author) == 0 || len(author) > 100 {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "author must be 1-100 characters"})
-        return
-    }
+	// Validate required fields
+	if len(title) == 0 || len(title) > 255 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "title must be 1-255 characters"})
+		return
+	}
+	if len(author) == 0 || len(author) > 100 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "author must be 1-100 characters"})
+		return
+	}
 
-    // Convert numeric fields
-    publishedYear, err := strconv.Atoi(publishedYearStr)
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "published year must be a number"})
-        return
-    }
+	// Convert numeric fields
+	publishedYear, err := strconv.Atoi(publishedYearStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "published year must be a number"})
+		return
+	}
 
-    totalCopies, err := strconv.Atoi(totalCopiesStr)
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "total copies must be a number"})
-        return
-    }
+	totalCopies, err := strconv.Atoi(totalCopiesStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "total copies must be a number"})
+		return
+	}
 
-    // Handle file upload
-    var imageURL string
-    file, err := c.FormFile("image")
-    if err == nil {
-        f, err := file.Open()
-        if err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open image"})
-            return
-        }
-        defer f.Close()
+	// Handle file upload
+	var imageURL string
+	file, err := c.FormFile("image")
+	if err == nil {
+		f, err := file.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open image"})
+			return
+		}
+		defer f.Close()
 
-        imageURL, err = service.UploadImageToCloudinary(f, file.Filename)
-        if err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": "image upload failed"})
-            return
-        }
-    }
+		imageURL, err = service.UploadImageToCloudinary(f, file.Filename)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "image upload failed"})
+			return
+		}
+	}
 
-    // Call the service
-    bookResp, err := service.AddBook(models.CreateBookRequest{
-        Title:         title,
-        Author:        author,
-        PublishedYear: publishedYear,
-        Isbn:          isbn,
-        TotalCopies:   totalCopies,
-    }, imageURL)
+	// Call the service
+	bookResp, err := service.AddBook(models.CreateBookRequest{
+		Title:         title,
+		Author:        author,
+		PublishedYear: publishedYear,
+		Isbn:          isbn,
+		TotalCopies:   totalCopies,
+	}, imageURL)
 
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-        return
-    }
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
-    c.JSON(http.StatusCreated, bookResp)
+	c.JSON(http.StatusCreated, bookResp)
 }
-
 
 // GetBookHandler example: fetch all books
 func GetBookHandler(c *gin.Context) {
