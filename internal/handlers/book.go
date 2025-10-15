@@ -84,7 +84,7 @@ func CreateBookHandler(c *gin.Context) {
 }
 
 // GetBookHandler example: fetch all books
-func GetBookHandler(c *gin.Context) {
+func GetBooksHandler(c *gin.Context) {
 	books, err := db.Q.ListBooks(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong"})
@@ -103,6 +103,7 @@ func GetBookHandler(c *gin.Context) {
 			TotalCopies:     book.TotalCopies,
 			CreatedAt:       book.CreatedAt.Time,
 			UpdatedAt:       book.UpdatedAt.Time,
+			ImageURL:        book.ImageUrl,
 		})
 	}
 

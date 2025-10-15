@@ -59,7 +59,7 @@ func main() {
 	bookGroup := r.Group("/books")
 	{
 		// Public
-		bookGroup.GET("/", handlers.GetBookHandler)
+		bookGroup.GET("/", handlers.GetBooksHandler)
 		bookGroup.GET("/:id", handlers.GetBookByIDHandler)
 
 		// Admin-only
