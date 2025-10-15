@@ -144,6 +144,7 @@ func GetBookByIDHandler(c *gin.Context) {
 		TotalCopies:     book.TotalCopies,
 		CreatedAt:       book.CreatedAt.Time,
 		UpdatedAt:       book.UpdatedAt.Time,
+		ImageURL:        book.ImageUrl,
 	}
 
 	c.JSON(http.StatusOK, response)
