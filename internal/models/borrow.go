@@ -3,7 +3,6 @@ package models
 import "time"
 
 type CreateBorrowRequest struct {
-	UserID     string `json:"user_id"`
 	BookID     string `json:"book_id"`
 	DueDate    string `json:"due_date"`
 }

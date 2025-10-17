@@ -14,18 +14,34 @@ import (
 )
 
 func BorrowBookHandler(c *gin.Context) {
-	var req models.CreateBorrowRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
-	}
+    // Get user ID from token (set by AuthMiddleware)
+    userIDStr, exists := c.Get("userID")
+    if !exists {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+        return
+    }
+    userUUID, err := uuid.Parse(userIDStr.(string))
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID"})
+        return
+    }
 
-	borrowRes, err := service.Borrow(req)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusCreated, borrowRes)
+    var req models.CreateBorrowRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+        return
+    }
+
+    // Pass userID to the service
+    borrowRes, err := service.Borrow(userUUID, req)
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
+
+    c.JSON(http.StatusCreated, borrowRes)
 }
+
 
 func ReturnBookHandler(c *gin.Context) {
 	var req models.ReturnBookRequest
