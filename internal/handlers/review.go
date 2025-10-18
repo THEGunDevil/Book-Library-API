@@ -135,7 +135,7 @@ func UpdateReviewByIDHandler(c *gin.Context) {
 
 func GetReviewsByBookIDHandler(c *gin.Context) {
 	// 1️⃣ Parse book ID from URL parameters
-	bookIDParam := c.Param("bookId")
+	bookIDParam := c.Param("id")
 	bookId, err := uuid.Parse(bookIDParam)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book ID"})
