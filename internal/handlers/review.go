@@ -4,8 +4,6 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"strconv"
-
 	"github.com/THEGunDevil/GoForBackend/internal/db"
 	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
 	"github.com/THEGunDevil/GoForBackend/internal/models"
@@ -15,59 +13,55 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+// CreateReviewHandler creates a new review
 func CreateReviewHandler(c *gin.Context) {
-	userID := c.Query("userID")
-	ratingStr := c.Query("rating")
-	reviewComment := c.Query("comment")
-	bookID := c.Query("bookID")
+	// Extract userID from context (set by AuthMiddleware)
+	userIDVal, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not authenticated"})
+		return
+	}
+	userUUID := userIDVal.(uuid.UUID)
+
+	// Bind JSON
+	var req struct {
+		BookID  string `json:"bookId"`
+		Rating  int    `json:"rating"`
+		Comment string `json:"content"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
 
 	// Validate input
-	if reviewComment == "" {
+	if req.Comment == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "comment can't be empty"})
 		return
 	}
-	if bookID == "" {
+	if req.BookID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "bookID can't be empty"})
 		return
 	}
-	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "userID can't be empty"})
-		return
-	}
-	if ratingStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "rating can't be empty"})
+	if req.Rating < 1 || req.Rating > 5 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "rating must be between 1 and 5"})
 		return
 	}
 
-	// Parse and validate UUIDs
-	bookUUID, err := uuid.Parse(bookID)
+	bookUUID, err := uuid.Parse(req.BookID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid bookID"})
 		return
 	}
 
-	userUUID, err := uuid.Parse(userID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid userID"})
-		return
-	}
-
-	// Convert rating to int32
-	ratingInt, err := strconv.Atoi(ratingStr)
-	if err != nil || ratingInt < 1 || ratingInt > 5 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "rating must be a number between 1 and 5"})
-		return
-	}
-
-	// Create review params
+	// Insert review
 	review := gen.CreateReviewParams{
 		UserID:  pgtype.UUID{Bytes: userUUID, Valid: true},
 		BookID:  pgtype.UUID{Bytes: bookUUID, Valid: true},
-		Rating:  pgtype.Int4{Int32: int32(ratingInt), Valid: true},
-		Comment: pgtype.Text{String: reviewComment, Valid: true},
+		Rating:  pgtype.Int4{Int32: int32(req.Rating), Valid: true},
+		Comment: pgtype.Text{String: req.Comment, Valid: true},
 	}
 
-	// Insert into DB
 	createdReview, err := db.Q.CreateReview(db.Ctx, review)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -83,24 +77,19 @@ func CreateReviewHandler(c *gin.Context) {
 	})
 }
 
+// UpdateReviewByIDHandler updates an existing review
 func UpdateReviewByIDHandler(c *gin.Context) {
-	idStr := c.Param("id")
-	userIDStr := c.Query("userID") // 👈 assume userID is passed in query or from middleware
-
-	if userIDStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "userID is required"})
+	userIDVal, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not authenticated"})
 		return
 	}
+	userUUID := userIDVal.(uuid.UUID)
 
-	reviewID, err := uuid.Parse(idStr)
+	reviewIDStr := c.Param("id")
+	reviewID, err := uuid.Parse(reviewIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid review ID"})
-		return
-	}
-
-	userUUID, err := uuid.Parse(userIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID"})
 		return
 	}
 
@@ -110,7 +99,7 @@ func UpdateReviewByIDHandler(c *gin.Context) {
 		return
 	}
 
-	// ✅ 1. Verify ownership
+	// Verify ownership
 	review, err := db.Q.GetReviewByID(c.Request.Context(), pgtype.UUID{Bytes: reviewID, Valid: true})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -126,11 +115,8 @@ func UpdateReviewByIDHandler(c *gin.Context) {
 		return
 	}
 
-	// ✅ 2. Build update params
-	params := gen.UpdateReviewByIDParams{
-		ID: pgtype.UUID{Bytes: reviewID, Valid: true},
-	}
-
+	// Build update params
+	params := gen.UpdateReviewByIDParams{ID: pgtype.UUID{Bytes: reviewID, Valid: true}}
 	if req.Rating != nil {
 		params.Rating = pgtype.Int4{Int32: int32(*req.Rating), Valid: true}
 	}
@@ -138,7 +124,6 @@ func UpdateReviewByIDHandler(c *gin.Context) {
 		params.Comment = pgtype.Text{String: *req.Comment, Valid: true}
 	}
 
-	// ✅ 3. Perform update
 	updatedReview, err := db.Q.UpdateReviewByID(c.Request.Context(), params)
 	if err != nil {
 		log.Printf("UpdateReviewByID error: %v", err)
@@ -155,4 +140,3 @@ func UpdateReviewByIDHandler(c *gin.Context) {
 		"review":  updatedReview,
 	})
 }
-
