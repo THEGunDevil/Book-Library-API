@@ -68,7 +68,7 @@ func Borrow(userUUID uuid.UUID, req models.CreateBorrowRequest) (models.BorrowRe
     }, nil
 }
 
-func Return(req models.ReturnBookRequest) (map[string]string, error) {
+func Return(userUUID uuid.UUID,req models.ReturnBookRequest) (map[string]string, error) {
 
 	userUUID, err := uuid.Parse(req.UserID)
 	if err != nil {

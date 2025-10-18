@@ -44,11 +44,22 @@ func BorrowBookHandler(c *gin.Context) {
 
 
 func ReturnBookHandler(c *gin.Context) {
+        // Get user ID from token (set by AuthMiddleware)
+    userIDStr, exists := c.Get("userID")
+    if !exists {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+        return
+    }
+    userUUID, err := uuid.Parse(userIDStr.(string))
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID"})
+        return
+    }
 	var req models.ReturnBookRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 	}
-	resp, err := service.Return(req)
+	resp, err := service.Return(userUUID, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

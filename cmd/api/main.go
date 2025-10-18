@@ -77,6 +77,14 @@ func main() {
 		borrowGroup.POST("/borrow", handlers.BorrowBookHandler)
 		borrowGroup.PUT("/return", handlers.ReturnBookHandler)
 	}
+	// borrowGroup := r.Group("/reviews")
+	// borrowGroup.Use(middleware.AuthMiddleware())
+	// {
+	// 	borrowGroup.GET("/:id", handlers.GetBorrowsByIDHandler)
+	// 	borrowGroup.GET("/", handlers.GetAllBorrowsHandlers)
+	// 	borrowGroup.POST("/review", handlers.BorrowBookHandler)
+	// 	borrowGroup.DELETE("/review", handlers.ReturnBookHandler)
+	// }
 
 	r.Run(":8080")
 }
