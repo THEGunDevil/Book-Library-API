@@ -4,8 +4,6 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"time"
-
 	"github.com/THEGunDevil/GoForBackend/internal/db"
 	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
 	"github.com/THEGunDevil/GoForBackend/internal/models"
@@ -136,36 +134,40 @@ func UpdateReviewByIDHandler(c *gin.Context) {
 }
 
 func GetReviewsByBookIDHandler(c *gin.Context) {
-	// 1️⃣ Parse book ID from URL parameters
-	bookIDParam := c.Param("id")
-	bookId, err := uuid.Parse(bookIDParam)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book ID"})
-		return
-	}
+    // 1️⃣ Parse book ID from URL parameters
+    bookIDParam := c.Param("id")
+    bookId, err := uuid.Parse(bookIDParam)
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book ID"})
+        return
+    }
 
-	// 2️⃣ Query the database
-	dbReviews, err := db.Q.GetReviewsByBook(c.Request.Context(), pgtype.UUID{Bytes: bookId, Valid: true})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
+    // 2️⃣ Query the database
+    dbReviews, err := db.Q.GetReviewsByBook(c.Request.Context(), pgtype.UUID{Bytes: bookId, Valid: true})
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
 
-	var reviews []gen.Review
-	for _, r := range dbReviews {
-		reviews = append(reviews, gen.Review{
-			ID:        r.ID,
-			UserID:    r.UserID,
-			BookID:    r.BookID,
-			Rating:    r.Rating,
-			Comment:   r.Comment,
-			CreatedAt: pgtype.Timestamp{Time: time.Now().Local(), Valid: true},
-		})
-	}
-
-	// 4️⃣ Return the mapped reviews
-	c.JSON(http.StatusOK, gin.H{"reviews": reviews})
+    // 3️⃣ Map DB reviews to your model
+var reviews []models.Review
+for _, r := range dbReviews {
+    reviews = append(reviews, models.Review{
+        ID:        r.ID.Bytes,
+        UserID:    r.UserID.Bytes,
+        BookID:    r.BookID.Bytes,
+        Rating:    int(r.Rating.Int32),
+        Comment:   r.Comment.String,
+        CreatedAt: r.CreatedAt.Time, // Use actual DB timestamp
+        UpdatedAt: r.UpdatedAt.Time, // Use actual DB timestamp
+    })
 }
+
+
+    // 4️⃣ Return the mapped reviews
+    c.JSON(http.StatusOK, gin.H{"reviews": reviews})
+}
+
 
 func DeleteReviewsByIDHandler(c *gin.Context) {
 	reviewParam := c.Param("id")
