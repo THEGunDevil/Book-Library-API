@@ -2,8 +2,6 @@ package handlers
 
 import (
 	"errors"
-	"log"
-	"net/http"
 	"github.com/THEGunDevil/GoForBackend/internal/db"
 	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
 	"github.com/THEGunDevil/GoForBackend/internal/models"
@@ -11,6 +9,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"log"
+	"net/http"
 )
 
 // CreateReviewHandler creates a new review
@@ -25,9 +25,9 @@ func CreateReviewHandler(c *gin.Context) {
 
 	// Bind JSON
 	var req struct {
-		BookID  string `json:"bookId"`
-		Rating  int    `json:"rating"`
-		Comment string `json:"content"`
+		BookID  string `json:"bookId,omitempty"`
+		Rating  int    `json:"rating,omitempty"`
+		Comment string `json:"comment,omitempty"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
@@ -35,16 +35,8 @@ func CreateReviewHandler(c *gin.Context) {
 	}
 
 	// Validate input
-	if req.Comment == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "comment can't be empty"})
-		return
-	}
-	if req.BookID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "bookID can't be empty"})
-		return
-	}
-	if req.Rating < 1 || req.Rating > 5 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "rating must be between 1 and 5"})
+	if req.BookID == "" || req.Comment == "" || req.Rating < 1 || req.Rating > 5 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing or invalid fields"})
 		return
 	}
 
