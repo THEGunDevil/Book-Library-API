@@ -2,8 +2,6 @@ package handlers
 
 import (
 	"errors"
-	"log"
-	"net/http"
 	"github.com/THEGunDevil/GoForBackend/internal/db"
 	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
 	"github.com/THEGunDevil/GoForBackend/internal/models"
@@ -11,6 +9,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"log"
+	"net/http"
 )
 
 // CreateReviewHandler creates a new review
@@ -151,4 +151,22 @@ func GetReviewsByBookIDHandler(c *gin.Context) {
 
 	// 4️⃣ Return the result
 	c.JSON(http.StatusOK, gin.H{"reviews": reviews})
+}
+func DeleteReviewsByIDHandler(c *gin.Context) {
+	reviewParam := c.Param("id")
+	reviewId, err := uuid.Parse(reviewParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid review ID"})
+		return
+	}
+	err = db.Q.DeleteReview(db.Ctx, pgtype.UUID{Bytes: reviewId, Valid: true})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "review not found"})
+		} else {
+			// Any other DB or server error
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong"})
+		}
+		return
+	}
 }
