@@ -8,11 +8,13 @@ SELECT id, user_id, book_id, rating, comment, created_at, updated_at
 FROM reviews
 WHERE id = $1;
 
--- name: GetReviewsByBook :many
-SELECT id, user_id, book_id, rating, comment, created_at, updated_at
-FROM reviews
-WHERE book_id = $1
-ORDER BY created_at DESC;
+-- name: GetReviewsByBookID :many
+SELECT r.id, r.user_id, u.first_name,u.last_name, r.book_id, r.rating, r.comment, r.created_at, r.updated_at
+FROM reviews r
+JOIN users u ON u.id = r.user_id
+WHERE r.book_id = $1
+ORDER BY r.created_at DESC;
+
 
 -- name: UpdateReviewByID :one
 UPDATE reviews

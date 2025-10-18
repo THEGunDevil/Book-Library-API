@@ -75,25 +75,40 @@ func (q *Queries) GetReviewByID(ctx context.Context, id pgtype.UUID) (Review, er
 	return i, err
 }
 
-const getReviewsByBook = `-- name: GetReviewsByBook :many
-SELECT id, user_id, book_id, rating, comment, created_at, updated_at
-FROM reviews
-WHERE book_id = $1
-ORDER BY created_at DESC
+const getReviewsByBookID = `-- name: GetReviewsByBookID :many
+SELECT r.id, r.user_id, u.first_name,u.last_name, r.book_id, r.rating, r.comment, r.created_at, r.updated_at
+FROM reviews r
+JOIN users u ON u.id = r.user_id
+WHERE r.book_id = $1
+ORDER BY r.created_at DESC
 `
 
-func (q *Queries) GetReviewsByBook(ctx context.Context, bookID pgtype.UUID) ([]Review, error) {
-	rows, err := q.db.Query(ctx, getReviewsByBook, bookID)
+type GetReviewsByBookIDRow struct {
+	ID        pgtype.UUID
+	UserID    pgtype.UUID
+	FirstName string
+	LastName  string
+	BookID    pgtype.UUID
+	Rating    pgtype.Int4
+	Comment   pgtype.Text
+	CreatedAt pgtype.Timestamp
+	UpdatedAt pgtype.Timestamp
+}
+
+func (q *Queries) GetReviewsByBookID(ctx context.Context, bookID pgtype.UUID) ([]GetReviewsByBookIDRow, error) {
+	rows, err := q.db.Query(ctx, getReviewsByBookID, bookID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Review
+	var items []GetReviewsByBookIDRow
 	for rows.Next() {
-		var i Review
+		var i GetReviewsByBookIDRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
+			&i.FirstName,
+			&i.LastName,
 			&i.BookID,
 			&i.Rating,
 			&i.Comment,

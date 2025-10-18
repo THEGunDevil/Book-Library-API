@@ -4,6 +4,8 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strings"
+
 	"github.com/THEGunDevil/GoForBackend/internal/db"
 	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
 	"github.com/THEGunDevil/GoForBackend/internal/models"
@@ -134,40 +136,36 @@ func UpdateReviewByIDHandler(c *gin.Context) {
 }
 
 func GetReviewsByBookIDHandler(c *gin.Context) {
-    // 1️⃣ Parse book ID from URL parameters
-    bookIDParam := c.Param("id")
-    bookId, err := uuid.Parse(bookIDParam)
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book ID"})
-        return
-    }
+	bookIDStr := c.Param("id")
+	bookID, err := uuid.Parse(bookIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book ID"})
+		return
+	}
 
-    // 2️⃣ Query the database
-    dbReviews, err := db.Q.GetReviewsByBook(c.Request.Context(), pgtype.UUID{Bytes: bookId, Valid: true})
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-        return
-    }
+	dbReviews, err := db.Q.GetReviewsByBookID(c.Request.Context(), pgtype.UUID{Bytes: bookID, Valid: true})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
-    // 3️⃣ Map DB reviews to your model
-var reviews []models.Review
-for _, r := range dbReviews {
-    reviews = append(reviews, models.Review{
-        ID:        r.ID.Bytes,
-        UserID:    r.UserID.Bytes,
-        BookID:    r.BookID.Bytes,
-        Rating:    int(r.Rating.Int32),
-        Comment:   r.Comment.String,
-        CreatedAt: r.CreatedAt.Time, // Use actual DB timestamp
-        UpdatedAt: r.UpdatedAt.Time, // Use actual DB timestamp
-    })
+	var reviews []models.ReviewResponse
+	for _, r := range dbReviews {
+		userName := strings.TrimSpace(r.FirstName + " " + r.LastName) // ✅ safely combine
+		reviews = append(reviews, models.ReviewResponse{
+			ID:        r.ID.Bytes,
+			UserID:    r.UserID.Bytes,
+			UserName:  userName,
+			BookID:    r.BookID.Bytes,
+			Rating:    int(r.Rating.Int32),
+			Comment:   r.Comment.String,
+			CreatedAt: r.CreatedAt.Time,
+			UpdatedAt: r.UpdatedAt.Time,
+		})
+	}
+
+	c.JSON(http.StatusOK, reviews)
 }
-
-
-    // 4️⃣ Return the mapped reviews
-    c.JSON(http.StatusOK, gin.H{"reviews": reviews})
-}
-
 
 func DeleteReviewsByIDHandler(c *gin.Context) {
 	reviewParam := c.Param("id")
