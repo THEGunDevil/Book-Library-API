@@ -49,8 +49,8 @@ func main() {
 	userGroup := r.Group("/users")
 	userGroup.Use(middleware.AuthMiddleware())
 	{
-		userGroup.GET("/", middleware.AdminOnly(),handlers.GetAllUsersHandler)
-		userGroup.GET("/user",handlers.GetUserHandler)
+		userGroup.GET("/", middleware.AdminOnly(), handlers.GetAllUsersHandler)
+		userGroup.GET("/user", handlers.GetUserHandler)
 		// only admin can update user info
 		userGroup.PATCH("/:id", handlers.UpdateUserByIDHandler)
 	}
@@ -77,14 +77,12 @@ func main() {
 		borrowGroup.POST("/borrow", handlers.BorrowBookHandler)
 		borrowGroup.PUT("/return", handlers.ReturnBookHandler)
 	}
-	// borrowGroup := r.Group("/reviews")
-	// borrowGroup.Use(middleware.AuthMiddleware())
-	// {
-	// 	borrowGroup.GET("/:id", handlers.GetBorrowsByIDHandler)
-	// 	borrowGroup.GET("/", handlers.GetAllBorrowsHandlers)
-	// 	borrowGroup.POST("/review", handlers.BorrowBookHandler)
-	// 	borrowGroup.DELETE("/review", handlers.ReturnBookHandler)
-	// }
+	reviewGroup := r.Group("/reviews")
+	reviewGroup.Use(middleware.AuthMiddleware())
+	{
+		reviewGroup.POST("/review", handlers.CreateReviewHandler)
+		reviewGroup.PATCH("/review", handlers.UpdateReviewByIDHandler)
+	}
 
 	r.Run(":8080")
 }
