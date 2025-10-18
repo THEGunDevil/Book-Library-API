@@ -82,6 +82,7 @@ func main() {
 	{
 		reviewGroup.POST("/review", handlers.CreateReviewHandler)
 		reviewGroup.PATCH("/review/:id", handlers.UpdateReviewByIDHandler)
+		reviewGroup.GET("/review/:id", handlers.GetReviewsByBookIDHandler)
 	}
 
 	r.Run(":8080")

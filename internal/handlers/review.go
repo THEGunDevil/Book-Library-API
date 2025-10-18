@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"errors"
+	"log"
+	"net/http"
 	"github.com/THEGunDevil/GoForBackend/internal/db"
 	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
 	"github.com/THEGunDevil/GoForBackend/internal/models"
@@ -9,8 +11,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-	"log"
-	"net/http"
 )
 
 // CreateReviewHandler creates a new review
@@ -131,4 +131,24 @@ func UpdateReviewByIDHandler(c *gin.Context) {
 		"message": "review updated successfully",
 		"review":  updatedReview,
 	})
+}
+
+func GetReviewsByBookIDHandler(c *gin.Context) {
+	// 1️⃣ Parse book ID from URL parameters
+	bookIDParam := c.Param("bookId")
+	bookId, err := uuid.Parse(bookIDParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book ID"})
+		return
+	}
+
+	// 3️⃣ Query the database
+	reviews, err := db.Q.GetReviewsByBook(c.Request.Context(), pgtype.UUID{Bytes: bookId, Valid: true})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 4️⃣ Return the result
+	c.JSON(http.StatusOK, gin.H{"reviews": reviews})
 }
