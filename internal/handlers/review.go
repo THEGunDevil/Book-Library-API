@@ -2,6 +2,10 @@ package handlers
 
 import (
 	"errors"
+	"log"
+	"net/http"
+	"time"
+
 	"github.com/THEGunDevil/GoForBackend/internal/db"
 	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
 	"github.com/THEGunDevil/GoForBackend/internal/models"
@@ -9,8 +13,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-	"log"
-	"net/http"
 )
 
 // CreateReviewHandler creates a new review
@@ -142,16 +144,29 @@ func GetReviewsByBookIDHandler(c *gin.Context) {
 		return
 	}
 
-	// 3️⃣ Query the database
-	reviews, err := db.Q.GetReviewsByBook(c.Request.Context(), pgtype.UUID{Bytes: bookId, Valid: true})
+	// 2️⃣ Query the database
+	dbReviews, err := db.Q.GetReviewsByBook(c.Request.Context(), pgtype.UUID{Bytes: bookId, Valid: true})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 4️⃣ Return the result
+	var reviews []gen.Review
+	for _, r := range dbReviews {
+		reviews = append(reviews, gen.Review{
+			ID:        r.ID,
+			UserID:    r.UserID,
+			BookID:    r.BookID,
+			Rating:    r.Rating,
+			Comment:   r.Comment,
+			CreatedAt: pgtype.Timestamp{Time: time.Now().Local(), Valid: true},
+		})
+	}
+
+	// 4️⃣ Return the mapped reviews
 	c.JSON(http.StatusOK, gin.H{"reviews": reviews})
 }
+
 func DeleteReviewsByIDHandler(c *gin.Context) {
 	reviewParam := c.Param("id")
 	reviewId, err := uuid.Parse(reviewParam)
