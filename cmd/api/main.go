@@ -81,7 +81,7 @@ func main() {
 	reviewGroup.Use(middleware.AuthMiddleware())
 	{
 		reviewGroup.POST("/review", handlers.CreateReviewHandler)
-		reviewGroup.PATCH("/review", handlers.UpdateReviewByIDHandler)
+		reviewGroup.PATCH("/:id", handlers.UpdateReviewByIDHandler)
 	}
 
 	r.Run(":8080")
