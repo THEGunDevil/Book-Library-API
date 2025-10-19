@@ -40,13 +40,19 @@ func GetUserHandler(c *gin.Context) {
 
 }
 func GetUserByIDHandler(c *gin.Context) {
-	idStr := c.Param("id")
-	parsedID, err := uuid.Parse(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+	userIDVal, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "userID not found in context"})
+		return
 	}
 
-	user, err := db.Q.GetUserByID(c.Request.Context(), pgtype.UUID{Bytes: parsedID, Valid: true})
+	userID, ok := userIDVal.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid userID type"})
+		return
+	}
+
+	user, err := db.Q.GetUserByID(c.Request.Context(), pgtype.UUID{Bytes: userID, Valid: true})
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
