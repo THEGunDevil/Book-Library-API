@@ -39,6 +39,31 @@ func GetUserHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 
 }
+func GetUserByIDHandler(c *gin.Context) {
+	idStr := c.Param("id")
+	parsedID, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+	}
+
+	user, err := db.Q.GetUserByID(c.Request.Context(), pgtype.UUID{Bytes: parsedID, Valid: true})
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	resp := models.UserResponse{
+		ID:          user.ID.String(),
+		FirstName:   user.FirstName,
+		LastName:    user.LastName,
+		Email:       user.Email,
+		PhoneNumber: user.PhoneNumber.String,
+		Role:        user.Role.String,
+		CreatedAt:   user.CreatedAt.Time,
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
 func GetAllUsersHandler(c *gin.Context) {
 	users, err := db.Q.GetAllUsers(c.Request.Context())
 	if err != nil {

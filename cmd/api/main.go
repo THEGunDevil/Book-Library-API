@@ -51,6 +51,7 @@ func main() {
 	{
 		userGroup.GET("/", middleware.AdminOnly(), handlers.GetAllUsersHandler)
 		userGroup.GET("/user", handlers.GetUserHandler)
+		userGroup.GET("/user/:id", handlers.GetUserByIDHandler)
 		// only admin can update user info
 		userGroup.PATCH("/:id", handlers.UpdateUserByIDHandler)
 	}
