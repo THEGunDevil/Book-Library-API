@@ -98,19 +98,31 @@ func (q *Queries) ListBorrow(ctx context.Context) ([]Borrow, error) {
 }
 
 const listBorrowByUserID = `-- name: ListBorrowByUserID :many
-SELECT id, user_id, book_id, borrowed_at, due_date, returned_at FROM borrows WHERE user_id = $1
+SELECT brs.id, brs.user_id, brs.book_id, brs.borrowed_at, brs.due_date, brs.returned_at, b.title FROM borrows brs
+JOIN books b ON b.id = r.book_id
+WHERE user_id = $1
 ORDER BY due_date DESC
 `
 
-func (q *Queries) ListBorrowByUserID(ctx context.Context, userID pgtype.UUID) ([]Borrow, error) {
+type ListBorrowByUserIDRow struct {
+	ID         pgtype.UUID
+	UserID     pgtype.UUID
+	BookID     pgtype.UUID
+	BorrowedAt pgtype.Timestamp
+	DueDate    pgtype.Timestamp
+	ReturnedAt pgtype.Timestamp
+	Title      string
+}
+
+func (q *Queries) ListBorrowByUserID(ctx context.Context, userID pgtype.UUID) ([]ListBorrowByUserIDRow, error) {
 	rows, err := q.db.Query(ctx, listBorrowByUserID, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Borrow
+	var items []ListBorrowByUserIDRow
 	for rows.Next() {
-		var i Borrow
+		var i ListBorrowByUserIDRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
@@ -118,6 +130,7 @@ func (q *Queries) ListBorrowByUserID(ctx context.Context, userID pgtype.UUID) ([
 			&i.BorrowedAt,
 			&i.DueDate,
 			&i.ReturnedAt,
+			&i.Title,
 		); err != nil {
 			return nil, err
 		}

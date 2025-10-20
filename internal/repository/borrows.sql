@@ -3,7 +3,9 @@ SELECT * FROM borrows
 ORDER BY due_date DESC;
 
 -- name: ListBorrowByUserID :many
-SELECT * FROM borrows WHERE user_id = $1
+SELECT brs.*, b.title FROM borrows brs
+JOIN books b ON b.id = r.book_id
+WHERE user_id = $1
 ORDER BY due_date DESC;
 
 -- name: FilterBorrowByUserAndBookID :one

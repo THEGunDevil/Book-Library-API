@@ -51,7 +51,7 @@ func GetProfileData(c *gin.Context) {
 
 	// ✅ Prepare user response
 	userResp := models.UserResponse{
-		ID:          user.ID.String(),
+		ID:          user.ID.Bytes,
 		FirstName:   user.FirstName,
 		LastName:    user.LastName,
 		Email:       user.Email,
@@ -71,6 +71,7 @@ func GetProfileData(c *gin.Context) {
 			ID:         b.ID.Bytes,
 			UserID:     b.UserID.Bytes,
 			BookID:     b.BookID.Bytes,
+			BookName:   b.Title,
 			BorrowedAt: b.BorrowedAt.Time,
 			DueDate:    b.DueDate.Time,
 			ReturnedAt: returnedAt,
@@ -84,6 +85,7 @@ func GetProfileData(c *gin.Context) {
 			ID:        r.ID.Bytes,
 			UserID:    r.UserID.Bytes,
 			BookID:    r.BookID.Bytes,
+			BookName:  r.Title,
 			Rating:    int(r.Rating.Int32),
 			Comment:   r.Comment.String,
 			CreatedAt: r.CreatedAt.Time,
@@ -97,7 +99,6 @@ func GetProfileData(c *gin.Context) {
 		Reviews:  reviewResponses,
 		Borrows:  borrowResponses,
 	}
-
 
 	c.JSON(http.StatusOK, profile)
 }

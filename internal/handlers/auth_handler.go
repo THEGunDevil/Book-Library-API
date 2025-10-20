@@ -57,7 +57,7 @@ func RegisterHandler(c *gin.Context) {
 	}
 
 	resp := models.UserResponse{
-		ID:          user.ID.String(),
+		ID:          user.ID.Bytes,
 		FirstName:   user.FirstName,
 		LastName:    user.LastName,
 		Email:       user.Email,

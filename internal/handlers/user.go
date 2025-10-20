@@ -28,7 +28,7 @@ func GetUserHandler(c *gin.Context) {
 	}
 
 	resp := models.UserResponse{
-		ID:          user.ID.String(),
+		ID:          user.ID.Bytes,
 		FirstName:   user.FirstName,
 		LastName:    user.LastName,
 		Email:       user.Email,
@@ -59,7 +59,7 @@ func GetUserByIDHandler(c *gin.Context) {
 	}
 
 	resp := models.UserResponse{
-		ID:          user.ID.String(),
+		ID:          user.ID.Bytes,
 		FirstName:   user.FirstName,
 		LastName:    user.LastName,
 		Email:       user.Email,
@@ -81,7 +81,7 @@ func GetAllUsersHandler(c *gin.Context) {
 	var resp []models.UserResponse
 	for _, u := range users {
 		resp = append(resp, models.UserResponse{
-			ID:          u.ID.String(),
+			ID:          u.ID.Bytes,
 			FirstName:   u.FirstName,
 			LastName:    u.LastName,
 			Email:       u.Email,

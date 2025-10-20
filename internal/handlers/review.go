@@ -4,8 +4,6 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"strings"
-
 	"github.com/THEGunDevil/GoForBackend/internal/db"
 	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
 	"github.com/THEGunDevil/GoForBackend/internal/models"
@@ -157,11 +155,9 @@ func GetReviewsByBookIDHandler(c *gin.Context) {
 
 	var reviews []models.ReviewResponse
 	for _, r := range dbReviews {
-		userName := strings.TrimSpace(r.FirstName + " " + r.LastName) // ✅ safely combine
 		reviews = append(reviews, models.ReviewResponse{
 			ID:        r.ID.Bytes,
 			UserID:    r.UserID.Bytes,
-			UserName:  userName,
 			BookID:    r.BookID.Bytes,
 			Rating:    int(r.Rating.Int32),
 			Comment:   r.Comment.String,

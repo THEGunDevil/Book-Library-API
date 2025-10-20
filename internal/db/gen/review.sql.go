@@ -155,9 +155,9 @@ func (q *Queries) GetReviewsByReviewID(ctx context.Context, id pgtype.UUID) ([]G
 }
 
 const getReviewsByUserID = `-- name: GetReviewsByUserID :many
-SELECT r.id, r.user_id, u.first_name,u.last_name, r.book_id, r.rating, r.comment, r.created_at, r.updated_at
+SELECT r.id, r.user_id, b.title, r.book_id, r.rating, r.comment, r.created_at, r.updated_at
 FROM reviews r
-JOIN users u ON u.id = r.user_id
+JOIN books b ON b.id = r.book_id
 WHERE r.user_id = $1
 ORDER BY r.created_at DESC
 `
@@ -165,8 +165,7 @@ ORDER BY r.created_at DESC
 type GetReviewsByUserIDRow struct {
 	ID        pgtype.UUID
 	UserID    pgtype.UUID
-	FirstName string
-	LastName  string
+	Title     string
 	BookID    pgtype.UUID
 	Rating    pgtype.Int4
 	Comment   pgtype.Text
@@ -186,8 +185,7 @@ func (q *Queries) GetReviewsByUserID(ctx context.Context, userID pgtype.UUID) ([
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
-			&i.FirstName,
-			&i.LastName,
+			&i.Title,
 			&i.BookID,
 			&i.Rating,
 			&i.Comment,
