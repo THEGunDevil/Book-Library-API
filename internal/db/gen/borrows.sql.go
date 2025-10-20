@@ -99,7 +99,7 @@ func (q *Queries) ListBorrow(ctx context.Context) ([]Borrow, error) {
 
 const listBorrowByUserID = `-- name: ListBorrowByUserID :many
 SELECT brs.id, brs.user_id, brs.book_id, brs.borrowed_at, brs.due_date, brs.returned_at, b.title FROM borrows brs
-JOIN books b ON b.id = r.book_id
+JOIN books b ON b.id = brs.book_id
 WHERE user_id = $1
 ORDER BY due_date DESC
 `
