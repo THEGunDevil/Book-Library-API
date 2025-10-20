@@ -13,7 +13,7 @@ import (
 )
 
 func Borrow(userUUID uuid.UUID, req models.CreateBorrowRequest) (models.BorrowResponse, error) {
-    bookUUID, err := uuid.Parse(req.BookID)
+    bookUUID, err := uuid.Parse(req.BookID.String())
     if err != nil {
         return models.BorrowResponse{}, err
     }
@@ -59,9 +59,9 @@ func Borrow(userUUID uuid.UUID, req models.CreateBorrowRequest) (models.BorrowRe
     }
 
     return models.BorrowResponse{
-        ID:         borrow.ID.String(),
-        UserID:     borrow.UserID.String(),
-        BookID:     borrow.BookID.String(),
+        ID:         borrow.ID.Bytes,
+        UserID:     borrow.UserID.Bytes,
+        BookID:     borrow.BookID.Bytes,
         DueDate:    borrow.DueDate.Time,
         BorrowedAt: borrow.BorrowedAt.Time,
         ReturnedAt: returnedAt,

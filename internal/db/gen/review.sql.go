@@ -54,27 +54,6 @@ func (q *Queries) DeleteReview(ctx context.Context, id pgtype.UUID) error {
 	return err
 }
 
-const getReviewByID = `-- name: GetReviewByID :one
-SELECT id, user_id, book_id, rating, comment, created_at, updated_at
-FROM reviews
-WHERE id = $1
-`
-
-func (q *Queries) GetReviewByID(ctx context.Context, id pgtype.UUID) (Review, error) {
-	row := q.db.QueryRow(ctx, getReviewByID, id)
-	var i Review
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.BookID,
-		&i.Rating,
-		&i.Comment,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const getReviewsByBookID = `-- name: GetReviewsByBookID :many
 SELECT r.id, r.user_id, u.first_name,u.last_name, r.book_id, r.rating, r.comment, r.created_at, r.updated_at
 FROM reviews r
@@ -104,6 +83,106 @@ func (q *Queries) GetReviewsByBookID(ctx context.Context, bookID pgtype.UUID) ([
 	var items []GetReviewsByBookIDRow
 	for rows.Next() {
 		var i GetReviewsByBookIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.FirstName,
+			&i.LastName,
+			&i.BookID,
+			&i.Rating,
+			&i.Comment,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getReviewsByReviewID = `-- name: GetReviewsByReviewID :many
+SELECT r.id, r.user_id, u.first_name, u.last_name, r.book_id, r.rating, r.comment, r.created_at, r.updated_at
+FROM reviews r
+JOIN users u ON u.id = r.user_id
+WHERE r.id = $1
+ORDER BY r.created_at DESC
+`
+
+type GetReviewsByReviewIDRow struct {
+	ID        pgtype.UUID
+	UserID    pgtype.UUID
+	FirstName string
+	LastName  string
+	BookID    pgtype.UUID
+	Rating    pgtype.Int4
+	Comment   pgtype.Text
+	CreatedAt pgtype.Timestamp
+	UpdatedAt pgtype.Timestamp
+}
+
+func (q *Queries) GetReviewsByReviewID(ctx context.Context, id pgtype.UUID) ([]GetReviewsByReviewIDRow, error) {
+	rows, err := q.db.Query(ctx, getReviewsByReviewID, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetReviewsByReviewIDRow
+	for rows.Next() {
+		var i GetReviewsByReviewIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.FirstName,
+			&i.LastName,
+			&i.BookID,
+			&i.Rating,
+			&i.Comment,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getReviewsByUserID = `-- name: GetReviewsByUserID :many
+SELECT r.id, r.user_id, u.first_name,u.last_name, r.book_id, r.rating, r.comment, r.created_at, r.updated_at
+FROM reviews r
+JOIN users u ON u.id = r.user_id
+WHERE r.user_id = $1
+ORDER BY r.created_at DESC
+`
+
+type GetReviewsByUserIDRow struct {
+	ID        pgtype.UUID
+	UserID    pgtype.UUID
+	FirstName string
+	LastName  string
+	BookID    pgtype.UUID
+	Rating    pgtype.Int4
+	Comment   pgtype.Text
+	CreatedAt pgtype.Timestamp
+	UpdatedAt pgtype.Timestamp
+}
+
+func (q *Queries) GetReviewsByUserID(ctx context.Context, userID pgtype.UUID) ([]GetReviewsByUserIDRow, error) {
+	rows, err := q.db.Query(ctx, getReviewsByUserID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetReviewsByUserIDRow
+	for rows.Next() {
+		var i GetReviewsByUserIDRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,

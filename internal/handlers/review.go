@@ -94,7 +94,7 @@ func UpdateReviewByIDHandler(c *gin.Context) {
 	}
 
 	// Verify ownership
-	review, err := db.Q.GetReviewByID(c.Request.Context(), pgtype.UUID{Bytes: reviewID, Valid: true})
+	reviews, err := db.Q.GetReviewsByReviewID(c.Request.Context(), pgtype.UUID{Bytes: reviewID, Valid: true})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "review not found"})
@@ -104,6 +104,12 @@ func UpdateReviewByIDHandler(c *gin.Context) {
 		return
 	}
 
+	if len(reviews) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "review not found"})
+		return
+	}
+
+	review := reviews[0] // take the first review
 	if review.UserID.Bytes != userUUID {
 		c.JSON(http.StatusForbidden, gin.H{"error": "you can only update your own review"})
 		return
