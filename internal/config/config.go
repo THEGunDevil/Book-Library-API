@@ -11,6 +11,7 @@ type Config struct {
 	DBUser     string
 	DBPassword string
 	DBName     string
+	DB_SSLMODE string
 	DBURL      string
 }
 
@@ -20,15 +21,21 @@ func LoadConfig() Config {
 	user := os.Getenv("DB_USER")
 	password := os.Getenv("DB_PASSWORD")
 	dbName := os.Getenv("DB_NAME")
+	sslMode := os.Getenv("DB_SSLMODE")
 
-	// Build a Postgres URL with SSL enabled
+	// Ensure SSL is used
+	if sslMode == "" {
+		sslMode = "require"
+	}
+
 	dbURL := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=require",
+		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
 		user,
 		password,
 		host,
 		port,
 		dbName,
+		sslMode,
 	)
 
 	return Config{
@@ -37,6 +44,7 @@ func LoadConfig() Config {
 		DBUser:     user,
 		DBPassword: password,
 		DBName:     dbName,
+		DB_SSLMODE: sslMode,
 		DBURL:      dbURL,
 	}
 }
