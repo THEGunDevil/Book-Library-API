@@ -37,9 +37,10 @@ dsn := fmt.Sprintf(
 	log.Println("✅ Connected to Postgres")
 }
 
-func Close() {
-	if DB != nil {
-		DB.Close()
-		log.Println("🛑 Database connection closed")
+	func Close() {
+		if DB != nil {
+			DB.Close()
+			log.Println("🛑 Database connection closed")
+		}
 	}
-}
+
