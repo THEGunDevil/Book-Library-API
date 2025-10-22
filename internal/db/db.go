@@ -17,10 +17,16 @@ var (
 )
 
 func Connect(cfg config.Config) {
-dsn := fmt.Sprintf(
-    "postgresql://%s:%s@%s:%s/%s?sslmode=disable",
-    cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName,
-)
+	dsn := fmt.Sprintf(
+		"postgresql://%s:%s@%s:%s/%s?sslmode=%s&channel_binding=%s",
+		cfg.DBUser,
+		cfg.DBPassword,
+		cfg.DBHost,
+		cfg.DBPort,
+		cfg.DBName,
+		cfg.DB_SSLMODE,
+		cfg.DB_CHANNEL_BINDING,
+	)
 
 	pool, err := pgxpool.New(Ctx, dsn)
 	if err != nil {
@@ -37,10 +43,9 @@ dsn := fmt.Sprintf(
 	log.Println("✅ Connected to Postgres")
 }
 
-	func Close() {
-		if DB != nil {
-			DB.Close()
-			log.Println("🛑 Database connection closed")
-		}
+func Close() {
+	if DB != nil {
+		DB.Close()
+		log.Println("🛑 Database connection closed")
 	}
-
+}
