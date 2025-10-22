@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"github.com/THEGunDevil/GoForBackend/internal/config"
@@ -17,18 +16,7 @@ var (
 )
 
 func Connect(cfg config.Config) {
-	dsn := fmt.Sprintf(
-		"postgresql://%s:%s@%s:%s/%s?sslmode=%s&channel_binding=%s",
-		cfg.DBUser,
-		cfg.DBPassword,
-		cfg.DBHost,
-		cfg.DBPort,
-		cfg.DBName,
-		cfg.DB_SSLMODE,
-		cfg.DB_CHANNEL_BINDING,
-	)
-
-	pool, err := pgxpool.New(Ctx, dsn)
+	pool, err := pgxpool.New(Ctx, cfg.DBURL)
 	if err != nil {
 		log.Fatalf("❌ Unable to connect to database: %v", err)
 	}
@@ -39,8 +27,7 @@ func Connect(cfg config.Config) {
 
 	DB = pool
 	Q = gen.New(pool)
-
-	log.Println("✅ Connected to Postgres")
+	log.Println("✅ Connected to Postgres successfully")
 }
 
 func Close() {

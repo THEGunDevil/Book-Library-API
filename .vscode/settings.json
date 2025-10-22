@@ -1,0 +1,20 @@
+{
+  "sqltools.connections": [
+    {
+      "pgOptions": {
+        "ssl": {
+          "rejectUnauthorized": true
+        }
+      },
+      "ssh": "Disabled",
+      "previewLimit": 50,
+      "server": "ep-frosty-shadow-a1qyo559-pooler.ap-southeast-1.aws.neon.tech",
+      "port": 5432,
+      "driver": "PostgreSQL",
+      "name": "Neon Production",
+      "database": "neondb",
+      "username": "neondb_owner",
+      "password": "npg_bhdQBI9KFPt3"
+    }
+  ]
+}
