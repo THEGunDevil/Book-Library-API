@@ -24,6 +24,8 @@ func CreateBookHandler(c *gin.Context) {
 	publishedYearStr := c.PostForm("published_year")
 	isbn := c.PostForm("isbn")
 	totalCopiesStr := c.PostForm("total_copies")
+	genre := c.PostForm("genre")
+	description := c.PostForm("description")
 
 	// Validate required fields
 	if len(title) == 0 || len(title) > 255 {
@@ -73,6 +75,8 @@ func CreateBookHandler(c *gin.Context) {
 		PublishedYear: publishedYear,
 		Isbn:          isbn,
 		TotalCopies:   totalCopies,
+		Genre:         genre,
+		Description:   description,
 	}, imageURL)
 
 	if err != nil {
@@ -83,14 +87,14 @@ func CreateBookHandler(c *gin.Context) {
 	c.JSON(http.StatusCreated, bookResp)
 }
 
-// GetBookHandler example: fetch all books
+// GetBooksHandler fetches all books
 func GetBooksHandler(c *gin.Context) {
 	books, err := db.Q.ListBooks(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong"})
 		return
 	}
-	// Prepare response
+
 	var response []models.BookResponse
 	for _, book := range books {
 		response = append(response, models.BookResponse{
@@ -101,6 +105,8 @@ func GetBooksHandler(c *gin.Context) {
 			Isbn:            book.Isbn.String,
 			AvailableCopies: book.AvailableCopies.Int32,
 			TotalCopies:     book.TotalCopies,
+			Genre:           book.Genre,
+			Description:     book.Description,
 			CreatedAt:       book.CreatedAt.Time,
 			UpdatedAt:       book.UpdatedAt.Time,
 			ImageURL:        book.ImageUrl,
@@ -110,29 +116,24 @@ func GetBooksHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// GetBookByIDHandler example: fetch a book with ID
+// GetBookByIDHandler fetches a book by its ID
 func GetBookByIDHandler(c *gin.Context) {
 	idStr := c.Param("id")
-
 	parsedID, err := uuid.Parse(idStr)
-
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book ID"})
+		return
 	}
 
-	book, err := db.Q.GetBookByID(c.Request.Context(), pgtype.UUID{Bytes: parsedID,
-		Valid: true})
+	book, err := db.Q.GetBookByID(c.Request.Context(), pgtype.UUID{Bytes: parsedID, Valid: true})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "book not found"})
 		} else {
-			// Any other DB or server error
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong"})
 		}
 		return
 	}
-
-	// Prepare response
 
 	response := models.BookResponse{
 		ID:              book.ID.String(),
@@ -142,6 +143,8 @@ func GetBookByIDHandler(c *gin.Context) {
 		Isbn:            book.Isbn.String,
 		AvailableCopies: book.AvailableCopies.Int32,
 		TotalCopies:     book.TotalCopies,
+		Genre:           book.Genre,
+		Description:     book.Description,
 		CreatedAt:       book.CreatedAt.Time,
 		UpdatedAt:       book.UpdatedAt.Time,
 		ImageURL:        book.ImageUrl,
@@ -150,25 +153,29 @@ func GetBookByIDHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// DeleteBookHandler deletes a book by ID
 func DeleteBookHandler(c *gin.Context) {
-
 	idStr := c.Param("id")
 	parsedID, err := uuid.Parse(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid book id"})
+		return
 	}
+
 	_, err = db.Q.DeleteBookByID(c.Request.Context(), pgtype.UUID{Bytes: parsedID, Valid: true})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "book not found"})
 		} else {
-			// Any other DB or server error
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong"})
 		}
 		return
 	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "book deleted"})
 }
 
+// UpdateBookByIDHandler updates a book by ID
 func UpdateBookByIDHandler(c *gin.Context) {
 	idStr := c.Param("id")
 	parsedID, err := uuid.Parse(idStr)
@@ -186,7 +193,7 @@ func UpdateBookByIDHandler(c *gin.Context) {
 	params := gen.UpdateBookByIDParams{
 		ID: pgtype.UUID{Bytes: parsedID, Valid: true},
 	}
-	// Only assign if the client sent a value
+
 	if req.Title != nil {
 		if len(*req.Title) == 0 || len(*req.Title) > 255 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "title must be 1-255 characters"})
@@ -215,14 +222,19 @@ func UpdateBookByIDHandler(c *gin.Context) {
 	if req.AvailableCopies != nil {
 		params.AvailableCopies = pgtype.Int4{Int32: *req.AvailableCopies, Valid: true}
 	}
+	if req.Genre != nil {
+		params.Genre = *req.Genre
+	}
+	if req.Description != nil {
+		params.Description = *req.Description
+	}
 
 	updatedBook, err := db.Q.UpdateBookByID(c.Request.Context(), params)
 	if err != nil {
-		log.Printf("UpdateBookByID error: %v", err) // 👈 add this
+		log.Printf("UpdateBookByID error: %v", err)
 		if errors.Is(err, pgx.ErrNoRows) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "book not found"})
 		} else {
-			// Any other DB or server error
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong"})
 		}
 		return

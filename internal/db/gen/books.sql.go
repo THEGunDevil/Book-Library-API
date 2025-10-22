@@ -12,9 +12,9 @@ import (
 )
 
 const createBook = `-- name: CreateBook :one
-INSERT INTO books (title, author, published_year, isbn, total_copies, available_copies, image_url)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, title, author, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url
+INSERT INTO books (title, author, published_year, isbn, total_copies, available_copies, image_url, genre, description)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, title, author, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url, description, genre
 `
 
 type CreateBookParams struct {
@@ -25,6 +25,8 @@ type CreateBookParams struct {
 	TotalCopies     int32
 	AvailableCopies pgtype.Int4
 	ImageUrl        string
+	Genre           string
+	Description     string
 }
 
 func (q *Queries) CreateBook(ctx context.Context, arg CreateBookParams) (Book, error) {
@@ -36,6 +38,8 @@ func (q *Queries) CreateBook(ctx context.Context, arg CreateBookParams) (Book, e
 		arg.TotalCopies,
 		arg.AvailableCopies,
 		arg.ImageUrl,
+		arg.Genre,
+		arg.Description,
 	)
 	var i Book
 	err := row.Scan(
@@ -49,6 +53,8 @@ func (q *Queries) CreateBook(ctx context.Context, arg CreateBookParams) (Book, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ImageUrl,
+		&i.Description,
+		&i.Genre,
 	)
 	return i, err
 }
@@ -70,7 +76,7 @@ func (q *Queries) DecrementAvailableCopiesByID(ctx context.Context, id pgtype.UU
 const deleteBookByID = `-- name: DeleteBookByID :one
 DELETE FROM books
 WHERE id = $1
-RETURNING id, title, author, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url
+RETURNING id, title, author, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url, description, genre
 `
 
 func (q *Queries) DeleteBookByID(ctx context.Context, id pgtype.UUID) (Book, error) {
@@ -87,12 +93,14 @@ func (q *Queries) DeleteBookByID(ctx context.Context, id pgtype.UUID) (Book, err
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ImageUrl,
+		&i.Description,
+		&i.Genre,
 	)
 	return i, err
 }
 
 const getBookByID = `-- name: GetBookByID :one
-SELECT id, title, author, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url FROM books
+SELECT id, title, author, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url, description, genre FROM books
 WHERE id = $1
 `
 
@@ -110,6 +118,8 @@ func (q *Queries) GetBookByID(ctx context.Context, id pgtype.UUID) (Book, error)
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ImageUrl,
+		&i.Description,
+		&i.Genre,
 	)
 	return i, err
 }
@@ -129,7 +139,7 @@ func (q *Queries) IncrementAvailableCopiesByID(ctx context.Context, id pgtype.UU
 }
 
 const listBooks = `-- name: ListBooks :many
-SELECT id, title, author, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url FROM books
+SELECT id, title, author, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url, description, genre FROM books
 ORDER BY created_at DESC
 `
 
@@ -153,6 +163,8 @@ func (q *Queries) ListBooks(ctx context.Context) ([]Book, error) {
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.ImageUrl,
+			&i.Description,
+			&i.Genre,
 		); err != nil {
 			return nil, err
 		}
@@ -173,9 +185,11 @@ SET
   isbn = COALESCE($5, isbn),
   total_copies = COALESCE($6, total_copies),
   available_copies = COALESCE($7, available_copies),
+  genre = COALESCE($8, genre),
+  description = COALESCE($9, description),
   updated_at = NOW()
 WHERE id = $1
-RETURNING id, title, author, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url
+RETURNING id, title, author, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url, description, genre
 `
 
 type UpdateBookByIDParams struct {
@@ -186,6 +200,8 @@ type UpdateBookByIDParams struct {
 	Isbn            pgtype.Text
 	TotalCopies     int32
 	AvailableCopies pgtype.Int4
+	Genre           string
+	Description     string
 }
 
 func (q *Queries) UpdateBookByID(ctx context.Context, arg UpdateBookByIDParams) (Book, error) {
@@ -197,6 +213,8 @@ func (q *Queries) UpdateBookByID(ctx context.Context, arg UpdateBookByIDParams) 
 		arg.Isbn,
 		arg.TotalCopies,
 		arg.AvailableCopies,
+		arg.Genre,
+		arg.Description,
 	)
 	var i Book
 	err := row.Scan(
@@ -210,6 +228,8 @@ func (q *Queries) UpdateBookByID(ctx context.Context, arg UpdateBookByIDParams) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ImageUrl,
+		&i.Description,
+		&i.Genre,
 	)
 	return i, err
 }

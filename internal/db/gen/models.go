@@ -19,6 +19,8 @@ type Book struct {
 	CreatedAt       pgtype.Timestamp
 	UpdatedAt       pgtype.Timestamp
 	ImageUrl        string
+	Description     string
+	Genre           string
 }
 
 type Borrow struct {
@@ -59,4 +61,5 @@ type User struct {
 	LastName     string
 	PhoneNumber  pgtype.Text
 	TokenVersion int32
+	Bio          string
 }

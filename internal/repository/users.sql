@@ -19,8 +19,9 @@ SELECT * FROM users;
 -- name: UpdateUserByID :one
 UPDATE users
 SET
-  first_name = COALESCE($2, first_name),
-  last_name = COALESCE($3, last_name),
-  phone_number = COALESCE($4, phone_number)
+  first_name   = COALESCE($2, first_name),
+  last_name    = COALESCE($3, last_name),
+  phone_number = COALESCE($4, phone_number),
+  bio          = COALESCE($5, bio)
 WHERE id = $1
 RETURNING *;

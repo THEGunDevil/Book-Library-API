@@ -7,8 +7,8 @@ SELECT * FROM books
 WHERE id = $1;
 
 -- name: CreateBook :one
-INSERT INTO books (title, author, published_year, isbn, total_copies, available_copies, image_url)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO books (title, author, published_year, isbn, total_copies, available_copies, image_url, genre, description)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING *;
 
 -- name: UpdateBookByID :one
@@ -20,6 +20,8 @@ SET
   isbn = COALESCE($5, isbn),
   total_copies = COALESCE($6, total_copies),
   available_copies = COALESCE($7, available_copies),
+  genre = COALESCE($8, genre),
+  description = COALESCE($9, description),
   updated_at = NOW()
 WHERE id = $1
 RETURNING *;
@@ -35,7 +37,6 @@ UPDATE books
 SET available_copies = available_copies + 1
 WHERE id = $1
 RETURNING available_copies;
-
 
 -- name: DeleteBookByID :one
 DELETE FROM books

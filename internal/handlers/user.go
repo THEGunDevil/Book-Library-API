@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+// GetUserHandler fetches user by email
 func GetUserHandler(c *gin.Context) {
 	email := c.Query("email")
 	if email == "" {
@@ -28,17 +29,20 @@ func GetUserHandler(c *gin.Context) {
 	}
 
 	resp := models.UserResponse{
-		ID:          user.ID.Bytes,
-		FirstName:   user.FirstName,
-		LastName:    user.LastName,
-		Email:       user.Email,
-		PhoneNumber: user.PhoneNumber.String,
-		CreatedAt:   user.CreatedAt.Time,
+		ID:           user.ID.Bytes,
+		FirstName:    user.FirstName,
+		LastName:     user.LastName,
+		Bio:          user.Bio, // added bio
+		Email:        user.Email,
+		PhoneNumber:  user.PhoneNumber.String,
+		Role:         user.Role.String,
+		CreatedAt:    user.CreatedAt.Time,
 	}
 
 	c.JSON(http.StatusOK, resp)
-
 }
+
+// GetUserByIDHandler fetches user by ID
 func GetUserByIDHandler(c *gin.Context) {
 	userIDVal, exists := c.Get("userID")
 	if !exists {
@@ -59,17 +63,20 @@ func GetUserByIDHandler(c *gin.Context) {
 	}
 
 	resp := models.UserResponse{
-		ID:          user.ID.Bytes,
-		FirstName:   user.FirstName,
-		LastName:    user.LastName,
-		Email:       user.Email,
-		PhoneNumber: user.PhoneNumber.String,
-		Role:        user.Role.String,
-		CreatedAt:   user.CreatedAt.Time,
+		ID:           user.ID.Bytes,
+		FirstName:    user.FirstName,
+		LastName:     user.LastName,
+		Bio:          user.Bio, // added bio
+		Email:        user.Email,
+		PhoneNumber:  user.PhoneNumber.String,
+		Role:         user.Role.String,
+		CreatedAt:    user.CreatedAt.Time,
 	}
 
 	c.JSON(http.StatusOK, resp)
 }
+
+// GetAllUsersHandler fetches all users
 func GetAllUsersHandler(c *gin.Context) {
 	users, err := db.Q.GetAllUsers(c.Request.Context())
 	if err != nil {
@@ -77,25 +84,26 @@ func GetAllUsersHandler(c *gin.Context) {
 		return
 	}
 
-	// Convert users to response format
 	var resp []models.UserResponse
 	for _, u := range users {
 		resp = append(resp, models.UserResponse{
-			ID:          u.ID.Bytes,
-			FirstName:   u.FirstName,
-			LastName:    u.LastName,
-			Email:       u.Email,
-			PhoneNumber: u.PhoneNumber.String,
-			Role:        u.Role.String,
-			CreatedAt:   u.CreatedAt.Time,
+			ID:           u.ID.Bytes,
+			FirstName:    u.FirstName,
+			LastName:     u.LastName,
+			Bio:          u.Bio, // added bio
+			Email:        u.Email,
+			PhoneNumber:  u.PhoneNumber.String,
+			Role:         u.Role.String,
+			CreatedAt:    u.CreatedAt.Time,
 		})
 	}
 
 	c.JSON(http.StatusOK, resp)
 }
 
+// UpdateUserByIDHandler updates user by ID
 func UpdateUserByIDHandler(c *gin.Context) {
-	// 1️⃣ Parse UUID from URL
+	// Parse UUID
 	idStr := c.Param("id")
 	parsedID, err := uuid.Parse(idStr)
 	if err != nil {
@@ -103,14 +111,12 @@ func UpdateUserByIDHandler(c *gin.Context) {
 		return
 	}
 
-	// 2️⃣ Bind JSON to request struct
 	var req models.UpdateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
 
-	// 3️⃣ Validate non-empty strings for NOT NULL fields
 	if req.FirstName != nil && *req.FirstName == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "first name cannot be empty"})
 		return
@@ -120,7 +126,6 @@ func UpdateUserByIDHandler(c *gin.Context) {
 		return
 	}
 
-	// 4️⃣ Map request to sqlc-generated params
 	params := gen.UpdateUserByIDParams{
 		ID: pgtype.UUID{Bytes: parsedID, Valid: true},
 	}
@@ -134,10 +139,12 @@ func UpdateUserByIDHandler(c *gin.Context) {
 	if req.PhoneNumber != nil {
 		params.PhoneNumber = pgtype.Text{String: *req.PhoneNumber, Valid: true}
 	} else {
-		params.PhoneNumber = pgtype.Text{Valid: false} // leave existing value
+		params.PhoneNumber = pgtype.Text{Valid: false}
+	}
+	if req.Bio != nil {
+		params.Bio = *req.Bio // handle bio
 	}
 
-	// 5️⃣ Execute update
 	updatedUser, err := db.Q.UpdateUserByID(c.Request.Context(), params)
 	if err != nil {
 		log.Printf("UpdateUserByID error: %v", err)
@@ -149,6 +156,16 @@ func UpdateUserByIDHandler(c *gin.Context) {
 		return
 	}
 
-	// 6️⃣ Return updated user
-	c.JSON(http.StatusOK, updatedUser)
+	resp := models.UserResponse{
+		ID:           updatedUser.ID.Bytes,
+		FirstName:    updatedUser.FirstName,
+		LastName:     updatedUser.LastName,
+		Bio:          updatedUser.Bio,
+		Email:        updatedUser.Email,
+		PhoneNumber:  updatedUser.PhoneNumber.String,
+		Role:         updatedUser.Role.String,
+		CreatedAt:    updatedUser.CreatedAt.Time,
+	}
+
+	c.JSON(http.StatusOK, resp)
 }
