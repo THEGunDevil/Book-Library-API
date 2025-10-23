@@ -61,21 +61,25 @@ func GetProfileData(c *gin.Context) {
 
 	// Map borrows
 	var borrowResponses []models.BorrowResponse
-	for _, b := range dbBorrows {
-		var returnedAt *time.Time
-		if b.ReturnedAt.Valid {
-			returnedAt = &b.ReturnedAt.Time
-		}
+	if len(dbBorrows) > 0 {
+		for _, b := range dbBorrows {
+			var returnedAt *time.Time
+			if b.ReturnedAt.Valid {
+				returnedAt = &b.ReturnedAt.Time
+			}
 
-		borrowResponses = append(borrowResponses, models.BorrowResponse{
-			ID:         b.ID.Bytes,
-			UserID:     b.UserID.Bytes,
-			BookID:     b.BookID.Bytes,
-			BookTitle:  b.Title, // assuming ListBorrowByUserID returns Title
-			BorrowedAt: b.BorrowedAt.Time,
-			DueDate:    b.DueDate.Time,
-			ReturnedAt: returnedAt,
-		})
+			borrowResponses = append(borrowResponses, models.BorrowResponse{
+				ID:         b.ID.Bytes,
+				UserID:     b.UserID.Bytes,
+				BookID:     b.BookID.Bytes,
+				BookTitle:  b.Title, // make sure Title is returned in query
+				BorrowedAt: b.BorrowedAt.Time,
+				DueDate:    b.DueDate.Time,
+				ReturnedAt: returnedAt,
+			})
+		}
+	} else {
+		borrowResponses = []models.BorrowResponse{} // ensures JSON returns empty array
 	}
 
 	// Map reviews
