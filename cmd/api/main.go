@@ -76,8 +76,8 @@ func main() {
 	borrowGroup := r.Group("/borrows")
 	borrowGroup.Use(middleware.AuthMiddleware())
 	{
+		borrowGroup.GET("/", middleware.AdminOnly(), handlers.GetAllBorrowsHandlers)
 		borrowGroup.GET("/:id", handlers.GetBorrowsByIDHandler)
-		borrowGroup.GET("/", handlers.GetAllBorrowsHandlers)
 		borrowGroup.POST("/borrow", handlers.BorrowBookHandler)
 		borrowGroup.PUT("/return", handlers.ReturnBookHandler)
 	}
@@ -95,4 +95,5 @@ func main() {
 		port = "8080"
 	}
 	log.Printf("Server running on port %s", port)
-	r.Run(":" + port)}
+	r.Run(":" + port)
+}
