@@ -91,7 +91,7 @@ func CreateBookHandler(c *gin.Context) {
 func GetBooksHandler(c *gin.Context) {
 	books, err := db.Q.ListBooks(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
