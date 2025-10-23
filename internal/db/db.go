@@ -6,6 +6,7 @@ import (
 
 	"github.com/THEGunDevil/GoForBackend/internal/config"
 	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -16,7 +17,18 @@ var (
 )
 
 func Connect(cfg config.Config) {
-	pool, err := pgxpool.New(Ctx, cfg.DBURL)
+	poolConfig, err := pgxpool.ParseConfig(cfg.DBURL)
+	if err != nil {
+		log.Fatalf("❌ Failed to parse DB config: %v", err)
+	}
+
+	// 🚫 Disable prepared statement caching
+	poolConfig.ConnConfig.StatementCacheCapacity = 0
+
+	// 🧩 Force simple protocol (no prepared statements)
+	poolConfig.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
+
+	pool, err := pgxpool.NewWithConfig(Ctx, poolConfig)
 	if err != nil {
 		log.Fatalf("❌ Unable to connect to database: %v", err)
 	}
@@ -27,7 +39,7 @@ func Connect(cfg config.Config) {
 
 	DB = pool
 	Q = gen.New(pool)
-	log.Println("✅ Connected to Postgres successfully")
+	log.Println("✅ Connected to Postgres successfully (no prepared statement caching)")
 }
 
 func Close() {
