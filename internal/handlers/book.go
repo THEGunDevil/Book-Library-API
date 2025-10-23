@@ -98,7 +98,7 @@ func GetBooksHandler(c *gin.Context) {
 	var response []models.BookResponse
 	for _, book := range books {
 		response = append(response, models.BookResponse{
-			ID:              book.ID.String(),
+			ID:              book.ID.Bytes,
 			Title:           book.Title,
 			Author:          book.Author,
 			PublishedYear:   book.PublishedYear.Int32,
@@ -136,7 +136,7 @@ func GetBookByIDHandler(c *gin.Context) {
 	}
 
 	response := models.BookResponse{
-		ID:              book.ID.String(),
+		ID:              book.ID.Bytes,
 		Title:           book.Title,
 		Author:          book.Author,
 		PublishedYear:   book.PublishedYear.Int32,

@@ -32,7 +32,7 @@ func AddBook(req models.CreateBookRequest, imageURL string) (models.BookResponse
 	}
 
 	return models.BookResponse{
-		ID:              book.ID.String(),
+		ID:              book.ID.Bytes,
 		Title:           book.Title,
 		Author:          book.Author,
 		PublishedYear:   book.PublishedYear.Int32,

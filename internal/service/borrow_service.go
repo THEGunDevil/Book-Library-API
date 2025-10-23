@@ -70,11 +70,11 @@ func Borrow(userUUID uuid.UUID, req models.CreateBorrowRequest) (models.BorrowRe
 
 func Return(userUUID uuid.UUID,req models.ReturnBookRequest) (map[string]string, error) {
 
-	userUUID, err := uuid.Parse(req.UserID)
+	userUUID, err := uuid.Parse(req.UserID.String())
 	if err != nil {
 		return nil, err
 	}
-	bookUUID, err := uuid.Parse(req.BookID)
+	bookUUID, err := uuid.Parse(req.BookID.String())
 	if err != nil {
 		return nil, err
 	}
