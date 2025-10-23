@@ -2,8 +2,6 @@ package handlers
 
 import (
 	"errors"
-	"log"
-	"net/http"
 	"github.com/THEGunDevil/GoForBackend/internal/db"
 	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
 	"github.com/THEGunDevil/GoForBackend/internal/models"
@@ -11,6 +9,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"log"
+	"net/http"
 )
 
 // CreateReviewHandler creates a new review
@@ -147,6 +147,19 @@ func GetReviewsByBookIDHandler(c *gin.Context) {
 		return
 	}
 
+	book, err := db.Q.GetBookByID(c.Request.Context(), pgtype.UUID{Bytes: bookID, Valid: true})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	user, err := db.Q.GetUserByID(c.Request.Context(), pgtype.UUID{Bytes: bookID, Valid: true})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	dbReviews, err := db.Q.GetReviewsByBookID(c.Request.Context(), pgtype.UUID{Bytes: bookID, Valid: true})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -159,6 +172,8 @@ func GetReviewsByBookIDHandler(c *gin.Context) {
 			ID:        r.ID.Bytes,
 			UserID:    r.UserID.Bytes,
 			BookID:    r.BookID.Bytes,
+			BookTitle: book.Title,
+			UserName:  user.FirstName + " " + user.LastName,
 			Rating:    int(r.Rating.Int32),
 			Comment:   r.Comment.String,
 			CreatedAt: r.CreatedAt.Time,
