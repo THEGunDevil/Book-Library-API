@@ -24,7 +24,7 @@ func GetProfileData(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
-	// ✅ Get user info
+	// Get user info
 	user, err := db.Q.GetUserByID(ctx, pgtype.UUID{Bytes: parsedID, Valid: true})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -35,21 +35,21 @@ func GetProfileData(c *gin.Context) {
 		return
 	}
 
-	// ✅ Get reviews
+	// Get reviews by this user
 	dbReviews, err := db.Q.GetReviewsByUserID(ctx, pgtype.UUID{Bytes: parsedID, Valid: true})
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get reviews"})
 		return
 	}
 
-	// ✅ Get borrows
+	// Get borrows by this user
 	dbBorrows, err := db.Q.ListBorrowByUserID(ctx, pgtype.UUID{Bytes: parsedID, Valid: true})
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get borrows"})
 		return
 	}
 
-	// ✅ Prepare user response
+	// Prepare user response
 	userResp := models.UserResponse{
 		ID:          user.ID.Bytes,
 		FirstName:   user.FirstName,
@@ -59,7 +59,7 @@ func GetProfileData(c *gin.Context) {
 		CreatedAt:   user.CreatedAt.Time,
 	}
 
-	// ✅ Map borrows
+	// Map borrows
 	var borrowResponses []models.BorrowResponse
 	for _, b := range dbBorrows {
 		var returnedAt *time.Time
@@ -71,28 +71,37 @@ func GetProfileData(c *gin.Context) {
 			ID:         b.ID.Bytes,
 			UserID:     b.UserID.Bytes,
 			BookID:     b.BookID.Bytes,
-			BookTitle:   b.Title,
+			BookTitle:  b.Title, // assuming ListBorrowByUserID returns Title
 			BorrowedAt: b.BorrowedAt.Time,
 			DueDate:    b.DueDate.Time,
 			ReturnedAt: returnedAt,
 		})
 	}
 
-	// ✅ Map reviews
+	// Map reviews
 	var reviewResponses []models.ReviewResponse
 	for _, r := range dbReviews {
+		// Fetch book info for this review
+		book, err := db.Q.GetBookByID(ctx, pgtype.UUID{Bytes: r.BookID.Bytes, Valid: true})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get book for review"})
+			return
+		}
+
 		reviewResponses = append(reviewResponses, models.ReviewResponse{
 			ID:        r.ID.Bytes,
 			UserID:    r.UserID.Bytes,
 			BookID:    r.BookID.Bytes,
-			BookTitle:  r.Title,
+			BookTitle: book.Title,
+			UserName:  user.FirstName + " " + user.LastName, // profile user
 			Rating:    int(r.Rating.Int32),
 			Comment:   r.Comment.String,
 			CreatedAt: r.CreatedAt.Time,
+			UpdatedAt: r.UpdatedAt.Time,
 		})
 	}
 
-	// ✅ Build profile object
+	// Build profile object
 	profile := models.Profile{
 		FullName: user.FirstName + " " + user.LastName,
 		User:     []models.UserResponse{userResp},
