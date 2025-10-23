@@ -13,16 +13,16 @@ import (
 )
 
 func Borrow(userUUID uuid.UUID, req models.CreateBorrowRequest) (models.BorrowResponse, error) {
-	bookUUID, err := uuid.Parse(req.BookID.String())
-	if err != nil {
-		return models.BorrowResponse{}, err
-	}
+	bookUUID := req.BookID
 
 	// Check if this user already borrowed this book
-	_, err = db.Q.FilterBorrowByUserAndBookID(db.Ctx, gen.FilterBorrowByUserAndBookIDParams{
+	_, err := db.Q.FilterBorrowByUserAndBookID(db.Ctx, gen.FilterBorrowByUserAndBookIDParams{
 		BookID: pgtype.UUID{Bytes: bookUUID, Valid: true},
 		UserID: pgtype.UUID{Bytes: userUUID, Valid: true},
 	})
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return models.BorrowResponse{}, err
+	}
 	if err == nil {
 		return models.BorrowResponse{}, errors.New("you have already borrowed this book")
 	}
@@ -31,12 +31,14 @@ func Borrow(userUUID uuid.UUID, req models.CreateBorrowRequest) (models.BorrowRe
 	if err != nil {
 		return models.BorrowResponse{}, err
 	}
+
 	book, err := db.Q.GetBookByID(db.Ctx, pgtype.UUID{Bytes: bookUUID, Valid: true})
 	if err != nil {
 		return models.BorrowResponse{}, err
 	}
+
 	borrow, err := db.Q.CreateBorrow(db.Ctx, gen.CreateBorrowParams{
-		UserID:     pgtype.UUID{Bytes: userUUID, Valid: true}, // save userID
+		UserID:     pgtype.UUID{Bytes: userUUID, Valid: true},
 		BookID:     pgtype.UUID{Bytes: bookUUID, Valid: true},
 		DueDate:    pgtype.Timestamp{Time: dueDate, Valid: true},
 		ReturnedAt: pgtype.Timestamp{Valid: false},
@@ -45,10 +47,8 @@ func Borrow(userUUID uuid.UUID, req models.CreateBorrowRequest) (models.BorrowRe
 		return models.BorrowResponse{}, err
 	}
 
-	_, err = db.Q.DecrementAvailableCopiesByID(db.Ctx, pgtype.UUID{
-		Bytes: bookUUID,
-		Valid: true,
-	})
+	// Decrement available copies safely
+	_, err = db.Q.DecrementAvailableCopiesByID(db.Ctx, pgtype.UUID{Bytes: bookUUID, Valid: true})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return models.BorrowResponse{}, errors.New("no copies available")
