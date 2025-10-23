@@ -154,12 +154,6 @@ func GetReviewsByBookIDHandler(c *gin.Context) {
 		return
 	}
 
-	user, err := db.Q.GetUserByID(c.Request.Context(), pgtype.UUID{Bytes: bookID, Valid: true})
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
 	dbReviews, err := db.Q.GetReviewsByBookID(c.Request.Context(), pgtype.UUID{Bytes: bookID, Valid: true})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -168,6 +162,12 @@ func GetReviewsByBookIDHandler(c *gin.Context) {
 
 	var reviews []models.ReviewResponse
 	for _, r := range dbReviews {
+		user, err := db.Q.GetUserByID(c.Request.Context(), pgtype.UUID{Bytes: r.UserID.Bytes, Valid: true})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
 		reviews = append(reviews, models.ReviewResponse{
 			ID:        r.ID.Bytes,
 			UserID:    r.UserID.Bytes,
