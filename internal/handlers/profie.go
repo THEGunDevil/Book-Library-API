@@ -54,9 +54,11 @@ func GetProfileData(c *gin.Context) {
 		ID:          user.ID.Bytes,
 		FirstName:   user.FirstName,
 		LastName:    user.LastName,
+		Bio:         user.Bio,
 		Email:       user.Email,
 		PhoneNumber: user.PhoneNumber.String,
 		CreatedAt:   user.CreatedAt.Time,
+		Role:        user.Role.String,
 	}
 
 	// Map borrows
