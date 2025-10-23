@@ -95,6 +95,7 @@ func GetBooksHandler(c *gin.Context) {
 		return
 	}
 
+
 	var response []models.BookResponse
 	for _, book := range books {
 		response = append(response, models.BookResponse{
