@@ -14,15 +14,15 @@ import (
 )
 
 func BorrowBookHandler(c *gin.Context) {
-	// Get user ID from token (set by AuthMiddleware)
-	userIDStr, exists := c.Get("userID")
+	userIDVal, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	userUUID, err := uuid.Parse(userIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID"})
+
+	userUUID, ok := userIDVal.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user ID type"})
 		return
 	}
 
@@ -32,7 +32,6 @@ func BorrowBookHandler(c *gin.Context) {
 		return
 	}
 
-	// Pass userID to the service
 	borrowRes, err := service.Borrow(userUUID, req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -43,29 +42,34 @@ func BorrowBookHandler(c *gin.Context) {
 }
 
 func ReturnBookHandler(c *gin.Context) {
-	// Get user ID from token (set by AuthMiddleware)
-	userIDStr, exists := c.Get("userID")
+	// Get user ID from context (set by AuthMiddleware)
+	userIDVal, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	userUUID, err := uuid.Parse(userIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID"})
+
+	userUUID, ok := userIDVal.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user ID type"})
 		return
 	}
+
 	var req models.ReturnBookRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
 	}
+
 	resp, err := service.Return(userUUID, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, resp)
 
+	c.JSON(http.StatusOK, resp)
 }
+
 
 func GetAllBorrowsHandlers(c *gin.Context) {
 	borrows, err := db.Q.ListBorrow(c.Request.Context())
