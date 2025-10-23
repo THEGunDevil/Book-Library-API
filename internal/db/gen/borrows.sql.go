@@ -97,9 +97,54 @@ func (q *Queries) ListBorrow(ctx context.Context) ([]Borrow, error) {
 	return items, nil
 }
 
-const listBorrowByUserID = `-- name: ListBorrowByUserID :many
+const listBorrowByBookID = `-- name: ListBorrowByBookID :many
 SELECT brs.id, brs.user_id, brs.book_id, brs.borrowed_at, brs.due_date, brs.returned_at, b.title FROM borrows brs
 JOIN books b ON b.id = brs.book_id
+WHERE book_id = $1
+ORDER BY due_date DESC
+`
+
+type ListBorrowByBookIDRow struct {
+	ID         pgtype.UUID
+	UserID     pgtype.UUID
+	BookID     pgtype.UUID
+	BorrowedAt pgtype.Timestamp
+	DueDate    pgtype.Timestamp
+	ReturnedAt pgtype.Timestamp
+	Title      string
+}
+
+func (q *Queries) ListBorrowByBookID(ctx context.Context, bookID pgtype.UUID) ([]ListBorrowByBookIDRow, error) {
+	rows, err := q.db.Query(ctx, listBorrowByBookID, bookID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListBorrowByBookIDRow
+	for rows.Next() {
+		var i ListBorrowByBookIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.BookID,
+			&i.BorrowedAt,
+			&i.DueDate,
+			&i.ReturnedAt,
+			&i.Title,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listBorrowByUserID = `-- name: ListBorrowByUserID :many
+SELECT brs.id, brs.user_id, brs.book_id, brs.borrowed_at, brs.due_date, brs.returned_at, b.title FROM borrows brs
+JOIN books b ON b.id = brs.user_id
 WHERE user_id = $1
 ORDER BY due_date DESC
 `

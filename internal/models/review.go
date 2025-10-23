@@ -25,7 +25,7 @@ type Review struct {
 type ReviewResponse struct {
 	ID        uuid.UUID `json:"id"`
 	UserID    uuid.UUID `json:"user_id"`
-	BookName  string    `json:"book_name"`
+	BookTitle  string    `json:"book_title"`
 	BookID    uuid.UUID `json:"book_id"`
 	Rating    int       `json:"rating"`
 	Comment   string    `json:"comment"`
