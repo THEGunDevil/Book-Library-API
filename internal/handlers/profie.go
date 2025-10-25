@@ -64,29 +64,17 @@ func GetProfileData(c *gin.Context) {
 
 	// Map borrows
 	var borrowResponses []models.BorrowResponse
-	for _, b := range dbBorrows {
-		borrowResponses = append(borrowResponses, models.BorrowResponse{
-			ID:         b.ID.Bytes,
-			UserID:     b.UserID.Bytes,
-			BookID:     b.BookID.Bytes,
-			BookTitle:  b.Title,
-			BorrowedAt: b.BorrowedAt.Time,
-			DueDate:    b.DueDate.Time,
-			ReturnedAt: func(t pgtype.Timestamp) *time.Time {
-				if t.Valid {
-					return &t.Time
-				}
-				return nil
-			}(b.ReturnedAt),
-		})
+	if len(dbBorrows) > 0 {
+		for _, b := range dbBorrows {
+			var returnedAt *time.Time
+			if b.ReturnedAt.Valid {
+				returnedAt = &b.ReturnedAt.Time
+			}
+			borrowResponses = append(borrowResponses, models.BorrowResponse{ID: b.ID.Bytes, UserID: b.UserID.Bytes, BookID: b.BookID.Bytes, BookTitle: b.Title, BorrowedAt: b.BorrowedAt.Time, DueDate: b.DueDate.Time, ReturnedAt: returnedAt})
+		}
+	} else {
+		borrowResponses = []models.BorrowResponse{}
 	}
-
-	// --- Debug: print what we actually got ---
-	// fmt.Printf("\nDEBUG: userID=%s, borrows=%d\n", parsedID, len(borrowResponses))
-	// for i, b := range borrowResponses {
-	// 	fmt.Printf("DEBUG: Borrow[%d] => %+v\n", i, b)
-	// }
-
 	// Map reviews
 	var reviewResponses []models.ReviewResponse
 	for _, r := range dbReviews {
