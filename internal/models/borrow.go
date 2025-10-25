@@ -22,5 +22,5 @@ type BorrowResponse struct {
 	BookTitle   string     `json:"book_title"`
 	BorrowedAt time.Time  `json:"borrowed_at"`
 	DueDate    time.Time  `json:"due_date"`
-	ReturnedAt *time.Time `json:"returned_at,omitempty"`
+	ReturnedAt *time.Time `json:"returned_at"`
 }
