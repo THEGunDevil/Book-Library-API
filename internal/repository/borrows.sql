@@ -3,10 +3,12 @@ SELECT * FROM borrows
 ORDER BY due_date DESC;
 
 -- name: ListBorrowByUserID :many
-SELECT brs.*, b.title FROM borrows brs
-JOIN books b ON b.id = brs.user_id
-WHERE user_id = $1
-ORDER BY due_date DESC;
+SELECT brs.*, b.title
+FROM borrows brs
+JOIN books b ON b.id = brs.book_id  -- <- fix here
+WHERE brs.user_id = $1
+ORDER BY brs.due_date DESC;
+
 
 -- name: ListBorrowByBookID :many
 SELECT brs.*, b.title FROM borrows brs

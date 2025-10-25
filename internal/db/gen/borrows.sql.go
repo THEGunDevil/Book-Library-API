@@ -143,10 +143,11 @@ func (q *Queries) ListBorrowByBookID(ctx context.Context, bookID pgtype.UUID) ([
 }
 
 const listBorrowByUserID = `-- name: ListBorrowByUserID :many
-SELECT brs.id, brs.user_id, brs.book_id, brs.borrowed_at, brs.due_date, brs.returned_at, b.title FROM borrows brs
-JOIN books b ON b.id = brs.user_id
-WHERE user_id = $1
-ORDER BY due_date DESC
+SELECT brs.id, brs.user_id, brs.book_id, brs.borrowed_at, brs.due_date, brs.returned_at, b.title
+FROM borrows brs
+JOIN books b ON b.id = brs.book_id  -- <- fix here
+WHERE brs.user_id = $1
+ORDER BY brs.due_date DESC
 `
 
 type ListBorrowByUserIDRow struct {
