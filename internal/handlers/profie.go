@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -63,26 +64,28 @@ func GetProfileData(c *gin.Context) {
 
 	// Map borrows
 	var borrowResponses []models.BorrowResponse
-	if len(dbBorrows) > 0 {
-		for _, b := range dbBorrows {
-			var returnedAt *time.Time
-			if b.ReturnedAt.Valid {
-				returnedAt = &b.ReturnedAt.Time
-			}
-
-			borrowResponses = append(borrowResponses, models.BorrowResponse{
-				ID:         b.ID.Bytes,
-				UserID:     b.UserID.Bytes,
-				BookID:     b.BookID.Bytes,
-				BookTitle:  b.Title, // make sure Title is returned in query
-				BorrowedAt: b.BorrowedAt.Time,
-				DueDate:    b.DueDate.Time,
-				ReturnedAt: returnedAt,
-			})
-		}
-	} else {
-		borrowResponses = []models.BorrowResponse{} // ensures JSON returns empty array
+	for _, b := range dbBorrows {
+		borrowResponses = append(borrowResponses, models.BorrowResponse{
+			ID:         b.ID.Bytes,
+			UserID:     b.UserID.Bytes,
+			BookID:     b.BookID.Bytes,
+			BookTitle:  b.Title,
+			BorrowedAt: b.BorrowedAt.Time,
+			DueDate:    b.DueDate.Time,
+			ReturnedAt: func(t pgtype.Timestamp) *time.Time {
+				if t.Valid {
+					return &t.Time
+				}
+				return nil
+			}(b.ReturnedAt),
+		})
 	}
+
+	// --- Debug: print what we actually got ---
+	// fmt.Printf("\nDEBUG: userID=%s, borrows=%d\n", parsedID, len(borrowResponses))
+	// for i, b := range borrowResponses {
+	// 	fmt.Printf("DEBUG: Borrow[%d] => %+v\n", i, b)
+	// }
 
 	// Map reviews
 	var reviewResponses []models.ReviewResponse
@@ -109,7 +112,7 @@ func GetProfileData(c *gin.Context) {
 
 	// Build profile object
 	profile := models.Profile{
-		FullName: user.FirstName + " " + user.LastName,
+		UserName: user.FirstName + " " + user.LastName,
 		User:     []models.UserResponse{userResp},
 		Reviews:  reviewResponses,
 		Borrows:  borrowResponses,
