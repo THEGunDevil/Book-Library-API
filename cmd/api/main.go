@@ -79,7 +79,7 @@ func main() {
 		borrowGroup.GET("/", middleware.AdminOnly(), handlers.GetAllBorrowsHandlers)
 		borrowGroup.GET("/:id", handlers.GetBorrowsByIDHandler)
 		borrowGroup.POST("/borrow", handlers.BorrowBookHandler)
-		borrowGroup.PUT("/return", handlers.ReturnBookHandler)
+		borrowGroup.PATCH("/borrow/return", handlers.ReturnBookHandler)
 	}
 	reviewGroup := r.Group("/reviews")
 	reviewGroup.Use(middleware.AuthMiddleware())
