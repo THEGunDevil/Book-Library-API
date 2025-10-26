@@ -75,26 +75,32 @@ func Borrow(userUUID uuid.UUID, req models.CreateBorrowRequest) (models.BorrowRe
 	}, nil
 }
 
-func Return(userUUID uuid.UUID, req models.ReturnBookRequest) (map[string]string, error) {
-
-	userUUID, err := uuid.Parse(req.UserID.String())
+func Return(req models.ReturnBookRequest) (map[string]string, error) {
+	// Parse borrow_id from request
+	borrowUUID, err := uuid.Parse(req.BorrowID.String())
 	if err != nil {
 		return nil, err
 	}
+
+	// Parse book_id for incrementing copies
 	bookUUID, err := uuid.Parse(req.BookID.String())
 	if err != nil {
 		return nil, err
 	}
-	err = db.Q.UpdateBorrowByUserAndBookID(db.Ctx, gen.UpdateBorrowByUserAndBookIDParams{
-		UserID: pgtype.UUID{Bytes: userUUID, Valid: true},
-		BookID: pgtype.UUID{Bytes: bookUUID, Valid: true},
-	})
+
+	// Update returned_at in borrows table
+	err = db.Q.UpdateBorrowReturnedAtByID(db.Ctx, pgtype.UUID{Bytes: borrowUUID, Valid: true})
 	if err != nil {
 		return nil, err
 	}
+
+	// Increment available copies of the book
 	_, err = db.Q.IncrementAvailableCopiesByID(db.Ctx, pgtype.UUID{Bytes: bookUUID, Valid: true})
 	if err != nil {
 		return nil, err
 	}
+
 	return map[string]string{"message": "Book returned successfully"}, nil
 }
+
+

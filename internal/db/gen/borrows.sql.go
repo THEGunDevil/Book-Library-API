@@ -188,18 +188,13 @@ func (q *Queries) ListBorrowByUserID(ctx context.Context, userID pgtype.UUID) ([
 	return items, nil
 }
 
-const updateBorrowByUserAndBookID = `-- name: UpdateBorrowByUserAndBookID :exec
+const updateBorrowReturnedAtByID = `-- name: UpdateBorrowReturnedAtByID :exec
 UPDATE borrows
 SET returned_at = NOW()
-WHERE user_id = $1 AND book_id = $2 AND returned_at IS NULL
+WHERE id = $1 AND returned_at IS NULL
 `
 
-type UpdateBorrowByUserAndBookIDParams struct {
-	UserID pgtype.UUID
-	BookID pgtype.UUID
-}
-
-func (q *Queries) UpdateBorrowByUserAndBookID(ctx context.Context, arg UpdateBorrowByUserAndBookIDParams) error {
-	_, err := q.db.Exec(ctx, updateBorrowByUserAndBookID, arg.UserID, arg.BookID)
+func (q *Queries) UpdateBorrowReturnedAtByID(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, updateBorrowReturnedAtByID, id)
 	return err
 }

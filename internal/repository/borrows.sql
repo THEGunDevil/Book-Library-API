@@ -23,7 +23,7 @@ SELECT * FROM borrows WHERE user_id = $1 AND book_id = $2 AND returned_at IS NUL
 INSERT INTO borrows (user_id,book_id,due_date,returned_at) VALUES ($1,$2,$3,$4)
 RETURNING *;
 
--- name: UpdateBorrowByUserAndBookID :exec
+-- name: UpdateBorrowReturnedAtByID :exec
 UPDATE borrows
 SET returned_at = NOW()
-WHERE user_id = $1 AND book_id = $2 AND returned_at IS NULL;
+WHERE id = $1 AND returned_at IS NULL;

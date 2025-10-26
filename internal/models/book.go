@@ -45,7 +45,5 @@ type UpdateBookRequest struct {
 	Image           *multipart.FileHeader `form:"image"`       // optional file upload
 }
 
-type ReturnBookRequest struct {
-	UserID uuid.UUID `json:"user_id" binding:"required,uuid"`
-	BookID uuid.UUID `json:"book_id" binding:"required,uuid"`
-}
+
+

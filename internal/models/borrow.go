@@ -10,10 +10,9 @@ type CreateBorrowRequest struct {
 	BookID  uuid.UUID `json:"book_id"`
 	DueDate string    `json:"due_date"`
 }
-type UpdateBorrowRequest struct {
-	UserID     uuid.UUID `json:"user_id"`
-	BookID     uuid.UUID `json:"book_id"`
-	ReturnedAt string    `json:"returned_at"`
+type ReturnBookRequest struct {
+	BorrowID uuid.UUID `json:"borrow_id"`
+	BookID   uuid.UUID `json:"book_id"`
 }
 type BorrowResponse struct {
 	ID         uuid.UUID  `json:"id"`
