@@ -75,13 +75,7 @@ func Borrow(userUUID uuid.UUID, req models.CreateBorrowRequest) (models.BorrowRe
 	}, nil
 }
 
-func Return(req models.ReturnBookRequest) (map[string]string, error) {
-	// Parse borrow_id from request
-	borrowUUID, err := uuid.Parse(req.BorrowID.String())
-	if err != nil {
-		return nil, err
-	}
-
+func Return(borrowUUID uuid.UUID ,req models.ReturnBookRequest) (map[string]string, error) {
 	// Parse book_id for incrementing copies
 	bookUUID, err := uuid.Parse(req.BookID.String())
 	if err != nil {

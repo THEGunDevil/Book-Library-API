@@ -42,13 +42,19 @@ func BorrowBookHandler(c *gin.Context) {
 }
 
 func ReturnBookHandler(c *gin.Context) {
+	idStr := c.Param("id")
+	parsedID, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid borrow ID"})
+		return
+	}
 	var req models.ReturnBookRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
 	}
 
-	resp, err := service.Return(req)
+	resp, err := service.Return(parsedID,req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

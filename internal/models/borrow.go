@@ -11,7 +11,6 @@ type CreateBorrowRequest struct {
 	DueDate string    `json:"due_date"`
 }
 type ReturnBookRequest struct {
-	BorrowID uuid.UUID `json:"borrow_id"`
 	BookID   uuid.UUID `json:"book_id"`
 }
 type BorrowResponse struct {
