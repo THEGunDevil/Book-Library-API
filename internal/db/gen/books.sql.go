@@ -14,7 +14,7 @@ import (
 const createBook = `-- name: CreateBook :one
 INSERT INTO books (title, author, published_year, isbn, total_copies, available_copies, image_url, genre, description)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, title, author, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url, description, genre
+RETURNING id, title, author, description, genre, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url
 `
 
 type CreateBookParams struct {
@@ -46,6 +46,8 @@ func (q *Queries) CreateBook(ctx context.Context, arg CreateBookParams) (Book, e
 		&i.ID,
 		&i.Title,
 		&i.Author,
+		&i.Description,
+		&i.Genre,
 		&i.PublishedYear,
 		&i.Isbn,
 		&i.AvailableCopies,
@@ -53,8 +55,6 @@ func (q *Queries) CreateBook(ctx context.Context, arg CreateBookParams) (Book, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ImageUrl,
-		&i.Description,
-		&i.Genre,
 	)
 	return i, err
 }
@@ -76,7 +76,7 @@ func (q *Queries) DecrementAvailableCopiesByID(ctx context.Context, id pgtype.UU
 const deleteBookByID = `-- name: DeleteBookByID :one
 DELETE FROM books
 WHERE id = $1
-RETURNING id, title, author, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url, description, genre
+RETURNING id, title, author, description, genre, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url
 `
 
 func (q *Queries) DeleteBookByID(ctx context.Context, id pgtype.UUID) (Book, error) {
@@ -86,6 +86,8 @@ func (q *Queries) DeleteBookByID(ctx context.Context, id pgtype.UUID) (Book, err
 		&i.ID,
 		&i.Title,
 		&i.Author,
+		&i.Description,
+		&i.Genre,
 		&i.PublishedYear,
 		&i.Isbn,
 		&i.AvailableCopies,
@@ -93,14 +95,12 @@ func (q *Queries) DeleteBookByID(ctx context.Context, id pgtype.UUID) (Book, err
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ImageUrl,
-		&i.Description,
-		&i.Genre,
 	)
 	return i, err
 }
 
 const getBookByID = `-- name: GetBookByID :one
-SELECT id, title, author, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url, description, genre FROM books
+SELECT id, title, author, description, genre, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url FROM books
 WHERE id = $1
 `
 
@@ -111,6 +111,8 @@ func (q *Queries) GetBookByID(ctx context.Context, id pgtype.UUID) (Book, error)
 		&i.ID,
 		&i.Title,
 		&i.Author,
+		&i.Description,
+		&i.Genre,
 		&i.PublishedYear,
 		&i.Isbn,
 		&i.AvailableCopies,
@@ -118,8 +120,6 @@ func (q *Queries) GetBookByID(ctx context.Context, id pgtype.UUID) (Book, error)
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ImageUrl,
-		&i.Description,
-		&i.Genre,
 	)
 	return i, err
 }
@@ -139,7 +139,7 @@ func (q *Queries) IncrementAvailableCopiesByID(ctx context.Context, id pgtype.UU
 }
 
 const listBooks = `-- name: ListBooks :many
-SELECT id, title, author, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url, description, genre FROM books
+SELECT id, title, author, description, genre, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url FROM books
 ORDER BY created_at DESC
 `
 
@@ -156,6 +156,8 @@ func (q *Queries) ListBooks(ctx context.Context) ([]Book, error) {
 			&i.ID,
 			&i.Title,
 			&i.Author,
+			&i.Description,
+			&i.Genre,
 			&i.PublishedYear,
 			&i.Isbn,
 			&i.AvailableCopies,
@@ -163,8 +165,80 @@ func (q *Queries) ListBooks(ctx context.Context) ([]Book, error) {
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.ImageUrl,
-			&i.Description,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchBooks = `-- name: SearchBooks :many
+SELECT
+    id,
+    title,
+    author,
+    genre,
+    published_year,
+    isbn,
+    available_copies,
+    total_copies,
+    description,
+    image_url,
+    created_at,
+    updated_at
+FROM books
+WHERE
+    ($1::text IS NULL OR genre ILIKE '%' || $1 || '%')
+    AND ($2::text IS NULL OR title ILIKE '%' || $2 || '%' OR author ILIKE '%' || $2 || '%')
+ORDER BY title
+`
+
+type SearchBooksParams struct {
+	Column1 string
+	Column2 string
+}
+
+type SearchBooksRow struct {
+	ID              pgtype.UUID
+	Title           string
+	Author          string
+	Genre           string
+	PublishedYear   pgtype.Int4
+	Isbn            pgtype.Text
+	AvailableCopies pgtype.Int4
+	TotalCopies     int32
+	Description     string
+	ImageUrl        string
+	CreatedAt       pgtype.Timestamp
+	UpdatedAt       pgtype.Timestamp
+}
+
+func (q *Queries) SearchBooks(ctx context.Context, arg SearchBooksParams) ([]SearchBooksRow, error) {
+	rows, err := q.db.Query(ctx, searchBooks, arg.Column1, arg.Column2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchBooksRow
+	for rows.Next() {
+		var i SearchBooksRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Author,
 			&i.Genre,
+			&i.PublishedYear,
+			&i.Isbn,
+			&i.AvailableCopies,
+			&i.TotalCopies,
+			&i.Description,
+			&i.ImageUrl,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -189,7 +263,7 @@ SET
   description = COALESCE($9, description),
   updated_at = NOW()
 WHERE id = $1
-RETURNING id, title, author, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url, description, genre
+RETURNING id, title, author, description, genre, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url
 `
 
 type UpdateBookByIDParams struct {
@@ -221,6 +295,8 @@ func (q *Queries) UpdateBookByID(ctx context.Context, arg UpdateBookByIDParams) 
 		&i.ID,
 		&i.Title,
 		&i.Author,
+		&i.Description,
+		&i.Genre,
 		&i.PublishedYear,
 		&i.Isbn,
 		&i.AvailableCopies,
@@ -228,8 +304,6 @@ func (q *Queries) UpdateBookByID(ctx context.Context, arg UpdateBookByIDParams) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ImageUrl,
-		&i.Description,
-		&i.Genre,
 	)
 	return i, err
 }

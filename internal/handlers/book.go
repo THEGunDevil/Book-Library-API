@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/THEGunDevil/GoForBackend/internal/db"
 	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
@@ -242,4 +243,53 @@ func UpdateBookByIDHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, updatedBook)
+}
+// SearchBooksHandler searches books by title/author/genre
+
+func SearchBooksHandler(c *gin.Context) {
+	query := strings.TrimSpace(c.Query("query"))
+	genre := strings.TrimSpace(c.Query("genre"))
+
+	// Prepare nullable parameters using pointers
+	var searchParam, genreParam *string
+
+	if query != "" {
+		searchParam = &query
+	}
+
+	if genre != "" {
+		genreParam = &genre
+	}
+
+	// Call SQLC-generated query
+books, err := db.Q.SearchBooks(c.Request.Context(), gen.SearchBooksParams{
+    Column1:  *genreParam,  // *string
+    Column2: *searchParam, // *string
+})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Map to response model
+	var response []models.BookResponse
+	for _, book := range books {
+		response = append(response, models.BookResponse{
+			ID:              book.ID.Bytes,
+			Title:           book.Title,
+			Author:          book.Author,
+			PublishedYear:   book.PublishedYear.Int32,
+			Isbn:            book.Isbn.String,
+			AvailableCopies: book.AvailableCopies.Int32,
+			TotalCopies:     book.TotalCopies,
+			Genre:           book.Genre,
+			Description:     book.Description,
+			CreatedAt:       book.CreatedAt.Time,
+			UpdatedAt:       book.UpdatedAt.Time,
+			ImageURL:        book.ImageUrl,
+		})
+	}
+
+	c.JSON(http.StatusOK, response)
 }

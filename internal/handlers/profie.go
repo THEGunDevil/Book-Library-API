@@ -57,7 +57,7 @@ func GetProfileData(c *gin.Context) {
 		LastName:    user.LastName,
 		Bio:         user.Bio,
 		Email:       user.Email,
-		PhoneNumber: user.PhoneNumber.String,
+		PhoneNumber: user.PhoneNumber,
 		CreatedAt:   user.CreatedAt.Time,
 		Role:        user.Role.String,
 	}

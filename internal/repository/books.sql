@@ -42,3 +42,23 @@ RETURNING available_copies;
 DELETE FROM books
 WHERE id = $1
 RETURNING *;
+-- name: SearchBooks :many
+SELECT
+    id,
+    title,
+    author,
+    genre,
+    published_year,
+    isbn,
+    available_copies,
+    total_copies,
+    description,
+    image_url,
+    created_at,
+    updated_at
+FROM books
+WHERE
+    ($1::text IS NULL OR genre ILIKE '%' || $1 || '%')
+    AND ($2::text IS NULL OR title ILIKE '%' || $2 || '%' OR author ILIKE '%' || $2 || '%')
+ORDER BY title;
+

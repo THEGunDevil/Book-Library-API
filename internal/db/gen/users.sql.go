@@ -14,7 +14,7 @@ import (
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (first_name, last_name, email, password_hash, phone_number, token_version)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, first_name, email, password_hash, role, created_at, updated_at, last_name, phone_number, token_version, bio
+RETURNING id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version
 `
 
 type CreateUserParams struct {
@@ -22,7 +22,7 @@ type CreateUserParams struct {
 	LastName     string
 	Email        string
 	PasswordHash string
-	PhoneNumber  pgtype.Text
+	PhoneNumber  string
 	TokenVersion int32
 }
 
@@ -39,22 +39,22 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	err := row.Scan(
 		&i.ID,
 		&i.FirstName,
+		&i.LastName,
+		&i.Bio,
+		&i.PhoneNumber,
 		&i.Email,
 		&i.PasswordHash,
 		&i.Role,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.LastName,
-		&i.PhoneNumber,
 		&i.TokenVersion,
-		&i.Bio,
 	)
 	return i, err
 }
 
 const getAllUsers = `-- name: GetAllUsers :many
 
-SELECT id, first_name, email, password_hash, role, created_at, updated_at, last_name, phone_number, token_version, bio FROM users
+SELECT id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version FROM users
 `
 
 func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
@@ -69,15 +69,15 @@ func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
 		if err := rows.Scan(
 			&i.ID,
 			&i.FirstName,
+			&i.LastName,
+			&i.Bio,
+			&i.PhoneNumber,
 			&i.Email,
 			&i.PasswordHash,
 			&i.Role,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.LastName,
-			&i.PhoneNumber,
 			&i.TokenVersion,
-			&i.Bio,
 		); err != nil {
 			return nil, err
 		}
@@ -90,7 +90,7 @@ func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, first_name, email, password_hash, role, created_at, updated_at, last_name, phone_number, token_version, bio FROM users
+SELECT id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version FROM users
 WHERE email = $1
 `
 
@@ -100,21 +100,21 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	err := row.Scan(
 		&i.ID,
 		&i.FirstName,
+		&i.LastName,
+		&i.Bio,
+		&i.PhoneNumber,
 		&i.Email,
 		&i.PasswordHash,
 		&i.Role,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.LastName,
-		&i.PhoneNumber,
 		&i.TokenVersion,
-		&i.Bio,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, first_name, email, password_hash, role, created_at, updated_at, last_name, phone_number, token_version, bio FROM users
+SELECT id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version FROM users
 WHERE id = $1
 `
 
@@ -124,15 +124,15 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 	err := row.Scan(
 		&i.ID,
 		&i.FirstName,
+		&i.LastName,
+		&i.Bio,
+		&i.PhoneNumber,
 		&i.Email,
 		&i.PasswordHash,
 		&i.Role,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.LastName,
-		&i.PhoneNumber,
 		&i.TokenVersion,
-		&i.Bio,
 	)
 	return i, err
 }
@@ -145,14 +145,14 @@ SET
   phone_number = COALESCE($4, phone_number),
   bio          = COALESCE($5, bio)
 WHERE id = $1
-RETURNING id, first_name, email, password_hash, role, created_at, updated_at, last_name, phone_number, token_version, bio
+RETURNING id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version
 `
 
 type UpdateUserByIDParams struct {
 	ID          pgtype.UUID
 	FirstName   string
 	LastName    string
-	PhoneNumber pgtype.Text
+	PhoneNumber string
 	Bio         string
 }
 
@@ -168,15 +168,15 @@ func (q *Queries) UpdateUserByID(ctx context.Context, arg UpdateUserByIDParams) 
 	err := row.Scan(
 		&i.ID,
 		&i.FirstName,
+		&i.LastName,
+		&i.Bio,
+		&i.PhoneNumber,
 		&i.Email,
 		&i.PasswordHash,
 		&i.Role,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.LastName,
-		&i.PhoneNumber,
 		&i.TokenVersion,
-		&i.Bio,
 	)
 	return i, err
 }

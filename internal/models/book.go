@@ -44,6 +44,10 @@ type UpdateBookRequest struct {
 	Description     *string               `form:"description"` // new
 	Image           *multipart.FileHeader `form:"image"`       // optional file upload
 }
+type SearchBooksParams struct {
+    Genre  *string
+    Search *string
+}
 
 
 

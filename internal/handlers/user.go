@@ -34,7 +34,7 @@ func GetUserHandler(c *gin.Context) {
 		LastName:     user.LastName,
 		Bio:          user.Bio, // added bio
 		Email:        user.Email,
-		PhoneNumber:  user.PhoneNumber.String,
+		PhoneNumber:  user.PhoneNumber,
 		Role:         user.Role.String,
 		CreatedAt:    user.CreatedAt.Time,
 	}
@@ -68,7 +68,7 @@ func GetUserByIDHandler(c *gin.Context) {
 		LastName:     user.LastName,
 		Bio:          user.Bio, // added bio
 		Email:        user.Email,
-		PhoneNumber:  user.PhoneNumber.String,
+		PhoneNumber:  user.PhoneNumber,
 		Role:         user.Role.String,
 		CreatedAt:    user.CreatedAt.Time,
 	}
@@ -92,7 +92,7 @@ func GetAllUsersHandler(c *gin.Context) {
 			LastName:     u.LastName,
 			Bio:          u.Bio, // added bio
 			Email:        u.Email,
-			PhoneNumber:  u.PhoneNumber.String,
+			PhoneNumber:  u.PhoneNumber,
 			Role:         u.Role.String,
 			CreatedAt:    u.CreatedAt.Time,
 		})
@@ -137,9 +137,7 @@ func UpdateUserByIDHandler(c *gin.Context) {
 		params.LastName = *req.LastName
 	}
 	if req.PhoneNumber != nil {
-		params.PhoneNumber = pgtype.Text{String: *req.PhoneNumber, Valid: true}
-	} else {
-		params.PhoneNumber = pgtype.Text{Valid: false}
+		params.PhoneNumber = *req.PhoneNumber
 	}
 	if req.Bio != nil {
 		params.Bio = *req.Bio // handle bio
@@ -162,7 +160,7 @@ func UpdateUserByIDHandler(c *gin.Context) {
 		LastName:     updatedUser.LastName,
 		Bio:          updatedUser.Bio,
 		Email:        updatedUser.Email,
-		PhoneNumber:  updatedUser.PhoneNumber.String,
+		PhoneNumber:  updatedUser.PhoneNumber,
 		Role:         updatedUser.Role.String,
 		CreatedAt:    updatedUser.CreatedAt.Time,
 	}

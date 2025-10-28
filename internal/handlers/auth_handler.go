@@ -9,7 +9,6 @@ import (
 	"github.com/THEGunDevil/GoForBackend/internal/models"
 	"github.com/THEGunDevil/GoForBackend/internal/service"
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func RegisterHandler(c *gin.Context) {
@@ -48,7 +47,7 @@ func RegisterHandler(c *gin.Context) {
 		FirstName:    req.FirstName,
 		LastName:     req.LastName,
 		Email:        req.Email,
-		PhoneNumber:  pgtype.Text{String: req.PhoneNumber, Valid: true},
+		PhoneNumber:  req.PhoneNumber,
 		PasswordHash: hashed,
 	})
 	if err != nil {
@@ -61,7 +60,7 @@ func RegisterHandler(c *gin.Context) {
 		FirstName:   user.FirstName,
 		LastName:    user.LastName,
 		Email:       user.Email,
-		PhoneNumber: user.PhoneNumber.String,
+		PhoneNumber: user.PhoneNumber,
 		CreatedAt:   user.CreatedAt.Time,
 		Role:        user.Role.String,
 	}

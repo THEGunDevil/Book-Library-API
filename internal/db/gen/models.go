@@ -12,6 +12,8 @@ type Book struct {
 	ID              pgtype.UUID
 	Title           string
 	Author          string
+	Description     string
+	Genre           string
 	PublishedYear   pgtype.Int4
 	Isbn            pgtype.Text
 	AvailableCopies pgtype.Int4
@@ -19,8 +21,6 @@ type Book struct {
 	CreatedAt       pgtype.Timestamp
 	UpdatedAt       pgtype.Timestamp
 	ImageUrl        string
-	Description     string
-	Genre           string
 }
 
 type Borrow struct {
@@ -53,13 +53,13 @@ type Session struct {
 type User struct {
 	ID           pgtype.UUID
 	FirstName    string
+	LastName     string
+	Bio          string
+	PhoneNumber  string
 	Email        string
 	PasswordHash string
 	Role         pgtype.Text
 	CreatedAt    pgtype.Timestamp
 	UpdatedAt    pgtype.Timestamp
-	LastName     string
-	PhoneNumber  pgtype.Text
 	TokenVersion int32
-	Bio          string
 }
