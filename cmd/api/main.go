@@ -66,7 +66,7 @@ func main() {
 		bookGroup.GET("/", handlers.GetBooksHandler)
 		bookGroup.GET("/:id", handlers.GetBookByIDHandler)
 		bookGroup.GET("/search", handlers.SearchBooksHandler)
-		bookGroup.GET("/genres", handlers.SearchBooksHandler)
+		bookGroup.GET("/genres", handlers.ListGenresHandler)
 
 		// Admin-only
 		bookGroup.POST("/", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.CreateBookHandler)
