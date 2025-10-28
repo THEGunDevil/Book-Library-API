@@ -250,23 +250,15 @@ func SearchBooksHandler(c *gin.Context) {
 	query := strings.TrimSpace(c.Query("query"))
 	genre := strings.TrimSpace(c.Query("genre"))
 
-	// Prepare nullable parameters using pointers
-	var searchParam, genreParam *string
-
-	if query != "" {
-		searchParam = &query
-	}
-
-	if genre != "" {
-		genreParam = &genre
-	}
+	// Use empty string if not provided
+	searchParam := query
+	genreParam := genre
 
 	// Call SQLC-generated query
-books, err := db.Q.SearchBooks(c.Request.Context(), gen.SearchBooksParams{
-    Column1:  *genreParam,  // *string
-    Column2: *searchParam, // *string
-})
-
+	books, err := db.Q.SearchBooks(c.Request.Context(), gen.SearchBooksParams{
+		Column1: genreParam,
+		Column2: searchParam,
+	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -293,3 +285,4 @@ books, err := db.Q.SearchBooks(c.Request.Context(), gen.SearchBooksParams{
 
 	c.JSON(http.StatusOK, response)
 }
+
