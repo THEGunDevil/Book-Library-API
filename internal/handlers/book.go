@@ -286,3 +286,12 @@ func SearchBooksHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+func ListGenresHandler(c *gin.Context) {
+    genres, err := db.Q.ListGenres(c.Request.Context())
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    c.JSON(http.StatusOK, genres)
+}

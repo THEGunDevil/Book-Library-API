@@ -176,6 +176,33 @@ func (q *Queries) ListBooks(ctx context.Context) ([]Book, error) {
 	return items, nil
 }
 
+const listGenres = `-- name: ListGenres :many
+SELECT DISTINCT genre
+FROM books
+WHERE genre IS NOT NULL AND genre <> ''
+ORDER BY genre
+`
+
+func (q *Queries) ListGenres(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, listGenres)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var genre string
+		if err := rows.Scan(&genre); err != nil {
+			return nil, err
+		}
+		items = append(items, genre)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const searchBooks = `-- name: SearchBooks :many
 SELECT
     id,

@@ -62,3 +62,9 @@ WHERE
     AND ($2::text IS NULL OR title ILIKE '%' || $2 || '%' OR author ILIKE '%' || $2 || '%')
 ORDER BY title;
 
+-- name: ListGenres :many
+SELECT DISTINCT genre
+FROM books
+WHERE genre IS NOT NULL AND genre <> ''
+ORDER BY genre;
+
