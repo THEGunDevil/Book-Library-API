@@ -282,8 +282,21 @@ func UpdateBookByIDHandler(c *gin.Context) {
 		}
 		return
 	}
-
-	c.JSON(http.StatusOK, updatedBook)
+		response := models.BookResponse{
+		ID:              updatedBook.ID.Bytes,
+		Title:           updatedBook.Title,
+		Author:          updatedBook.Author,
+		PublishedYear:   updatedBook.PublishedYear.Int32,
+		Isbn:            updatedBook.Isbn.String,
+		AvailableCopies: updatedBook.AvailableCopies.Int32,
+		TotalCopies:     updatedBook.TotalCopies,
+		Genre:           updatedBook.Genre,
+		Description:     updatedBook.Description,
+		CreatedAt:       updatedBook.CreatedAt.Time,
+		UpdatedAt:       updatedBook.UpdatedAt.Time,
+		ImageURL:        updatedBook.ImageUrl,
+	}
+	c.JSON(http.StatusOK, response)
 }
 
 // SearchBooksHandler searches books by title/author/genre
