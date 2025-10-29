@@ -91,7 +91,7 @@ func CreateBookHandler(c *gin.Context) {
 func GetBooksHandler(c *gin.Context) {
 	// Default values
 	page := 1
-	limit := 15
+	limit := 10
 
 	// Read query parameters (?page=2&limit=20)
 	if p := c.Query("page"); p != "" {
