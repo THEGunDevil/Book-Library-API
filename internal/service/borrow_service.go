@@ -26,7 +26,6 @@ func Borrow(userUUID uuid.UUID, req models.CreateBorrowRequest) (models.BorrowRe
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return models.BorrowResponse{}, err
 	}
-
 	// Parse due date
 	dueDate, err := time.Parse(time.RFC3339, req.DueDate)
 	if err != nil {
