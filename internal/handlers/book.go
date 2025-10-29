@@ -302,7 +302,6 @@ func UpdateBookByIDHandler(c *gin.Context) {
 	})
 }
 
-
 // SearchBooksHandler searches books by title/author/genre
 
 func SearchBooksHandler(c *gin.Context) {
