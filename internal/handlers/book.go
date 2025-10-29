@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -89,62 +90,73 @@ func CreateBookHandler(c *gin.Context) {
 }
 
 func GetBooksHandler(c *gin.Context) {
-	// Default values
-	page := 1
-	limit := 10
+    page := 1
+    limit := 10
 
-	// Read query parameters (?page=2&limit=20)
-	if p := c.Query("page"); p != "" {
-		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
-			page = parsed
-		}
-	}
-	if l := c.Query("limit"); l != "" {
-		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
-			limit = parsed
-		}
-	}
+    // Read query params
+    if p := c.Query("page"); p != "" {
+        if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+            page = parsed
+        }
+    }
+    if l := c.Query("limit"); l != "" {
+        if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+            limit = parsed
+        }
+    }
 
-	// Calculate offset
-	offset := (page - 1) * limit
+    offset := (page - 1) * limit
 
-	params := gen.ListBooksPaginatedParams{
-		Limit:  int32(limit),
-		Offset: int32(offset),
-	}
+    params := gen.ListBooksPaginatedParams{
+        Limit:  int32(limit),
+        Offset: int32(offset),
+    }
 
-	books, err := db.Q.ListBooksPaginated(c.Request.Context(), params)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
+    // 1️⃣ Fetch paginated books
+    books, err := db.Q.ListBooksPaginated(c.Request.Context(), params)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
 
-	// Convert to response model
-	var response []models.BookResponse
-	for _, book := range books {
-		response = append(response, models.BookResponse{
-			ID:              book.ID.Bytes,
-			Title:           book.Title,
-			Author:          book.Author,
-			PublishedYear:   book.PublishedYear.Int32,
-			Isbn:            book.Isbn.String,
-			AvailableCopies: book.AvailableCopies.Int32,
-			TotalCopies:     book.TotalCopies,
-			Genre:           book.Genre,
-			Description:     book.Description,
-			CreatedAt:       book.CreatedAt.Time,
-			UpdatedAt:       book.UpdatedAt.Time,
-			ImageURL:        book.ImageUrl,
-		})
-	}
+    // 2️⃣ Fetch total count of all books
+    totalCount, err := db.Q.CountBooks(c.Request.Context())
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
 
-	// Send paginated response
-	c.JSON(http.StatusOK, gin.H{
-		"page":  page,
-		"limit": limit,
-		"count": len(response),
-		"books": response,
-	})
+    // 3️⃣ Compute total pages
+    totalPages := int(math.Ceil(float64(totalCount) / float64(limit)))
+
+    // Convert to response model
+    var response []models.BookResponse
+    for _, book := range books {
+        response = append(response, models.BookResponse{
+            ID:              book.ID.Bytes,
+            Title:           book.Title,
+            Author:          book.Author,
+            PublishedYear:   book.PublishedYear.Int32,
+            Isbn:            book.Isbn.String,
+            AvailableCopies: book.AvailableCopies.Int32,
+            TotalCopies:     book.TotalCopies,
+            Genre:           book.Genre,
+            Description:     book.Description,
+            CreatedAt:       book.CreatedAt.Time,
+            UpdatedAt:       book.UpdatedAt.Time,
+            ImageURL:        book.ImageUrl,
+        })
+    }
+
+    // 4️⃣ Return all pagination info
+    c.JSON(http.StatusOK, gin.H{
+        "page":         page,
+        "limit":        limit,
+        "count":        len(response),
+        "total_count":  totalCount,
+        "total_pages":  totalPages,
+        "books":        response,
+    })
 }
 
 // GetBookByIDHandler fetches a book by its ID

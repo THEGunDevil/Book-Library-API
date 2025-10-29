@@ -12,6 +12,8 @@ WHERE id = $1;
 -- name: FilterBooksByGenre :many
 SELECT * FROM books
 WHERE genre = $1;
+-- name: CountBooks :one
+SELECT COUNT(*) FROM books;
 
 -- name: CreateBook :one
 INSERT INTO books (title, author, published_year, isbn, total_copies, available_copies, image_url, genre, description)

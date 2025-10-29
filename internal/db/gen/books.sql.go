@@ -11,6 +11,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countBooks = `-- name: CountBooks :one
+SELECT COUNT(*) FROM books
+`
+
+func (q *Queries) CountBooks(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countBooks)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createBook = `-- name: CreateBook :one
 INSERT INTO books (title, author, published_year, isbn, total_copies, available_copies, image_url, genre, description)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
