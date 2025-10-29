@@ -38,6 +38,14 @@ func CreateBookHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "author must be 1-100 characters"})
 		return
 	}
+	if len(genre) == 0 || len(genre) > 100 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "genre must be 1-100 characters"})
+		return
+	}
+	if len(description) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "description must be 1-255 characters"})
+		return
+	}
 
 	// Convert numeric fields
 	publishedYear, err := strconv.Atoi(publishedYearStr)
@@ -252,6 +260,20 @@ func UpdateBookByIDHandler(c *gin.Context) {
 		}
 		params.Author = *req.Author
 	}
+	if req.Genre != nil {
+		if len(*req.Genre) == 0 || len(*req.Genre) > 100 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "genre must be 1-100 characters"})
+			return
+		}
+		params.Genre = *req.Genre
+	}
+	if req.Description != nil {
+		if len(*req.Description) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "description must be 1-100 characters"})
+			return
+		}
+		params.Description = *req.Description
+	}
 
 	if req.TotalCopies != nil {
 		params.TotalCopies = *req.TotalCopies
@@ -264,12 +286,6 @@ func UpdateBookByIDHandler(c *gin.Context) {
 	}
 	if req.AvailableCopies != nil {
 		params.AvailableCopies = pgtype.Int4{Int32: *req.AvailableCopies, Valid: true}
-	}
-	if req.Genre != nil {
-		params.Genre = *req.Genre
-	}
-	if req.Description != nil {
-		params.Description = *req.Description
 	}
 
 	updatedBook, err := db.Q.UpdateBookByID(c.Request.Context(), params)
