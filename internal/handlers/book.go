@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"errors"
-	"log"
 	"math"
 	"net/http"
 	"strconv"
@@ -236,7 +235,7 @@ func UpdateBookByIDHandler(c *gin.Context) {
 	}
 
 	var req models.UpdateBookRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBind(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
@@ -245,60 +244,49 @@ func UpdateBookByIDHandler(c *gin.Context) {
 		ID: pgtype.UUID{Bytes: parsedID, Valid: true},
 	}
 
+	// Only set params if field is non-nil
 	if req.Title != nil {
-		if len(*req.Title) == 0 || len(*req.Title) > 255 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "title must be 1-255 characters"})
-			return
-		}
 		params.Title = *req.Title
 	}
-
 	if req.Author != nil {
-		if len(*req.Author) == 0 || len(*req.Author) > 100 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "author must be 1-100 characters"})
-			return
-		}
 		params.Author = *req.Author
 	}
 	if req.Genre != nil {
-		if len(*req.Genre) == 0 || len(*req.Genre) > 100 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "genre must be 1-100 characters"})
-			return
-		}
 		params.Genre = *req.Genre
 	}
 	if req.Description != nil {
-		if len(*req.Description) == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "description must be 1-100 characters"})
-			return
-		}
 		params.Description = *req.Description
-	}
-
-	if req.TotalCopies != nil {
-		params.TotalCopies = *req.TotalCopies
-	}
-	if req.PublishedYear != nil {
-		params.PublishedYear = pgtype.Int4{Int32: *req.PublishedYear, Valid: true}
 	}
 	if req.Isbn != nil {
 		params.Isbn = pgtype.Text{String: *req.Isbn, Valid: true}
 	}
+	if req.PublishedYear != nil {
+		params.PublishedYear = pgtype.Int4{Int32: *req.PublishedYear, Valid: true}
+	}
+	if req.TotalCopies != nil {
+		params.TotalCopies = *req.TotalCopies
+	}
 	if req.AvailableCopies != nil {
 		params.AvailableCopies = pgtype.Int4{Int32: *req.AvailableCopies, Valid: true}
+	}
+	if req.Image != nil {
+		f, err := req.Image.Open()
+		if err == nil {
+			defer f.Close()
+			imageURL, err := service.UploadImageToCloudinary(f, req.Image.Filename)
+			if err == nil {
+				params.ImageUrl = imageURL
+			}
+		}
 	}
 
 	updatedBook, err := db.Q.UpdateBookByID(c.Request.Context(), params)
 	if err != nil {
-		log.Printf("UpdateBookByID error: %v", err)
-		if errors.Is(err, pgx.ErrNoRows) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "book not found"})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong"})
-		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong"})
 		return
 	}
-		response := models.BookResponse{
+
+	c.JSON(http.StatusOK, models.BookResponse{
 		ID:              updatedBook.ID.Bytes,
 		Title:           updatedBook.Title,
 		Author:          updatedBook.Author,
@@ -308,12 +296,12 @@ func UpdateBookByIDHandler(c *gin.Context) {
 		TotalCopies:     updatedBook.TotalCopies,
 		Genre:           updatedBook.Genre,
 		Description:     updatedBook.Description,
+		ImageURL:        updatedBook.ImageUrl,
 		CreatedAt:       updatedBook.CreatedAt.Time,
 		UpdatedAt:       updatedBook.UpdatedAt.Time,
-		ImageURL:        updatedBook.ImageUrl,
-	}
-	c.JSON(http.StatusOK, response)
+	})
 }
+
 
 // SearchBooksHandler searches books by title/author/genre
 
