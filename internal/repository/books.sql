@@ -1,10 +1,17 @@
--- name: ListBooks :many
-SELECT * FROM books
-ORDER BY created_at DESC;
+-- name: ListBooksPaginated :many
+SELECT *
+FROM books
+ORDER BY created_at DESC
+LIMIT $1 OFFSET $2;
+
 
 -- name: GetBookByID :one
 SELECT * FROM books
 WHERE id = $1;
+
+-- name: FilterBooksByGenre :many
+SELECT * FROM books
+WHERE genre = $1;
 
 -- name: CreateBook :one
 INSERT INTO books (title, author, published_year, isbn, total_copies, available_copies, image_url, genre, description)

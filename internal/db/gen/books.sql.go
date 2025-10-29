@@ -99,6 +99,44 @@ func (q *Queries) DeleteBookByID(ctx context.Context, id pgtype.UUID) (Book, err
 	return i, err
 }
 
+const filterBooksByGenre = `-- name: FilterBooksByGenre :many
+SELECT id, title, author, description, genre, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url FROM books
+WHERE genre = $1
+`
+
+func (q *Queries) FilterBooksByGenre(ctx context.Context, genre string) ([]Book, error) {
+	rows, err := q.db.Query(ctx, filterBooksByGenre, genre)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Book
+	for rows.Next() {
+		var i Book
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Author,
+			&i.Description,
+			&i.Genre,
+			&i.PublishedYear,
+			&i.Isbn,
+			&i.AvailableCopies,
+			&i.TotalCopies,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ImageUrl,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getBookByID = `-- name: GetBookByID :one
 SELECT id, title, author, description, genre, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url FROM books
 WHERE id = $1
@@ -138,13 +176,20 @@ func (q *Queries) IncrementAvailableCopiesByID(ctx context.Context, id pgtype.UU
 	return available_copies, err
 }
 
-const listBooks = `-- name: ListBooks :many
-SELECT id, title, author, description, genre, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url FROM books
+const listBooksPaginated = `-- name: ListBooksPaginated :many
+SELECT id, title, author, description, genre, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url
+FROM books
 ORDER BY created_at DESC
+LIMIT $1 OFFSET $2
 `
 
-func (q *Queries) ListBooks(ctx context.Context) ([]Book, error) {
-	rows, err := q.db.Query(ctx, listBooks)
+type ListBooksPaginatedParams struct {
+	Limit  int32
+	Offset int32
+}
+
+func (q *Queries) ListBooksPaginated(ctx context.Context, arg ListBooksPaginatedParams) ([]Book, error) {
+	rows, err := q.db.Query(ctx, listBooksPaginated, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}

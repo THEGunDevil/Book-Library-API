@@ -88,35 +88,66 @@ func CreateBookHandler(c *gin.Context) {
 	c.JSON(http.StatusCreated, bookResp)
 }
 
-// GetBooksHandler fetches all books
 func GetBooksHandler(c *gin.Context) {
-	books, err := db.Q.ListBooks(c.Request.Context())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
+    // Default values
+    page := 1
+    limit := 15
+
+    // Read query parameters (?page=2&limit=20)
+    if p := c.Query("page"); p != "" {
+        if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+            page = parsed
+        }
+    }
+    if l := c.Query("limit"); l != "" {
+        if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+            limit = parsed
+        }
+    }
+
+    // Calculate offset
+    offset := (page - 1) * limit
+
+    params := gen.ListBooksPaginatedParams{
+        Limit:  int32(limit),
+        Offset: int32(offset),
+    }
+
+    books, err := db.Q.ListBooksPaginated(c.Request.Context(), params)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
 
 
-	var response []models.BookResponse
-	for _, book := range books {
-		response = append(response, models.BookResponse{
-			ID:              book.ID.Bytes,
-			Title:           book.Title,
-			Author:          book.Author,
-			PublishedYear:   book.PublishedYear.Int32,
-			Isbn:            book.Isbn.String,
-			AvailableCopies: book.AvailableCopies.Int32,
-			TotalCopies:     book.TotalCopies,
-			Genre:           book.Genre,
-			Description:     book.Description,
-			CreatedAt:       book.CreatedAt.Time,
-			UpdatedAt:       book.UpdatedAt.Time,
-			ImageURL:        book.ImageUrl,
-		})
-	}
+    // Convert to response model
+    var response []models.BookResponse
+    for _, book := range books {
+        response = append(response, models.BookResponse{
+            ID:              book.ID.Bytes,
+            Title:           book.Title,
+            Author:          book.Author,
+            PublishedYear:   book.PublishedYear.Int32,
+            Isbn:            book.Isbn.String,
+            AvailableCopies: book.AvailableCopies.Int32,
+            TotalCopies:     book.TotalCopies,
+            Genre:           book.Genre,
+            Description:     book.Description,
+            CreatedAt:       book.CreatedAt.Time,
+            UpdatedAt:       book.UpdatedAt.Time,
+            ImageURL:        book.ImageUrl,
+        })
+    }
 
-	c.JSON(http.StatusOK, response)
+    // Send paginated response
+    c.JSON(http.StatusOK, gin.H{
+        "page":     page,
+        "limit":    limit,
+        "count":    len(response),
+        "books":    response,
+    })
 }
+
 
 // GetBookByIDHandler fetches a book by its ID
 func GetBookByIDHandler(c *gin.Context) {
@@ -295,3 +326,19 @@ func ListGenresHandler(c *gin.Context) {
 
     c.JSON(http.StatusOK, genres)
 }
+func ListBooksByGenreHandler(c *gin.Context) {
+    genre := c.Param("genre")
+    if genre == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "genre is required"})
+        return
+    }
+
+    books, err := db.Q.FilterBooksByGenre(c.Request.Context(), genre)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    c.JSON(http.StatusOK, books)
+}
+

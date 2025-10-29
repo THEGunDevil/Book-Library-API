@@ -48,6 +48,3 @@ type SearchBooksParams struct {
     Genre  *string
     Search *string
 }
-
-
-
