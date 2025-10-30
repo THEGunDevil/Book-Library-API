@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/THEGunDevil/GoForBackend/internal/db"
 	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
@@ -29,14 +30,14 @@ func GetUserHandler(c *gin.Context) {
 	}
 
 	resp := models.UserResponse{
-		ID:           user.ID.Bytes,
-		FirstName:    user.FirstName,
-		LastName:     user.LastName,
-		Bio:          user.Bio, // added bio
-		Email:        user.Email,
-		PhoneNumber:  user.PhoneNumber,
-		Role:         user.Role.String,
-		CreatedAt:    user.CreatedAt.Time,
+		ID:          user.ID.Bytes,
+		FirstName:   user.FirstName,
+		LastName:    user.LastName,
+		Bio:         user.Bio, // added bio
+		Email:       user.Email,
+		PhoneNumber: user.PhoneNumber,
+		Role:        user.Role.String,
+		CreatedAt:   user.CreatedAt.Time,
 	}
 
 	c.JSON(http.StatusOK, resp)
@@ -63,14 +64,14 @@ func GetUserByIDHandler(c *gin.Context) {
 	}
 
 	resp := models.UserResponse{
-		ID:           user.ID.Bytes,
-		FirstName:    user.FirstName,
-		LastName:     user.LastName,
-		Bio:          user.Bio, // added bio
-		Email:        user.Email,
-		PhoneNumber:  user.PhoneNumber,
-		Role:         user.Role.String,
-		CreatedAt:    user.CreatedAt.Time,
+		ID:          user.ID.Bytes,
+		FirstName:   user.FirstName,
+		LastName:    user.LastName,
+		Bio:         user.Bio, // added bio
+		Email:       user.Email,
+		PhoneNumber: user.PhoneNumber,
+		Role:        user.Role.String,
+		CreatedAt:   user.CreatedAt.Time,
 	}
 
 	c.JSON(http.StatusOK, resp)
@@ -87,14 +88,14 @@ func GetAllUsersHandler(c *gin.Context) {
 	var resp []models.UserResponse
 	for _, u := range users {
 		resp = append(resp, models.UserResponse{
-			ID:           u.ID.Bytes,
-			FirstName:    u.FirstName,
-			LastName:     u.LastName,
-			Bio:          u.Bio, // added bio
-			Email:        u.Email,
-			PhoneNumber:  u.PhoneNumber,
-			Role:         u.Role.String,
-			CreatedAt:    u.CreatedAt.Time,
+			ID:          u.ID.Bytes,
+			FirstName:   u.FirstName,
+			LastName:    u.LastName,
+			Bio:         u.Bio, // added bio
+			Email:       u.Email,
+			PhoneNumber: u.PhoneNumber,
+			Role:        u.Role.String,
+			CreatedAt:   u.CreatedAt.Time,
 		})
 	}
 
@@ -129,18 +130,28 @@ func UpdateUserByIDHandler(c *gin.Context) {
 	params := gen.UpdateUserByIDParams{
 		ID: pgtype.UUID{Bytes: parsedID, Valid: true},
 	}
-
 	if req.FirstName != nil {
-		params.FirstName = *req.FirstName
+		params.FirstName = pgtype.Text{String: *req.FirstName, Valid: true}
+	} else {
+		params.FirstName = pgtype.Text{Valid: false}
 	}
+
 	if req.LastName != nil {
-		params.LastName = *req.LastName
+		params.LastName = pgtype.Text{String: *req.LastName, Valid: true}
+	} else {
+		params.LastName = pgtype.Text{Valid: false}
 	}
+
 	if req.PhoneNumber != nil {
-		params.PhoneNumber = *req.PhoneNumber
+		params.PhoneNumber = pgtype.Text{String: *req.PhoneNumber, Valid: true}
+	} else {
+		params.PhoneNumber = pgtype.Text{Valid: false}
 	}
+
 	if req.Bio != nil {
-		params.Bio = *req.Bio // handle bio
+		params.Bio = pgtype.Text{String: *req.Bio, Valid: true}
+	} else {
+		params.Bio = pgtype.Text{Valid: false}
 	}
 
 	updatedUser, err := db.Q.UpdateUserByID(c.Request.Context(), params)
@@ -155,15 +166,59 @@ func UpdateUserByIDHandler(c *gin.Context) {
 	}
 
 	resp := models.UserResponse{
-		ID:           updatedUser.ID.Bytes,
-		FirstName:    updatedUser.FirstName,
-		LastName:     updatedUser.LastName,
-		Bio:          updatedUser.Bio,
-		Email:        updatedUser.Email,
-		PhoneNumber:  updatedUser.PhoneNumber,
-		Role:         updatedUser.Role.String,
-		CreatedAt:    updatedUser.CreatedAt.Time,
+		ID:          updatedUser.ID.Bytes,
+		FirstName:   updatedUser.FirstName,
+		LastName:    updatedUser.LastName,
+		Bio:         updatedUser.Bio,
+		Email:       updatedUser.Email,
+		PhoneNumber: updatedUser.PhoneNumber,
+		Role:        updatedUser.Role.String,
+		CreatedAt:   updatedUser.CreatedAt.Time,
 	}
 
+	c.JSON(http.StatusOK, resp)
+}
+
+func BanUserHandler(c *gin.Context) {
+	var req models.BanRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var banUntil pgtype.Timestamp
+	if req.IsPermanentBan {
+		// No expiration date for permanent bans
+		banUntil = pgtype.Timestamp{Valid: false}
+	} else if req.BanUntil != "" {
+		t, err := time.Parse(time.RFC3339, req.BanUntil)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid date format for ban_until (expected RFC3339)"})
+			return
+		}
+		banUntil = pgtype.Timestamp{Time: t, Valid: true}
+	} else {
+		banUntil = pgtype.Timestamp{Valid: false}
+	}
+
+	params := gen.UpdateUserBanParams{
+		ID:             pgtype.UUID{Bytes: req.UserID, Valid: true},
+		IsBanned:       pgtype.Bool{Bool: req.IsBanned, Valid: true},
+		BanReason:      pgtype.Text{String: req.BanReason, Valid: true},
+		BanUntil:       banUntil,
+		IsPermanentBan: pgtype.Bool{Bool: req.IsPermanentBan, Valid: true},
+	}
+
+	updatedUser, err := db.Q.UpdateUserBan(c.Request.Context(), params)
+	if err != nil {
+		log.Printf("BanUser error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update user ban status"})
+		return
+	}
+
+	resp := models.UserResponse{
+		ID:        updatedUser.ID.Bytes,
+		BanReason: updatedUser.BanReason.String,
+	}
 	c.JSON(http.StatusOK, resp)
 }

@@ -336,36 +336,35 @@ func (q *Queries) SearchBooks(ctx context.Context, arg SearchBooksParams) ([]Sea
 const updateBookByID = `-- name: UpdateBookByID :one
 UPDATE books
 SET
-    title = COALESCE($2, title),
-    author = COALESCE($3, author),
-    published_year = COALESCE($4, published_year),
-    isbn = COALESCE($5, isbn),
-    available_copies = COALESCE($6, available_copies),
-    total_copies = COALESCE($7, total_copies),
-    genre = COALESCE($8, genre),
-    description = COALESCE($9, description),
-    image_url = COALESCE($10, image_url),
+    title = COALESCE($1, title),
+    author = COALESCE($2, author),
+    published_year = COALESCE($3, published_year),
+    isbn = COALESCE($4, isbn),
+    available_copies = COALESCE($5, available_copies),
+    total_copies = COALESCE($6, total_copies),
+    genre = COALESCE($7, genre),
+    description = COALESCE($8, description),
+    image_url = COALESCE($9, image_url),
     updated_at = NOW()
-WHERE id = $1
+WHERE id = $10
 RETURNING id, title, author, description, genre, published_year, isbn, available_copies, total_copies, created_at, updated_at, image_url
 `
 
 type UpdateBookByIDParams struct {
-	ID              pgtype.UUID
-	Title           string
-	Author          string
+	Title           pgtype.Text
+	Author          pgtype.Text
 	PublishedYear   pgtype.Int4
 	Isbn            pgtype.Text
 	AvailableCopies pgtype.Int4
-	TotalCopies     int32
-	Genre           string
-	Description     string
-	ImageUrl        string
+	TotalCopies     pgtype.Int4
+	Genre           pgtype.Text
+	Description     pgtype.Text
+	ImageUrl        pgtype.Text
+	ID              pgtype.UUID
 }
 
 func (q *Queries) UpdateBookByID(ctx context.Context, arg UpdateBookByIDParams) (Book, error) {
 	row := q.db.QueryRow(ctx, updateBookByID,
-		arg.ID,
 		arg.Title,
 		arg.Author,
 		arg.PublishedYear,
@@ -375,6 +374,7 @@ func (q *Queries) UpdateBookByID(ctx context.Context, arg UpdateBookByIDParams) 
 		arg.Genre,
 		arg.Description,
 		arg.ImageUrl,
+		arg.ID,
 	)
 	var i Book
 	err := row.Scan(

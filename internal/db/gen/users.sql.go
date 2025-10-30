@@ -14,7 +14,7 @@ import (
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (first_name, last_name, email, password_hash, phone_number, token_version)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version
+RETURNING id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban
 `
 
 type CreateUserParams struct {
@@ -48,13 +48,17 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.TokenVersion,
+		&i.IsBanned,
+		&i.BanReason,
+		&i.BanUntil,
+		&i.IsPermanentBan,
 	)
 	return i, err
 }
 
 const getAllUsers = `-- name: GetAllUsers :many
 
-SELECT id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version FROM users
+SELECT id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban FROM users
 `
 
 func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
@@ -78,6 +82,10 @@ func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.TokenVersion,
+			&i.IsBanned,
+			&i.BanReason,
+			&i.BanUntil,
+			&i.IsPermanentBan,
 		); err != nil {
 			return nil, err
 		}
@@ -90,7 +98,7 @@ func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version FROM users
+SELECT id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban FROM users
 WHERE email = $1
 `
 
@@ -109,12 +117,16 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.TokenVersion,
+		&i.IsBanned,
+		&i.BanReason,
+		&i.BanUntil,
+		&i.IsPermanentBan,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version FROM users
+SELECT id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban FROM users
 WHERE id = $1
 `
 
@@ -133,36 +145,39 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.TokenVersion,
+		&i.IsBanned,
+		&i.BanReason,
+		&i.BanUntil,
+		&i.IsPermanentBan,
 	)
 	return i, err
 }
 
-const updateUserByID = `-- name: UpdateUserByID :one
+const updateUserBan = `-- name: UpdateUserBan :one
 UPDATE users
-SET
-  first_name   = COALESCE($2, first_name),
-  last_name    = COALESCE($3, last_name),
-  phone_number = COALESCE($4, phone_number),
-  bio          = COALESCE($5, bio)
-WHERE id = $1
-RETURNING id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version
+SET is_banned = $1,
+    ban_reason = $2,
+    ban_until = $3,
+    is_permanent_ban = $4
+WHERE id = $5
+RETURNING id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban
 `
 
-type UpdateUserByIDParams struct {
-	ID          pgtype.UUID
-	FirstName   string
-	LastName    string
-	PhoneNumber string
-	Bio         string
+type UpdateUserBanParams struct {
+	IsBanned       pgtype.Bool
+	BanReason      pgtype.Text
+	BanUntil       pgtype.Timestamp
+	IsPermanentBan pgtype.Bool
+	ID             pgtype.UUID
 }
 
-func (q *Queries) UpdateUserByID(ctx context.Context, arg UpdateUserByIDParams) (User, error) {
-	row := q.db.QueryRow(ctx, updateUserByID,
+func (q *Queries) UpdateUserBan(ctx context.Context, arg UpdateUserBanParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserBan,
+		arg.IsBanned,
+		arg.BanReason,
+		arg.BanUntil,
+		arg.IsPermanentBan,
 		arg.ID,
-		arg.FirstName,
-		arg.LastName,
-		arg.PhoneNumber,
-		arg.Bio,
 	)
 	var i User
 	err := row.Scan(
@@ -177,6 +192,58 @@ func (q *Queries) UpdateUserByID(ctx context.Context, arg UpdateUserByIDParams) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.TokenVersion,
+		&i.IsBanned,
+		&i.BanReason,
+		&i.BanUntil,
+		&i.IsPermanentBan,
+	)
+	return i, err
+}
+
+const updateUserByID = `-- name: UpdateUserByID :one
+UPDATE users
+SET
+  first_name   = COALESCE($1, first_name),
+  last_name    = COALESCE($2, last_name),
+  phone_number = COALESCE($3, phone_number),
+  bio          = COALESCE($4, bio)
+WHERE id = $5
+RETURNING id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban
+`
+
+type UpdateUserByIDParams struct {
+	FirstName   pgtype.Text
+	LastName    pgtype.Text
+	PhoneNumber pgtype.Text
+	Bio         pgtype.Text
+	ID          pgtype.UUID
+}
+
+func (q *Queries) UpdateUserByID(ctx context.Context, arg UpdateUserByIDParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserByID,
+		arg.FirstName,
+		arg.LastName,
+		arg.PhoneNumber,
+		arg.Bio,
+		arg.ID,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.FirstName,
+		&i.LastName,
+		&i.Bio,
+		&i.PhoneNumber,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Role,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.TokenVersion,
+		&i.IsBanned,
+		&i.BanReason,
+		&i.BanUntil,
+		&i.IsPermanentBan,
 	)
 	return i, err
 }

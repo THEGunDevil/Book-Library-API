@@ -97,73 +97,73 @@ func CreateBookHandler(c *gin.Context) {
 }
 
 func GetBooksHandler(c *gin.Context) {
-    page := 1
-    limit := 10
+	page := 1
+	limit := 10
 
-    // Read query params
-    if p := c.Query("page"); p != "" {
-        if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
-            page = parsed
-        }
-    }
-    if l := c.Query("limit"); l != "" {
-        if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
-            limit = parsed
-        }
-    }
+	// Read query params
+	if p := c.Query("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = parsed
+		}
+	}
+	if l := c.Query("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
 
-    offset := (page - 1) * limit
+	offset := (page - 1) * limit
 
-    params := gen.ListBooksPaginatedParams{
-        Limit:  int32(limit),
-        Offset: int32(offset),
-    }
+	params := gen.ListBooksPaginatedParams{
+		Limit:  int32(limit),
+		Offset: int32(offset),
+	}
 
-    // 1️⃣ Fetch paginated books
-    books, err := db.Q.ListBooksPaginated(c.Request.Context(), params)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-        return
-    }
+	// 1️⃣ Fetch paginated books
+	books, err := db.Q.ListBooksPaginated(c.Request.Context(), params)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
-    // 2️⃣ Fetch total count of all books
-    totalCount, err := db.Q.CountBooks(c.Request.Context())
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-        return
-    }
+	// 2️⃣ Fetch total count of all books
+	totalCount, err := db.Q.CountBooks(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
-    // 3️⃣ Compute total pages
-    totalPages := int(math.Ceil(float64(totalCount) / float64(limit)))
+	// 3️⃣ Compute total pages
+	totalPages := int(math.Ceil(float64(totalCount) / float64(limit)))
 
-    // Convert to response model
-    var response []models.BookResponse
-    for _, book := range books {
-        response = append(response, models.BookResponse{
-            ID:              book.ID.Bytes,
-            Title:           book.Title,
-            Author:          book.Author,
-            PublishedYear:   book.PublishedYear.Int32,
-            Isbn:            book.Isbn.String,
-            AvailableCopies: book.AvailableCopies.Int32,
-            TotalCopies:     book.TotalCopies,
-            Genre:           book.Genre,
-            Description:     book.Description,
-            CreatedAt:       book.CreatedAt.Time,
-            UpdatedAt:       book.UpdatedAt.Time,
-            ImageURL:        book.ImageUrl,
-        })
-    }
+	// Convert to response model
+	var response []models.BookResponse
+	for _, book := range books {
+		response = append(response, models.BookResponse{
+			ID:              book.ID.Bytes,
+			Title:           book.Title,
+			Author:          book.Author,
+			PublishedYear:   book.PublishedYear.Int32,
+			Isbn:            book.Isbn.String,
+			AvailableCopies: book.AvailableCopies.Int32,
+			TotalCopies:     book.TotalCopies,
+			Genre:           book.Genre,
+			Description:     book.Description,
+			CreatedAt:       book.CreatedAt.Time,
+			UpdatedAt:       book.UpdatedAt.Time,
+			ImageURL:        book.ImageUrl,
+		})
+	}
 
-    // 4️⃣ Return all pagination info
-    c.JSON(http.StatusOK, gin.H{
-        "page":         page,
-        "limit":        limit,
-        "count":        len(response),
-        "total_count":  totalCount,
-        "total_pages":  totalPages,
-        "books":        response,
-    })
+	// 4️⃣ Return all pagination info
+	c.JSON(http.StatusOK, gin.H{
+		"page":        page,
+		"limit":       limit,
+		"count":       len(response),
+		"total_count": totalCount,
+		"total_pages": totalPages,
+		"books":       response,
+	})
 }
 
 // GetBookByIDHandler fetches a book by its ID
@@ -244,40 +244,44 @@ func UpdateBookByIDHandler(c *gin.Context) {
 		ID: pgtype.UUID{Bytes: parsedID, Valid: true},
 	}
 
-	// Only set params if field is non-nil
-	if req.Title != nil {
-		params.Title = *req.Title
+	// Helper for string fields
+	setText := func(reqVal *string) pgtype.Text {
+		if reqVal != nil {
+			return pgtype.Text{String: *reqVal, Valid: true}
+		}
+		return pgtype.Text{Valid: false}
 	}
-	if req.Author != nil {
-		params.Author = *req.Author
+
+	// Helper for int fields
+	setInt := func(reqVal *int32) pgtype.Int4 {
+		if reqVal != nil {
+			return pgtype.Int4{Int32: *reqVal, Valid: true}
+		}
+		return pgtype.Int4{Valid: false}
 	}
-	if req.Genre != nil {
-		params.Genre = *req.Genre
-	}
-	if req.Description != nil {
-		params.Description = *req.Description
-	}
-	if req.Isbn != nil {
-		params.Isbn = pgtype.Text{String: *req.Isbn, Valid: true}
-	}
-	if req.PublishedYear != nil {
-		params.PublishedYear = pgtype.Int4{Int32: *req.PublishedYear, Valid: true}
-	}
-	if req.TotalCopies != nil {
-		params.TotalCopies = *req.TotalCopies
-	}
-	if req.AvailableCopies != nil {
-		params.AvailableCopies = pgtype.Int4{Int32: *req.AvailableCopies, Valid: true}
-	}
+
+	// Assign fields
+	params.Title = setText(req.Title)
+	params.Author = setText(req.Author)
+	params.Genre = setText(req.Genre)
+	params.Description = setText(req.Description)
+	params.Isbn = setText(req.Isbn)
+	params.PublishedYear = setInt(req.PublishedYear)
+	params.TotalCopies = setInt(req.TotalCopies)
+	params.AvailableCopies = setInt(req.AvailableCopies)
+
+	// Image
 	if req.Image != nil {
 		f, err := req.Image.Open()
 		if err == nil {
 			defer f.Close()
-			imageURL, err := service.UploadImageToCloudinary(f, req.Image.Filename)
+			url, err := service.UploadImageToCloudinary(f, req.Image.Filename)
 			if err == nil {
-				params.ImageUrl = imageURL
+				params.ImageUrl = pgtype.Text{String: url, Valid: true}
 			}
 		}
+	} else {
+		params.ImageUrl = pgtype.Text{Valid: false}
 	}
 
 	updatedBook, err := db.Q.UpdateBookByID(c.Request.Context(), params)

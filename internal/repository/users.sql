@@ -19,9 +19,19 @@ SELECT * FROM users;
 -- name: UpdateUserByID :one
 UPDATE users
 SET
-  first_name   = COALESCE($2, first_name),
-  last_name    = COALESCE($3, last_name),
-  phone_number = COALESCE($4, phone_number),
-  bio          = COALESCE($5, bio)
-WHERE id = $1
+  first_name   = COALESCE(sqlc.narg('first_name'), first_name),
+  last_name    = COALESCE(sqlc.narg('last_name'), last_name),
+  phone_number = COALESCE(sqlc.narg('phone_number'), phone_number),
+  bio          = COALESCE(sqlc.narg('bio'), bio)
+WHERE id = sqlc.arg('id')
+RETURNING *;
+
+
+-- name: UpdateUserBan :one
+UPDATE users
+SET is_banned = $1,
+    ban_reason = $2,
+    ban_until = $3,
+    is_permanent_ban = $4
+WHERE id = $5
 RETURNING *;

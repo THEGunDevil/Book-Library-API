@@ -51,15 +51,19 @@ type Session struct {
 }
 
 type User struct {
-	ID           pgtype.UUID
-	FirstName    string
-	LastName     string
-	Bio          string
-	PhoneNumber  string
-	Email        string
-	PasswordHash string
-	Role         pgtype.Text
-	CreatedAt    pgtype.Timestamp
-	UpdatedAt    pgtype.Timestamp
-	TokenVersion int32
+	ID             pgtype.UUID
+	FirstName      string
+	LastName       string
+	Bio            string
+	PhoneNumber    string
+	Email          string
+	PasswordHash   string
+	Role           pgtype.Text
+	CreatedAt      pgtype.Timestamp
+	UpdatedAt      pgtype.Timestamp
+	TokenVersion   int32
+	IsBanned       pgtype.Bool
+	BanReason      pgtype.Text
+	BanUntil       pgtype.Timestamp
+	IsPermanentBan pgtype.Bool
 }
