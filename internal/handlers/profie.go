@@ -14,7 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func GetProfileData(c *gin.Context) {
+func GetProfileDataByIDHandler(c *gin.Context) {
 	idStr := c.Param("id")
 
 	parsedID, err := uuid.Parse(idStr)

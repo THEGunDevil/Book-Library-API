@@ -52,7 +52,7 @@ func main() {
 	{
 		userGroup.GET("/user", handlers.GetUserHandler)
 		userGroup.GET("/user/:id", handlers.GetUserByIDHandler)
-		userGroup.GET("/user/profile/:id", handlers.GetProfileData)
+		userGroup.GET("/user/profile/:id", handlers.GetProfileDataByIDHandler)
 		// only admin can update user info
 		userGroup.GET("/", middleware.AdminOnly(), handlers.GetAllUsersHandler)
 		userGroup.PATCH("/:id",middleware.AdminOnly(), handlers.UpdateUserByIDHandler)
