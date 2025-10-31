@@ -88,14 +88,18 @@ func GetAllUsersHandler(c *gin.Context) {
 	var resp []models.UserResponse
 	for _, u := range users {
 		resp = append(resp, models.UserResponse{
-			ID:          u.ID.Bytes,
-			FirstName:   u.FirstName,
-			LastName:    u.LastName,
-			Bio:         u.Bio, // added bio
-			Email:       u.Email,
-			PhoneNumber: u.PhoneNumber,
-			Role:        u.Role.String,
-			CreatedAt:   u.CreatedAt.Time,
+		ID:            u.ID.Bytes,
+		FirstName:     u.FirstName,
+		LastName:      u.LastName,
+		Bio:           u.Bio,
+		Email:         u.Email,
+		PhoneNumber:   u.PhoneNumber,
+		Role:          u.Role.String,
+		IsBanned:      u.IsBanned.Bool,
+		BanUntil:      u.BanUntil.Time,
+		BanReason:     u.BanReason.String,
+		IsPermanentBan:u.IsPermanentBan.Bool,
+		CreatedAt:     u.CreatedAt.Time,
 		})
 	}
 
@@ -166,21 +170,25 @@ func UpdateUserByIDHandler(c *gin.Context) {
 	}
 
 	resp := models.UserResponse{
-		ID:          updatedUser.ID.Bytes,
-		FirstName:   updatedUser.FirstName,
-		LastName:    updatedUser.LastName,
-		Bio:         updatedUser.Bio,
-		Email:       updatedUser.Email,
-		PhoneNumber: updatedUser.PhoneNumber,
-		Role:        updatedUser.Role.String,
-		CreatedAt:   updatedUser.CreatedAt.Time,
+		ID:             updatedUser.ID.Bytes,
+		FirstName:      updatedUser.FirstName,
+		LastName:       updatedUser.LastName,
+		Bio:            updatedUser.Bio,
+		Email:          updatedUser.Email,
+		PhoneNumber:    updatedUser.PhoneNumber,
+		Role:           updatedUser.Role.String,
+		IsBanned:       updatedUser.IsBanned.Bool,
+		BanUntil:       updatedUser.BanUntil.Time,
+		BanReason:      updatedUser.BanReason.String,
+		IsPermanentBan: updatedUser.IsPermanentBan.Bool,
+		CreatedAt:      updatedUser.CreatedAt.Time,
 	}
 
 	c.JSON(http.StatusOK, resp)
 }
 
 func BanUserHandler(c *gin.Context) {
-		// Parse UUID
+	// Parse UUID
 	idStr := c.Param("id")
 	parsedID, err := uuid.Parse(idStr)
 	if err != nil {

@@ -42,7 +42,7 @@ type UserResponse struct {
 	TokenVersion   int       `json:"token_version"` // added
 	IsBanned       bool      `json:"is_banned"`
 	BanReason      string    `json:"ban_reason"`
-	BanUntil       string    `json:"ban_until"`        // optional, RFC3339 format
+	BanUntil       time.Time    `json:"ban_until"`        // optional, RFC3339 format
 	IsPermanentBan bool      `json:"is_permanent_ban"` // true = permanent ban
 }
 type BanRequest struct {
