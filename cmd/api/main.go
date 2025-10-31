@@ -56,7 +56,7 @@ func main() {
 		// only admin can update user info
 		userGroup.GET("/", middleware.AdminOnly(), handlers.GetAllUsersHandler)
 		userGroup.PATCH("/:id",middleware.AdminOnly(), handlers.UpdateUserByIDHandler)
-		userGroup.PATCH("/user/ban",middleware.AdminOnly(), handlers.BanUserHandler)
+		userGroup.PATCH("/user/ban/:id",middleware.AdminOnly(), handlers.BanUserHandler)
 	}
 
 	// Book routes

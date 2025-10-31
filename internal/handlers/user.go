@@ -180,12 +180,19 @@ func UpdateUserByIDHandler(c *gin.Context) {
 }
 
 func BanUserHandler(c *gin.Context) {
+		// Parse UUID
+	idStr := c.Param("id")
+	parsedID, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
 	var req models.BanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
 	var banUntil pgtype.Timestamp
 	if req.IsPermanentBan {
 		// No expiration date for permanent bans
@@ -201,15 +208,15 @@ func BanUserHandler(c *gin.Context) {
 		banUntil = pgtype.Timestamp{Valid: false}
 	}
 
-	params := gen.UpdateUserBanParams{
-		ID:             pgtype.UUID{Bytes: req.UserID, Valid: true},
+	params := gen.UpdateUserBanByIDParams{
+		ID:             pgtype.UUID{Bytes: parsedID, Valid: true},
 		IsBanned:       pgtype.Bool{Bool: req.IsBanned, Valid: true},
 		BanReason:      pgtype.Text{String: req.BanReason, Valid: true},
 		BanUntil:       banUntil,
 		IsPermanentBan: pgtype.Bool{Bool: req.IsPermanentBan, Valid: true},
 	}
 
-	updatedUser, err := db.Q.UpdateUserBan(c.Request.Context(), params)
+	updatedUser, err := db.Q.UpdateUserBanByID(c.Request.Context(), params)
 	if err != nil {
 		log.Printf("BanUser error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update user ban status"})

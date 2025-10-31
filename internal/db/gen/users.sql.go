@@ -153,17 +153,17 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 	return i, err
 }
 
-const updateUserBan = `-- name: UpdateUserBan :one
+const updateUserBanByID = `-- name: UpdateUserBanByID :one
 UPDATE users
-SET is_banned = $1,
-    ban_reason = $2,
-    ban_until = $3,
-    is_permanent_ban = $4
+SET is_banned = COALESCE($1, is_banned),
+    ban_reason = COALESCE($2, ban_reason),
+    ban_until = COALESCE($3, ban_until),
+    is_permanent_ban = COALESCE($4, is_permanent_ban)
 WHERE id = $5
 RETURNING id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban
 `
 
-type UpdateUserBanParams struct {
+type UpdateUserBanByIDParams struct {
 	IsBanned       pgtype.Bool
 	BanReason      pgtype.Text
 	BanUntil       pgtype.Timestamp
@@ -171,8 +171,8 @@ type UpdateUserBanParams struct {
 	ID             pgtype.UUID
 }
 
-func (q *Queries) UpdateUserBan(ctx context.Context, arg UpdateUserBanParams) (User, error) {
-	row := q.db.QueryRow(ctx, updateUserBan,
+func (q *Queries) UpdateUserBanByID(ctx context.Context, arg UpdateUserBanByIDParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserBanByID,
 		arg.IsBanned,
 		arg.BanReason,
 		arg.BanUntil,

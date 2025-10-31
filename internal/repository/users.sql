@@ -27,11 +27,11 @@ WHERE id = sqlc.arg('id')
 RETURNING *;
 
 
--- name: UpdateUserBan :one
+-- name: UpdateUserBanByID :one
 UPDATE users
-SET is_banned = $1,
-    ban_reason = $2,
-    ban_until = $3,
-    is_permanent_ban = $4
-WHERE id = $5
+SET is_banned = COALESCE(sqlc.narg('is_banned'), is_banned),
+    ban_reason = COALESCE(sqlc.narg('ban_reason'), ban_reason),
+    ban_until = COALESCE(sqlc.narg('ban_until'), ban_until),
+    is_permanent_ban = COALESCE(sqlc.narg('is_permanent_ban'), is_permanent_ban)
+WHERE id = sqlc.arg('id')
 RETURNING *;
