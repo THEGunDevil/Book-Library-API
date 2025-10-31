@@ -187,7 +187,7 @@ func UpdateUserByIDHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-func BanUserHandler(c *gin.Context) {
+func BanUserByIDHandler(c *gin.Context) {
 	// Parse UUID
 	idStr := c.Param("id")
 	parsedID, err := uuid.Parse(idStr)
