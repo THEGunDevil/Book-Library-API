@@ -32,7 +32,7 @@ func main() {
 	defer db.Close()
 
 	r := gin.Default()
-	r.Use(middleware.CORSMiddleware())
+	r.Use(middleware.CORSMiddleware("http://localhost:3000"))
 
 	// Health check
 	r.GET("/", func(c *gin.Context) {
@@ -40,13 +40,13 @@ func main() {
 	})
 
 	// Auth routes (public)
-authGroup := r.Group("/auth")
-{
-	authGroup.POST("/register", handlers.RegisterHandler)
-	authGroup.POST("/login", handlers.LoginHandler)
-	authGroup.POST("/refresh", handlers.RefreshHandler)   // ✅ add this
-	authGroup.POST("/logout", handlers.LogoutHandler)
-}
+	authGroup := r.Group("/auth")
+	{
+		authGroup.POST("/register", handlers.RegisterHandler)
+		authGroup.POST("/login", handlers.LoginHandler)
+		authGroup.POST("/refresh", handlers.RefreshHandler) // ✅ add this
+		authGroup.POST("/logout", handlers.LogoutHandler)
+	}
 
 	// User routes (protected)
 	userGroup := r.Group("/users")
