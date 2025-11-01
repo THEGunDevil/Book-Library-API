@@ -112,7 +112,7 @@ func AdminOnly() gin.HandlerFunc {
 func CORSMiddleware(allowedOrigins ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
-		allowOrigin := "*"
+		allowOrigin := ""
 
 		// If specific origins are defined, allow only those
 		if len(allowedOrigins) > 0 {
@@ -122,10 +122,13 @@ func CORSMiddleware(allowedOrigins ...string) gin.HandlerFunc {
 					break
 				}
 			}
-			if allowOrigin != origin && origin != "" {
+			if allowOrigin == "" && origin != "" {
 				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "CORS origin not allowed"})
 				return
 			}
+		} else {
+			// If no allowed origins specified, fallback to request origin
+			allowOrigin = origin
 		}
 
 		c.Writer.Header().Set("Access-Control-Allow-Origin", allowOrigin)
