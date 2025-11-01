@@ -33,7 +33,7 @@ func main() {
 
 	r := gin.Default()
 	r.Use(middleware.CORSMiddleware(
-		"https://himel-s-library.vercel.app/",
+		"https://himel-s-library.vercel.app",
 		"http://localhost:3000", // dev frontend
 	))
 
