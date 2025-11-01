@@ -76,6 +76,7 @@ func RegisterHandler(c *gin.Context) {
 }
 
 // LoginHandler logs in a user and issues tokens
+// LoginHandler logs in a user and issues tokens
 func LoginHandler(c *gin.Context) {
 	var body struct {
 		Email    string `json:"email"`
@@ -105,19 +106,22 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	secure := true
-	if c.Request.Host == "localhost" || c.Request.Host == "127.0.0.1" {
-		secure = false
+	// ✅ Cookie settings for local dev vs production
+	cookieSecure := true
+	cookieSameSite := http.SameSiteNoneMode
+	if strings.Contains(c.Request.Host, "localhost") || strings.Contains(c.Request.Host, "127.0.0.1") {
+		cookieSecure = false
+		cookieSameSite = http.SameSiteLaxMode
 	}
 
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    refreshToken,
-		MaxAge:   3600 * 24 * 7,
+		MaxAge:   3600 * 24 * 7, // 7 days
 		Path:     "/",
-		Secure:   secure,
+		Secure:   cookieSecure,
 		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: cookieSameSite,
 	})
 
 	c.JSON(http.StatusOK, gin.H{"access_token": accessToken, "role": user.Role.String})
@@ -156,7 +160,7 @@ func RefreshHandler(c *gin.Context) {
 		return
 	}
 
-	user, err := db.Q.GetUserByID(c, pgtype.UUID{Bytes: userUUID,Valid: true})
+	user, err := db.Q.GetUserByID(c, pgtype.UUID{Bytes: userUUID, Valid: true})
 	if err != nil || user.TokenVersion != int32(version) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token expired or invalid"})
 		return
@@ -171,8 +175,26 @@ func RefreshHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"access_token": accessToken})
 }
 
-// LogoutHandler clears refresh token
 func LogoutHandler(c *gin.Context) {
-	c.SetCookie("refresh_token", "", -1, "/", "", true, true)
+	// Configure cookie settings depending on environment
+	cookieSecure := true
+	cookieSameSite := http.SameSiteNoneMode // for production (cross-site)
+
+	if strings.Contains(c.Request.Host, "localhost") || strings.Contains(c.Request.Host, "127.0.0.1") {
+		cookieSecure = false
+		cookieSameSite = http.SameSiteLaxMode // localhost-friendly
+	}
+
+	// Clear the refresh token cookie
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1, // expire immediately
+		HttpOnly: true,
+		Secure:   cookieSecure,
+		SameSite: cookieSameSite,
+	})
+
 	c.JSON(http.StatusOK, gin.H{"message": "Logged out"})
 }
