@@ -26,9 +26,8 @@ func AuthMiddleware() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header format"})
 			return
 		}
-		tokenString := parts[1]
 
-		// ✅ Use service to verify access token
+		tokenString := parts[1]
 		token, err := service.VerifyToken(tokenString, false)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
@@ -53,34 +52,25 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		user, err := db.Q.GetUserByID(c.Request.Context(), pgtype.UUID{Bytes: userUUID,Valid: true})
+		user, err := db.Q.GetUserByID(c.Request.Context(), pgtype.UUID{Bytes: userUUID, Valid: true})
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
 			return
 		}
 
-		// ✅ Check token version
 		tokenVersion, _ := claims["token_version"].(float64)
 		if int32(tokenVersion) != user.TokenVersion {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token has been revoked"})
 			return
 		}
 
-		// 🔒 Check for bans
 		if user.IsBanned.Bool {
 			if user.IsPermanentBan.Bool {
-				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-					"error":  "your account has been permanently banned",
-					"reason": user.BanReason.String,
-				})
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "your account has been permanently banned", "reason": user.BanReason.String})
 				return
 			}
 			if user.BanUntil.Valid && user.BanUntil.Time.After(time.Now()) {
-				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-					"error":  "your account is temporarily banned",
-					"until":  user.BanUntil.Time,
-					"reason": user.BanReason.String,
-				})
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "your account is temporarily banned", "until": user.BanUntil.Time, "reason": user.BanReason.String})
 				return
 			}
 		}
@@ -90,13 +80,11 @@ func AuthMiddleware() gin.HandlerFunc {
 		c.Set("userID", userUUID)
 		c.Set("role", role)
 		c.Set("token_version", int(tokenVersion))
-
 		c.Next()
 	}
 }
 
-
-// AdminOnly ensures the request is from an admin user.
+// AdminOnly ensures the request is from an admin
 func AdminOnly() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		role, _ := c.Get("role")
@@ -108,13 +96,12 @@ func AdminOnly() gin.HandlerFunc {
 	}
 }
 
-// CORSMiddleware configures CORS headers.
+// CORSMiddleware configures CORS headers
 func CORSMiddleware(allowedOrigins ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
 		allowOrigin := ""
 
-		// If specific origins are defined, allow only those
 		if len(allowedOrigins) > 0 {
 			for _, o := range allowedOrigins {
 				if origin == o {
@@ -127,7 +114,6 @@ func CORSMiddleware(allowedOrigins ...string) gin.HandlerFunc {
 				return
 			}
 		} else {
-			// If no allowed origins specified, fallback to request origin
 			allowOrigin = origin
 		}
 

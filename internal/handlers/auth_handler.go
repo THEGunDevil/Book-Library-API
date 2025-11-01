@@ -16,7 +16,9 @@ import (
 	"github.com/THEGunDevil/GoForBackend/internal/service"
 )
 
-// RegisterHandler creates a new user
+// ----------------------
+// Register Handler
+// ----------------------
 func RegisterHandler(c *gin.Context) {
 	var req models.User
 	if err := c.BindJSON(&req); err != nil {
@@ -29,7 +31,8 @@ func RegisterHandler(c *gin.Context) {
 		return
 	}
 
-	if len(req.FirstName) < 3 || len(req.FirstName) > 25 || len(req.LastName) < 3 || len(req.LastName) > 25 {
+	if len(req.FirstName) < 3 || len(req.FirstName) > 25 ||
+		len(req.LastName) < 3 || len(req.LastName) > 25 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "first and last names must be 3-25 chars"})
 		return
 	}
@@ -75,8 +78,9 @@ func RegisterHandler(c *gin.Context) {
 	c.JSON(http.StatusCreated, resp)
 }
 
-// LoginHandler logs in a user and issues tokens
-// LoginHandler logs in a user and issues tokens
+// ----------------------
+// Login Handler
+// ----------------------
 func LoginHandler(c *gin.Context) {
 	var body struct {
 		Email    string `json:"email"`
@@ -106,7 +110,7 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// ✅ Cookie settings for local dev vs production
+	// Cookie settings: handle localhost/dev vs production
 	cookieSecure := true
 	cookieSameSite := http.SameSiteNoneMode
 	if strings.Contains(c.Request.Host, "localhost") || strings.Contains(c.Request.Host, "127.0.0.1") {
@@ -117,17 +121,19 @@ func LoginHandler(c *gin.Context) {
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    refreshToken,
-		MaxAge:   3600 * 24 * 7, // 7 days
 		Path:     "/",
-		Secure:   cookieSecure,
+		MaxAge:   3600 * 24 * 7, // 7 days
 		HttpOnly: true,
+		Secure:   cookieSecure,
 		SameSite: cookieSameSite,
 	})
 
 	c.JSON(http.StatusOK, gin.H{"access_token": accessToken, "role": user.Role.String})
 }
 
-// RefreshHandler issues a new access token
+// ----------------------
+// Refresh Handler
+// ----------------------
 func RefreshHandler(c *gin.Context) {
 	cookie, err := c.Cookie("refresh_token")
 	if err != nil {
@@ -175,17 +181,17 @@ func RefreshHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"access_token": accessToken})
 }
 
+// ----------------------
+// Logout Handler
+// ----------------------
 func LogoutHandler(c *gin.Context) {
-	// Configure cookie settings depending on environment
 	cookieSecure := true
-	cookieSameSite := http.SameSiteNoneMode // for production (cross-site)
-
+	cookieSameSite := http.SameSiteNoneMode
 	if strings.Contains(c.Request.Host, "localhost") || strings.Contains(c.Request.Host, "127.0.0.1") {
 		cookieSecure = false
-		cookieSameSite = http.SameSiteLaxMode // localhost-friendly
+		cookieSameSite = http.SameSiteLaxMode
 	}
 
-	// Clear the refresh token cookie
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    "",
