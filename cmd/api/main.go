@@ -32,7 +32,10 @@ func main() {
 	defer db.Close()
 
 	r := gin.Default()
-	r.Use(middleware.CORSMiddleware("*"))
+	r.Use(middleware.CORSMiddleware(
+		"https://himel-s-library.vercel.app/",
+		"http://localhost:3000", // dev frontend
+	))
 
 	// Health check
 	r.GET("/", func(c *gin.Context) {
