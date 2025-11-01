@@ -40,11 +40,13 @@ func main() {
 	})
 
 	// Auth routes (public)
-	authGroup := r.Group("/auth")
-	{
-		authGroup.POST("/register", handlers.RegisterHandler)
-		authGroup.POST("/login", handlers.LoginHandler)
-	}
+authGroup := r.Group("/auth")
+{
+	authGroup.POST("/register", handlers.RegisterHandler)
+	authGroup.POST("/login", handlers.LoginHandler)
+	authGroup.POST("/refresh", handlers.RefreshHandler)   // ✅ add this
+	authGroup.POST("/logout", handlers.LogoutHandler)
+}
 
 	// User routes (protected)
 	userGroup := r.Group("/users")
@@ -55,8 +57,8 @@ func main() {
 		userGroup.GET("/user/profile/:id", handlers.GetProfileDataByIDHandler)
 		// only admin can update user info
 		userGroup.GET("/", middleware.AdminOnly(), handlers.GetAllUsersHandler)
-		userGroup.PATCH("/:id",middleware.AdminOnly(), handlers.UpdateUserByIDHandler)
-		userGroup.PATCH("/user/ban/:id",middleware.AdminOnly(), handlers.BanUserByIDHandler)
+		userGroup.PATCH("/:id", middleware.AdminOnly(), handlers.UpdateUserByIDHandler)
+		userGroup.PATCH("/user/ban/:id", middleware.AdminOnly(), handlers.BanUserByIDHandler)
 	}
 
 	// Book routes

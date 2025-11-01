@@ -13,7 +13,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// AuthMiddleware validates JWT and extracts user info.
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
@@ -29,20 +28,15 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 		tokenString := parts[1]
 
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unexpected signing method"})
-				return nil, nil
-			}
-			return service.JwtSecret, nil
-		})
-		if err != nil || !token.Valid {
+		// ✅ Use service to verify access token
+		token, err := service.VerifyToken(tokenString, false)
+		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
 			return
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
+		if !ok || !token.Valid {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token claims"})
 			return
 		}
@@ -59,16 +53,21 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// 🔒 Check if user is banned
-		user, err := db.Q.GetUserByID(c.Request.Context(), pgtype.UUID{Bytes: userUUID, Valid: true})
+		user, err := db.Q.GetUserByID(c.Request.Context(), pgtype.UUID{Bytes: userUUID,Valid: true})
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
 			return
 		}
 
-		// If banned permanently or temporarily active
+		// ✅ Check token version
+		tokenVersion, _ := claims["token_version"].(float64)
+		if int32(tokenVersion) != user.TokenVersion {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token has been revoked"})
+			return
+		}
+
+		// 🔒 Check for bans
 		if user.IsBanned.Bool {
-			// If permanent ban
 			if user.IsPermanentBan.Bool {
 				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
 					"error":  "your account has been permanently banned",
@@ -76,8 +75,6 @@ func AuthMiddleware() gin.HandlerFunc {
 				})
 				return
 			}
-
-			// If temporary ban still active
 			if user.BanUntil.Valid && user.BanUntil.Time.After(time.Now()) {
 				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
 					"error":  "your account is temporarily banned",
@@ -88,20 +85,16 @@ func AuthMiddleware() gin.HandlerFunc {
 			}
 		}
 
-		// Ban expired? automatically treat as unbanned (optional)
-		// if user.BanUntil.Valid && user.BanUntil.Time.Before(time.Now()) {
-		//     // You could trigger background unban logic if desired
-		// }
-
 		role, _ := claims["role"].(string)
-		tokenVersion, _ := claims["token_version"].(float64)
 
 		c.Set("userID", userUUID)
 		c.Set("role", role)
 		c.Set("token_version", int(tokenVersion))
+
 		c.Next()
 	}
 }
+
 
 // AdminOnly ensures the request is from an admin user.
 func AdminOnly() gin.HandlerFunc {
