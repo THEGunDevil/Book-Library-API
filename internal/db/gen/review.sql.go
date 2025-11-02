@@ -205,20 +205,20 @@ func (q *Queries) GetReviewsByUserID(ctx context.Context, userID pgtype.UUID) ([
 const updateReviewByID = `-- name: UpdateReviewByID :one
 UPDATE reviews
 SET
-  rating = COALESCE($2, rating),
-  comment = COALESCE($3, comment)
-WHERE id = $1
+  rating = COALESCE($1, rating),
+  comment = COALESCE($2, comment)
+WHERE id = $3
 RETURNING id, user_id, book_id, rating, comment, created_at, updated_at
 `
 
 type UpdateReviewByIDParams struct {
-	ID      pgtype.UUID
 	Rating  pgtype.Int4
 	Comment pgtype.Text
+	ID      pgtype.UUID
 }
 
 func (q *Queries) UpdateReviewByID(ctx context.Context, arg UpdateReviewByIDParams) (Review, error) {
-	row := q.db.QueryRow(ctx, updateReviewByID, arg.ID, arg.Rating, arg.Comment)
+	row := q.db.QueryRow(ctx, updateReviewByID, arg.Rating, arg.Comment, arg.ID)
 	var i Review
 	err := row.Scan(
 		&i.ID,

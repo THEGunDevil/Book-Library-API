@@ -29,9 +29,9 @@ ORDER BY r.created_at DESC;
 -- name: UpdateReviewByID :one
 UPDATE reviews
 SET
-  rating = COALESCE($2, rating),
-  comment = COALESCE($3, comment)
-WHERE id = $1
+  rating = COALESCE(sqlc.narg('rating'), rating),
+  comment = COALESCE(sqlc.narg('comment'), comment)
+WHERE id = sqlc.arg('id')
 RETURNING *;
 
 
