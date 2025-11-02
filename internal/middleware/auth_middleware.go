@@ -98,35 +98,35 @@ func AdminOnly() gin.HandlerFunc {
 
 // CORSMiddleware configures CORS headers
 func CORSMiddleware(allowedOrigins ...string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		origin := c.GetHeader("Origin")
-		allowOrigin := ""
+    return func(c *gin.Context) {
+        origin := c.GetHeader("Origin")
+        var allowOrigin string
 
-		if len(allowedOrigins) > 0 {
-			for _, o := range allowedOrigins {
-				if origin == o {
-					allowOrigin = o
-					break
-				}
-			}
-			if allowOrigin == "" && origin != "" {
-				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "CORS origin not allowed"})
-				return
-			}
-		} else {
-			allowOrigin = origin
-		}
+        // Match only allowed origins
+        for _, o := range allowedOrigins {
+            if origin == o {
+                allowOrigin = origin
+                break
+            }
+        }
 
-		c.Writer.Header().Set("Access-Control-Allow-Origin", allowOrigin)
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+        if allowOrigin == "" {
+            // allowOrigin must match your frontend domain for cookies
+            c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "CORS origin not allowed"})
+            return
+        }
 
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(http.StatusNoContent)
-			return
-		}
+        c.Writer.Header().Set("Access-Control-Allow-Origin", allowOrigin)
+        c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+        c.Writer.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+        c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 
-		c.Next()
-	}
+        if c.Request.Method == "OPTIONS" {
+            c.AbortWithStatus(http.StatusNoContent)
+            return
+        }
+
+        c.Next()
+    }
 }
+

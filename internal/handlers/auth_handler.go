@@ -79,7 +79,7 @@ func RegisterHandler(c *gin.Context) {
 }
 
 // ----------------------
-// Login Handler
+// Login Handler (fixed cookie attributes)
 // ----------------------
 func LoginHandler(c *gin.Context) {
 	var body struct {
@@ -110,26 +110,37 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// Cookie settings: handle localhost/dev vs production
-	cookieSecure := true
-	cookieSameSite := http.SameSiteNoneMode
-	if strings.Contains(c.Request.Host, "localhost") || strings.Contains(c.Request.Host, "127.0.0.1") {
-		cookieSecure = false
-		cookieSameSite = http.SameSiteLaxMode
-	}
-
-	http.SetCookie(c.Writer, &http.Cookie{
+	// ✅ FIX: Cookie attributes for both local + prod
+	cookie := &http.Cookie{
 		Name:     "refresh_token",
 		Value:    refreshToken,
 		Path:     "/",
 		MaxAge:   3600 * 24 * 7, // 7 days
 		HttpOnly: true,
-		Secure:   cookieSecure,
-		SameSite: cookieSameSite,
-	})
+		Secure:   true, // must be true for SameSite=None to work in modern browsers
+		SameSite: http.SameSiteNoneMode,
+	}
 
-	c.JSON(http.StatusOK, gin.H{"access_token": accessToken, "role": user.Role.String})
+	origin := c.GetHeader("Origin")
+	if strings.Contains(origin, "localhost") || strings.Contains(origin, "127.0.0.1") {
+		// Development (localhost)
+		cookie.Secure = false
+		cookie.SameSite = http.SameSiteLaxMode
+	}
+
+	// ✅ Optional but safer: Explicitly set domain for production
+	if strings.Contains(origin, "himel-s-library.vercel.app") {
+		cookie.Domain = "himel-s-library.vercel.app"
+	}
+
+	http.SetCookie(c.Writer, cookie)
+
+	c.JSON(http.StatusOK, gin.H{
+		"access_token": accessToken,
+		"role":         user.Role.String,
+	})
 }
+
 
 // ----------------------
 // Refresh Handler
