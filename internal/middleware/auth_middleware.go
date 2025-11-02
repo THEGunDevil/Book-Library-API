@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+// AuthMiddleware validates JWT tokens and sets user context
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
@@ -76,7 +77,6 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		role, _ := claims["role"].(string)
-
 		c.Set("userID", userUUID)
 		c.Set("role", role)
 		c.Set("token_version", int(tokenVersion))
@@ -98,35 +98,36 @@ func AdminOnly() gin.HandlerFunc {
 
 // CORSMiddleware configures CORS headers
 func CORSMiddleware(allowedOrigins ...string) gin.HandlerFunc {
-    return func(c *gin.Context) {
-        origin := c.GetHeader("Origin")
-        var allowOrigin string
+	return func(c *gin.Context) {
+		origin := c.GetHeader("Origin")
+		allowOrigin := ""
 
-        // Match only allowed origins
-        for _, o := range allowedOrigins {
-            if origin == o {
-                allowOrigin = origin
-                break
-            }
-        }
+		// Match only allowed origins
+		for _, o := range allowedOrigins {
+			if origin == o || (o == "http://localhost:3000" && strings.HasPrefix(origin, "http://localhost:")) {
+				allowOrigin = origin
+				break
+			}
+		}
 
-        if allowOrigin == "" {
-            // allowOrigin must match your frontend domain for cookies
-            c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "CORS origin not allowed"})
-            return
-        }
+		if allowOrigin == "" {
+			// If no matching origin, proceed without setting CORS headers
+			// This avoids breaking non-CORS requests
+			c.Next()
+			return
+		}
 
-        c.Writer.Header().Set("Access-Control-Allow-Origin", allowOrigin)
-        c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-        c.Writer.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
-        c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Allow-Origin", allowOrigin)
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Max-Age", "86400") // 24 hours
 
-        if c.Request.Method == "OPTIONS" {
-            c.AbortWithStatus(http.StatusNoContent)
-            return
-        }
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
 
-        c.Next()
-    }
+		c.Next()
+	}
 }
-

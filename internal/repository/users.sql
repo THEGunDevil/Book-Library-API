@@ -35,3 +35,8 @@ SET is_banned = COALESCE(sqlc.narg('is_banned'), is_banned),
     is_permanent_ban = COALESCE(sqlc.narg('is_permanent_ban'), is_permanent_ban)
 WHERE id = sqlc.arg('id')
 RETURNING *;
+
+-- name: IncrementTokenVersion :exec
+UPDATE users
+SET token_version = token_version + 1
+WHERE id = $1;

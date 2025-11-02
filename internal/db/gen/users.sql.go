@@ -153,6 +153,17 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 	return i, err
 }
 
+const incrementTokenVersion = `-- name: IncrementTokenVersion :exec
+UPDATE users
+SET token_version = token_version + 1
+WHERE id = $1
+`
+
+func (q *Queries) IncrementTokenVersion(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, incrementTokenVersion, id)
+	return err
+}
+
 const updateUserBanByID = `-- name: UpdateUserBanByID :one
 UPDATE users
 SET is_banned = COALESCE($1, is_banned),
