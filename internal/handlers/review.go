@@ -183,6 +183,104 @@ func GetReviewsByBookIDHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, reviews)
 }
+func GetReviewsByUserIDHandler(c *gin.Context) {
+	userIDStr := c.Param("id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	// Fetch all reviews by this user
+	dbReviews, err := db.Q.GetReviewsByUserID(c.Request.Context(), pgtype.UUID{Bytes: userID, Valid: true})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	var reviews []models.ReviewResponse
+	for _, r := range dbReviews {
+		// Fetch the user info
+		user, err := db.Q.GetUserByID(c.Request.Context(), pgtype.UUID{Bytes: r.UserID.Bytes, Valid: true})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Fetch the book info
+		book, err := db.Q.GetBookByID(c.Request.Context(), pgtype.UUID{Bytes: r.BookID.Bytes, Valid: true})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		reviews = append(reviews, models.ReviewResponse{
+			ID:        r.ID.Bytes,
+			UserID:    r.UserID.Bytes,
+			BookID:    r.BookID.Bytes,
+			BookTitle: book.Title,
+			UserName:  user.FirstName + " " + user.LastName,
+			Rating:    int(r.Rating.Int32),
+			Comment:   r.Comment.String,
+			CreatedAt: r.CreatedAt.Time,
+			UpdatedAt: r.UpdatedAt.Time,
+		})
+	}
+
+	c.JSON(http.StatusOK, reviews)
+}
+func GetReviewsByReviewIDHandler(c *gin.Context) {
+	idStr := c.Param("id")
+	reviewID, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid review ID"})
+		return
+	}
+
+	// Fetch the review by its ID
+	dbReviews, err := db.Q.GetReviewsByReviewID(c.Request.Context(), pgtype.UUID{Bytes: reviewID, Valid: true})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if len(dbReviews) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "review not found"})
+		return
+	}
+
+	r := dbReviews[0]
+
+	// Fetch the user info
+	user, err := db.Q.GetUserByID(c.Request.Context(), pgtype.UUID{Bytes: r.UserID.Bytes, Valid: true})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Fetch the book info
+	book, err := db.Q.GetBookByID(c.Request.Context(), pgtype.UUID{Bytes: r.BookID.Bytes, Valid: true})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	review := models.ReviewResponse{
+		ID:        r.ID.Bytes,
+		UserID:    r.UserID.Bytes,
+		BookID:    r.BookID.Bytes,
+		BookTitle: book.Title,
+		UserName:  user.FirstName + " " + user.LastName,
+		Rating:    int(r.Rating.Int32),
+		Comment:   r.Comment.String,
+		CreatedAt: r.CreatedAt.Time,
+		UpdatedAt: r.UpdatedAt.Time,
+	}
+
+	c.JSON(http.StatusOK, review)
+}
+
+
 
 func DeleteReviewsByIDHandler(c *gin.Context) {
 	reviewParam := c.Param("id")

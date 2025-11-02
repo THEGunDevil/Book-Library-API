@@ -94,6 +94,7 @@ func main() {
 		reviewGroup.POST("/review", handlers.CreateReviewHandler)
 		reviewGroup.PATCH("/review/:id", handlers.UpdateReviewByIDHandler)
 		reviewGroup.GET("/review/:id", handlers.GetReviewsByBookIDHandler)
+		reviewGroup.GET("/review/:id", handlers.GetReviewsByUserIDHandler)
 		reviewGroup.DELETE("/review/:id", handlers.DeleteReviewsByIDHandler)
 	}
 
