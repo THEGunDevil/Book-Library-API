@@ -145,6 +145,9 @@ func LoginHandler(c *gin.Context) {
 // ----------------------
 // Refresh Handler
 // ----------------------
+// LoginHandler: already fixed with cookie attributes ✅
+// Just make sure origin check is correct
+// RefreshHandler: add cookie renewal
 func RefreshHandler(c *gin.Context) {
 	cookie, err := c.Cookie("refresh_token")
 	if err != nil {
@@ -164,9 +167,9 @@ func RefreshHandler(c *gin.Context) {
 		return
 	}
 
-	userIDStr, ok := claims["sub"].(string)
+	userIDStr, ok1 := claims["sub"].(string)
 	version, ok2 := claims["token_version"].(float64)
-	if !ok || !ok2 {
+	if !ok1 || !ok2 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token data"})
 		return
 	}
@@ -189,8 +192,34 @@ func RefreshHandler(c *gin.Context) {
 		return
 	}
 
+	// Renew refresh cookie
+	refreshToken, err := service.GenerateRefreshToken(userIDStr, user.TokenVersion)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate refresh token"})
+		return
+	}
+
+	origin := c.GetHeader("Origin")
+	cookieSecure := true
+	cookieSameSite := http.SameSiteNoneMode
+	if strings.Contains(origin, "localhost") || strings.Contains(origin, "127.0.0.1") {
+		cookieSecure = false
+		cookieSameSite = http.SameSiteLaxMode
+	}
+
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    refreshToken,
+		Path:     "/",
+		MaxAge:   3600 * 24 * 7,
+		HttpOnly: true,
+		Secure:   cookieSecure,
+		SameSite: cookieSameSite,
+	})
+
 	c.JSON(http.StatusOK, gin.H{"access_token": accessToken})
 }
+
 
 // ----------------------
 // Logout Handler
