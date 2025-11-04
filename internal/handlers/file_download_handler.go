@@ -204,13 +204,11 @@ func DownloadUsersHandler(c *gin.Context) {
 
 	switch format {
 	case "csv":
-		c.Header("Content-Disposition", "attachment; filename=users.csv")
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=users_page_%d.csv", page))
 		c.Header("Content-Type", "text/csv")
 
 		writer := csv.NewWriter(c.Writer)
 		defer writer.Flush()
-
-		// Header row
 		writer.Write([]string{"ID", "First Name", "Last Name", "Email", "Phone", "Role", "Created At"})
 
 		for _, u := range users {
@@ -226,28 +224,29 @@ func DownloadUsersHandler(c *gin.Context) {
 		}
 
 	case "pdf":
-		pdf := setupPDF("Users Report")
-		
-		// Table headers
-		headers := []string{"ID", "First Name", "Last Name", "Email", "Phone", "Role", "Created At"}
-		widths := []float64{30, 30, 30, 40, 30, 20, 30}
-		drawTableHeader(pdf, headers, widths)
+		pdf := setupPDF(fmt.Sprintf("Users Report - Page %d", page))
 
-		// Table rows
-		for i, u := range users {
-			row := []string{
+		rows := [][]string{}
+		for _, u := range users {
+			rows = append(rows, []string{
 				u.ID.String(),
 				u.FirstName,
 				u.LastName,
 				u.Email,
 				u.PhoneNumber,
 				u.Role.String,
-				u.CreatedAt.Time.Format("2006-01-02"),
-			}
+				u.CreatedAt.Time.Format("2006-01-02 15:04:05"),
+			})
+		}
+		headers := []string{"ID", "First Name", "Last Name", "Email", "Phone", "Role", "Created At"}
+		widths := getDynamicWidths(headers, rows, 20, 60)
+
+		drawTableHeader(pdf, headers, widths)
+		for i, row := range rows {
 			drawTableRow(pdf, row, widths, i)
 		}
 
-		c.Header("Content-Disposition", "attachment; filename=users.pdf")
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=users_page_%d.pdf", page))
 		c.Header("Content-Type", "application/pdf")
 		if err := pdf.Output(c.Writer); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate PDF"})
@@ -275,8 +274,6 @@ func DownloadBorrowsHandler(c *gin.Context) {
 
 		writer := csv.NewWriter(c.Writer)
 		defer writer.Flush()
-
-		// Header row
 		writer.Write([]string{"Borrow ID", "User ID", "Book ID", "Borrowed At", "Due Date", "Returned At"})
 
 		for _, b := range borrows {
@@ -296,26 +293,28 @@ func DownloadBorrowsHandler(c *gin.Context) {
 
 	case "pdf":
 		pdf := setupPDF("Borrow Records Report")
-		
-		// Table headers
-		headers := []string{"Borrow ID", "User ID", "Book ID", "Borrowed At", "Due Date", "Returned At"}
-		widths := []float64{30, 30, 30, 30, 30, 30}
-		drawTableHeader(pdf, headers, widths)
 
-		// Table rows
-		for i, b := range borrows {
+		rows := [][]string{}
+		for _, b := range borrows {
 			returned := "Not Returned"
 			if b.ReturnedAt.Valid {
-				returned = b.ReturnedAt.Time.Format("2006-01-02")
+				returned = b.ReturnedAt.Time.Format("2006-01-02 15:04:05")
 			}
-			row := []string{
+			rows = append(rows, []string{
 				b.ID.String(),
 				b.UserID.String(),
 				b.BookID.String(),
-				b.BorrowedAt.Time.Format("2006-01-02"),
-				b.DueDate.Time.Format("2006-01-02"),
+				b.BorrowedAt.Time.Format("2006-01-02 15:04:05"),
+				b.DueDate.Time.Format("2006-01-02 15:04:05"),
 				returned,
-			}
+			})
+		}
+
+		headers := []string{"Borrow ID", "User ID", "Book ID", "Borrowed At", "Due Date", "Returned At"}
+		widths := getDynamicWidths(headers, rows, 25, 60)
+
+		drawTableHeader(pdf, headers, widths)
+		for i, row := range rows {
 			drawTableRow(pdf, row, widths, i)
 		}
 
