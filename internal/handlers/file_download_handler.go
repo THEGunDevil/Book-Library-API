@@ -129,7 +129,7 @@ func DownloadBooksHandler(c *gin.Context) {
 		pdf := setupPDF(fmt.Sprintf("Books Report - Page %d", page))
 		
 		// Table headers
-		headers := []string{"ID", "Title", "Author", "Genre", "Year", "Available", "Total"}
+		headers := []string{"ID", "Title", "Author", "Genre", "Published Year", "Available Copies", "Total Copies"}
 		widths := []float64{30, 50, 40, 30, 20, 20, 20}
 		drawTableHeader(pdf, headers, widths)
 
