@@ -9,7 +9,66 @@ import (
 	"github.com/phpdave11/gofpdf"
 	"net/http"
 	"strconv"
+	"time"
 )
+
+// setupPDF initializes a PDF with common settings, header, and footer
+func setupPDF(title string) *gofpdf.Fpdf {
+	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf.SetMargins(15, 15, 15)
+	pdf.AddPage()
+
+	// Set fonts
+	pdf.SetFont("Helvetica", "B", 16) // Use Helvetica for better readability
+	pdf.SetTextColor(0, 0, 0)
+	
+	// Header
+	pdf.CellFormat(0, 10, title, "", 1, "C", false, 0, "")
+	pdf.Ln(5)
+	pdf.SetFont("Helvetica", "", 10)
+	pdf.CellFormat(0, 6, fmt.Sprintf("Generated on %s", time.Now().Format("2006-01-02 15:04:05")), "", 1, "C", false, 0, "")
+	pdf.Ln(5)
+
+	// Footer
+	pdf.SetFooterFunc(func() {
+		pdf.SetY(-15)
+		pdf.SetFont("Helvetica", "I", 8)
+		pdf.SetTextColor(128, 128, 128)
+		pdf.CellFormat(0, 10, fmt.Sprintf("Page %d", pdf.PageNo()), "", 0, "C", false, 0, "")
+	})
+
+	return pdf
+}
+
+// drawTableHeader draws a table header with consistent styling
+func drawTableHeader(pdf *gofpdf.Fpdf, headers []string, widths []float64) {
+	pdf.SetFont("Helvetica", "B", 10)
+	pdf.SetFillColor(200, 200, 200)
+	pdf.SetTextColor(0, 0, 0)
+	pdf.SetDrawColor(100, 100, 100)
+	
+	for i, header := range headers {
+		pdf.CellFormat(widths[i], 8, header, "1", 0, "C", true, 0, "")
+	}
+	pdf.Ln(-1)
+}
+
+// drawTableRow draws a table row with alternating background colors
+func drawTableRow(pdf *gofpdf.Fpdf, row []string, widths []float64, rowIndex int) {
+	pdf.SetFont("Helvetica", "", 9)
+	if rowIndex%2 == 0 {
+		pdf.SetFillColor(240, 240, 240) // Light gray for even rows
+	} else {
+		pdf.SetFillColor(255, 255, 255) // White for odd rows
+	}
+	pdf.SetTextColor(0, 0, 0)
+	pdf.SetDrawColor(100, 100, 100)
+	
+	for i, cell := range row {
+		pdf.CellFormat(widths[i], 8, cell, "1", 0, "L", true, 0, "")
+	}
+	pdf.Ln(-1)
+}
 
 func DownloadBooksHandler(c *gin.Context) {
 	format := c.Query("format") // "csv" or "pdf"
@@ -67,24 +126,32 @@ func DownloadBooksHandler(c *gin.Context) {
 		}
 
 	case "pdf":
-		pdf := gofpdf.New("P", "mm", "A4", "")
-		pdf.AddPage()
-		pdf.SetFont("Arial", "B", 16)
-		pdf.Cell(40, 10, fmt.Sprintf("Books - Page %d", page))
-		pdf.Ln(12)
+		pdf := setupPDF(fmt.Sprintf("Books Report - Page %d", page))
+		
+		// Table headers
+		headers := []string{"ID", "Title", "Author", "Genre", "Year", "Available", "Total"}
+		widths := []float64{30, 50, 40, 30, 20, 20, 20}
+		drawTableHeader(pdf, headers, widths)
 
-		pdf.SetFont("Arial", "", 12)
-		for _, book := range books {
-			line := fmt.Sprintf("• %s by %s (%d) | %s | %d/%d available",
-				book.Title, book.Author, book.PublishedYear.Int32,
-				book.Genre, book.AvailableCopies.Int32, book.TotalCopies)
-			pdf.MultiCell(0, 8, line, "", "", false)
+		// Table rows
+		for i, book := range books {
+			row := []string{
+				book.ID.String(),
+				book.Title,
+				book.Author,
+				book.Genre,
+				fmt.Sprintf("%d", book.PublishedYear.Int32),
+				fmt.Sprintf("%d", book.AvailableCopies.Int32),
+				fmt.Sprintf("%d", book.TotalCopies),
+			}
+			drawTableRow(pdf, row, widths, i)
 		}
 
 		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=books_page_%d.pdf", page))
 		c.Header("Content-Type", "application/pdf")
 		if err := pdf.Output(c.Writer); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate PDF"})
+			return
 		}
 
 	default:
@@ -119,6 +186,7 @@ func DownloadUsersHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
 	switch format {
 	case "csv":
 		c.Header("Content-Disposition", "attachment; filename=users.csv")
@@ -141,38 +209,43 @@ func DownloadUsersHandler(c *gin.Context) {
 				u.CreatedAt.Time.Format("2006-01-02 15:04:05"),
 			})
 		}
-		return
 
 	case "pdf":
-		pdf := gofpdf.New("P", "mm", "A4", "")
-		pdf.AddPage()
-		pdf.SetFont("Arial", "B", 14)
-		pdf.Cell(40, 10, "Users List")
-		pdf.Ln(12)
-		pdf.SetFont("Arial", "", 11)
+		pdf := setupPDF("Users Report")
+		
+		// Table headers
+		headers := []string{"ID", "First Name", "Last Name", "Email", "Phone", "Role", "Created At"}
+		widths := []float64{30, 30, 30, 40, 30, 20, 30}
+		drawTableHeader(pdf, headers, widths)
 
-		for _, u := range users {
-			line := fmt.Sprintf("%s %s (%s) — %s | %s | %s",
-				u.FirstName, u.LastName, u.Email, u.PhoneNumber, u.Role.String,
-				u.CreatedAt.Time.Format("2006-01-02"))
-			pdf.MultiCell(0, 8, line, "0", "L", false)
-			pdf.Ln(2)
+		// Table rows
+		for i, u := range users {
+			row := []string{
+				u.ID.String(),
+				u.FirstName,
+				u.LastName,
+				u.Email,
+				u.PhoneNumber,
+				u.Role.String,
+				u.CreatedAt.Time.Format("2006-01-02"),
+			}
+			drawTableRow(pdf, row, widths, i)
 		}
 
 		c.Header("Content-Disposition", "attachment; filename=users.pdf")
 		c.Header("Content-Type", "application/pdf")
-		err := pdf.Output(c.Writer)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate PDF"})
+		if err := pdf.Output(c.Writer); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate PDF"})
+			return
 		}
-		return
 
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid format, use ?format=csv or ?format=pdf"})
 	}
 }
+
 func DownloadBorrowsHandler(c *gin.Context) {
-	format := c.Query("format") // "pdf" or "csv"
+	format := c.Query("format")
 
 	borrows, err := db.Q.ListBorrow(c.Request.Context())
 	if err != nil {
@@ -205,37 +278,38 @@ func DownloadBorrowsHandler(c *gin.Context) {
 				returned,
 			})
 		}
-		return
 
 	case "pdf":
-		pdf := gofpdf.New("P", "mm", "A4", "")
-		pdf.AddPage()
-		pdf.SetFont("Arial", "B", 14)
-		pdf.Cell(40, 10, "Borrow Records")
-		pdf.Ln(12)
-		pdf.SetFont("Arial", "", 11)
+		pdf := setupPDF("Borrow Records Report")
+		
+		// Table headers
+		headers := []string{"Borrow ID", "User ID", "Book ID", "Borrowed At", "Due Date", "Returned At"}
+		widths := []float64{30, 30, 30, 30, 30, 30}
+		drawTableHeader(pdf, headers, widths)
 
-		for _, b := range borrows {
+		// Table rows
+		for i, b := range borrows {
 			returned := "Not Returned"
 			if b.ReturnedAt.Valid {
 				returned = b.ReturnedAt.Time.Format("2006-01-02")
 			}
-			line := fmt.Sprintf("User: %s | Book: %s | Borrowed: %s | Due: %s | Returned: %s",
-				b.UserID.String(), b.BookID.String(),
+			row := []string{
+				b.ID.String(),
+				b.UserID.String(),
+				b.BookID.String(),
 				b.BorrowedAt.Time.Format("2006-01-02"),
 				b.DueDate.Time.Format("2006-01-02"),
-				returned)
-			pdf.MultiCell(0, 8, line, "0", "L", false)
-			pdf.Ln(2)
+				returned,
+			}
+			drawTableRow(pdf, row, widths, i)
 		}
 
 		c.Header("Content-Disposition", "attachment; filename=borrows.pdf")
 		c.Header("Content-Type", "application/pdf")
-		err := pdf.Output(c.Writer)
-		if err != nil {
+		if err := pdf.Output(c.Writer); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate PDF"})
+			return
 		}
-		return
 
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid format, use ?format=csv or ?format=pdf"})
