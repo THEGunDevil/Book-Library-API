@@ -63,7 +63,7 @@ func GetProfileDataByIDHandler(c *gin.Context) {
 		BanReason: user.BanReason.String,
 		IsBanned: user.IsBanned.Bool,
 		IsPermanentBan: user.IsPermanentBan.Bool,
-		BanUntil: user.BanUntil.Time,
+		BanUntil: &user.BanUntil.Time,
 	}
 
 	// Map borrows
