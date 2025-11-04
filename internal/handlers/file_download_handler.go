@@ -43,9 +43,11 @@ func getDynamicWidths(headers []string, rows [][]string, minWidth float64, maxWi
 	for i := range headers {
 		width := float64(len(headers[i])*2 + 10)
 		for _, row := range rows {
-			cellLen := float64(len(row[i])*2 + 10)
-			if cellLen > width {
-				width = cellLen
+			if i < len(row) {
+				cellLen := float64(len(row[i])*2 + 10)
+				if cellLen > width {
+					width = cellLen
+				}
 			}
 		}
 		if width < minWidth {
@@ -84,12 +86,20 @@ func drawTableRow(pdf *gofpdf.Fpdf, row []string, widths []float64, rowIndex int
 	pdf.Ln(-1)
 }
 
-// --- Books Handler ---
-func DownloadBooksHandler(c *gin.Context) {
-	format := c.Query("format")
-	page := 1
-	limit := 10
+// --- Helper to write XLSX properly ---
+func writeXLSX(c *gin.Context, f *excelize.File, filename string) {
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	// Use WriteTo to flush the binary to gin.Writer
+	if err := f.Write(c.Writer); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+}
 
+// --- Generic Download Helper ---
+func parsePagination(c *gin.Context) (page, limit int) {
+	page = 1
+	limit = 10
 	if p := c.Query("page"); p != "" {
 		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
 			page = parsed
@@ -100,12 +110,15 @@ func DownloadBooksHandler(c *gin.Context) {
 			limit = parsed
 		}
 	}
+	return
+}
 
+// --- Books Handler ---
+func DownloadBooksHandler(c *gin.Context) {
+	format := c.Query("format")
+	page, limit := parsePagination(c)
 	offset := (page - 1) * limit
-	params := gen.ListBooksPaginatedParams{
-		Limit:  int32(limit),
-		Offset: int32(offset),
-	}
+	params := gen.ListBooksPaginatedParams{Limit: int32(limit), Offset: int32(offset)}
 
 	books, err := db.Q.ListBooksPaginated(c.Request.Context(), params)
 	if err != nil {
@@ -158,6 +171,7 @@ func DownloadBooksHandler(c *gin.Context) {
 		f := excelize.NewFile()
 		sheet := "Books"
 		f.NewSheet(sheet)
+		f.DeleteSheet("Sheet1") // Remove default empty sheet
 		headers := []string{"ID", "Title", "Author", "Genre", "Published Year", "Available Copies", "Total Copies"}
 		for i, h := range headers {
 			col := string(rune('A' + i))
@@ -178,9 +192,7 @@ func DownloadBooksHandler(c *gin.Context) {
 				f.SetCellValue(sheet, fmt.Sprintf("%s%d", col, r+2), v)
 			}
 		}
-		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=books_page_%d.xlsx", page))
-		c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-		f.Write(c.Writer)
+		writeXLSX(c, f, fmt.Sprintf("books_page_%d.xlsx", page))
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid format, use ?format=csv, ?format=pdf or ?format=xlsx"})
 	}
@@ -189,25 +201,9 @@ func DownloadBooksHandler(c *gin.Context) {
 // --- Users Handler ---
 func DownloadUsersHandler(c *gin.Context) {
 	format := c.Query("format")
-	page := 1
-	limit := 10
-
-	if p := c.Query("page"); p != "" {
-		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
-			page = parsed
-		}
-	}
-	if l := c.Query("limit"); l != "" {
-		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
-			limit = parsed
-		}
-	}
-
+	page, limit := parsePagination(c)
 	offset := (page - 1) * limit
-	params := gen.ListUsersPaginatedParams{
-		Limit:  int32(limit),
-		Offset: int32(offset),
-	}
+	params := gen.ListUsersPaginatedParams{Limit: int32(limit), Offset: int32(offset)}
 
 	users, err := db.Q.ListUsersPaginated(c.Request.Context(), params)
 	if err != nil {
@@ -260,6 +256,7 @@ func DownloadUsersHandler(c *gin.Context) {
 		f := excelize.NewFile()
 		sheet := "Users"
 		f.NewSheet(sheet)
+		f.DeleteSheet("Sheet1")
 		headers := []string{"ID", "First Name", "Last Name", "Email", "Phone", "Role", "Created At"}
 		for i, h := range headers {
 			col := string(rune('A' + i))
@@ -280,9 +277,7 @@ func DownloadUsersHandler(c *gin.Context) {
 				f.SetCellValue(sheet, fmt.Sprintf("%s%d", col, r+2), v)
 			}
 		}
-		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=users_page_%d.xlsx", page))
-		c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-		f.Write(c.Writer)
+		writeXLSX(c, f, fmt.Sprintf("users_page_%d.xlsx", page))
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid format, use ?format=csv, ?format=pdf or ?format=xlsx"})
 	}
@@ -349,6 +344,7 @@ func DownloadBorrowsHandler(c *gin.Context) {
 		f := excelize.NewFile()
 		sheet := "Borrows"
 		f.NewSheet(sheet)
+		f.DeleteSheet("Sheet1")
 		headers := []string{"Borrow ID", "User ID", "Book ID", "Borrowed At", "Due Date", "Returned At"}
 		for i, h := range headers {
 			col := string(rune('A' + i))
@@ -372,9 +368,7 @@ func DownloadBorrowsHandler(c *gin.Context) {
 				f.SetCellValue(sheet, fmt.Sprintf("%s%d", col, r+2), v)
 			}
 		}
-		c.Header("Content-Disposition", "attachment; filename=borrows.xlsx")
-		c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-		f.Write(c.Writer)
+		writeXLSX(c, f, "borrows.xlsx")
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid format, use ?format=csv, ?format=pdf or ?format=xlsx"})
 	}
