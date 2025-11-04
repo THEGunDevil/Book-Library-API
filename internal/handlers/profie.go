@@ -60,6 +60,10 @@ func GetProfileDataByIDHandler(c *gin.Context) {
 		PhoneNumber: user.PhoneNumber,
 		CreatedAt:   user.CreatedAt.Time,
 		Role:        user.Role.String,
+		BanReason: user.BanReason.String,
+		IsBanned: user.IsBanned.Bool,
+		IsPermanentBan: user.IsPermanentBan.Bool,
+		BanUntil: user.BanUntil.Time,
 	}
 
 	// Map borrows
