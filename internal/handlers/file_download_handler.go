@@ -14,7 +14,7 @@ import (
 
 // setupPDF initializes a PDF with common settings, header, and footer
 func setupPDF(title string) *gofpdf.Fpdf {
-	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf := gofpdf.New("L", "mm", "A4", "")
 	pdf.SetMargins(15, 15, 15)
 	pdf.AddPage()
 
