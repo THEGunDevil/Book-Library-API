@@ -18,18 +18,15 @@ func setupPDF(title string) *gofpdf.Fpdf {
 	pdf.SetMargins(15, 15, 15)
 	pdf.AddPage()
 
-	// Set fonts
-	pdf.SetFont("Helvetica", "B", 16) // Use Helvetica for better readability
+	pdf.SetFont("Helvetica", "B", 16)
 	pdf.SetTextColor(0, 0, 0)
-	
-	// Header
 	pdf.CellFormat(0, 10, title, "", 1, "C", false, 0, "")
 	pdf.Ln(5)
+
 	pdf.SetFont("Helvetica", "", 10)
 	pdf.CellFormat(0, 6, fmt.Sprintf("Generated on %s", time.Now().Format("2006-01-02 15:04:05")), "", 1, "C", false, 0, "")
 	pdf.Ln(5)
 
-	// Footer
 	pdf.SetFooterFunc(func() {
 		pdf.SetY(-15)
 		pdf.SetFont("Helvetica", "I", 8)
@@ -40,30 +37,51 @@ func setupPDF(title string) *gofpdf.Fpdf {
 	return pdf
 }
 
-// drawTableHeader draws a table header with consistent styling
+// getDynamicWidths calculates widths based on content length
+func getDynamicWidths(headers []string, rows [][]string, minWidth float64, maxWidth float64) []float64 {
+	widths := make([]float64, len(headers))
+	for i := range headers {
+		width := float64(len(headers[i])*2 + 10) // base width from header
+		for _, row := range rows {
+			cellLen := float64(len(row[i])*2 + 10)
+			if cellLen > width {
+				width = cellLen
+			}
+		}
+		if width < minWidth {
+			width = minWidth
+		} else if width > maxWidth {
+			width = maxWidth
+		}
+		widths[i] = width
+	}
+	return widths
+}
+
+// drawTableHeader draws a table header with style
 func drawTableHeader(pdf *gofpdf.Fpdf, headers []string, widths []float64) {
 	pdf.SetFont("Helvetica", "B", 10)
-	pdf.SetFillColor(200, 200, 200)
+	pdf.SetFillColor(180, 180, 255) // light blue header
 	pdf.SetTextColor(0, 0, 0)
 	pdf.SetDrawColor(100, 100, 100)
-	
+
 	for i, header := range headers {
-		pdf.CellFormat(widths[i], 8, header, "1", 0, "C", true, 0, "")
+		pdf.CellFormat(widths[i], 9, header, "1", 0, "C", true, 0, "")
 	}
 	pdf.Ln(-1)
 }
 
-// drawTableRow draws a table row with alternating background colors
+// drawTableRow draws table rows with alternating colors
 func drawTableRow(pdf *gofpdf.Fpdf, row []string, widths []float64, rowIndex int) {
 	pdf.SetFont("Helvetica", "", 9)
 	if rowIndex%2 == 0 {
-		pdf.SetFillColor(240, 240, 240) // Light gray for even rows
+		pdf.SetFillColor(245, 245, 245) // light gray
 	} else {
-		pdf.SetFillColor(255, 255, 255) // White for odd rows
+		pdf.SetFillColor(255, 255, 255) // white
 	}
 	pdf.SetTextColor(0, 0, 0)
-	pdf.SetDrawColor(100, 100, 100)
-	
+	pdf.SetDrawColor(180, 180, 180)
+
 	for i, cell := range row {
 		pdf.CellFormat(widths[i], 8, cell, "1", 0, "L", true, 0, "")
 	}
@@ -71,11 +89,10 @@ func drawTableRow(pdf *gofpdf.Fpdf, row []string, widths []float64, rowIndex int
 }
 
 func DownloadBooksHandler(c *gin.Context) {
-	format := c.Query("format") // "csv" or "pdf"
+	format := c.Query("format")
 	page := 1
 	limit := 10
 
-	// Parse page & limit
 	if p := c.Query("page"); p != "" {
 		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
 			page = parsed
@@ -101,19 +118,15 @@ func DownloadBooksHandler(c *gin.Context) {
 
 	switch format {
 	case "csv":
-		c.Header("Content-Description", "File Transfer")
 		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=books_page_%d.csv", page))
 		c.Header("Content-Type", "text/csv")
 
 		writer := csv.NewWriter(c.Writer)
 		defer writer.Flush()
+		writer.Write([]string{"ID", "Title", "Author", "Genre", "Published Year", "Available Copies", "Total Copies"})
 
-		// CSV header
-		_ = writer.Write([]string{"ID", "Title", "Author", "Genre", "Published Year", "Available Copies", "Total Copies"})
-
-		// CSV rows
 		for _, book := range books {
-			record := []string{
+			writer.Write([]string{
 				book.ID.String(),
 				book.Title,
 				book.Author,
@@ -121,21 +134,16 @@ func DownloadBooksHandler(c *gin.Context) {
 				fmt.Sprintf("%d", book.PublishedYear.Int32),
 				fmt.Sprintf("%d", book.AvailableCopies.Int32),
 				fmt.Sprintf("%d", book.TotalCopies),
-			}
-			_ = writer.Write(record)
+			})
 		}
 
 	case "pdf":
 		pdf := setupPDF(fmt.Sprintf("Books Report - Page %d", page))
-		
-		// Table headers
-		headers := []string{"ID", "Title", "Author", "Genre", "Published Year", "Available Copies", "Total Copies"}
-		widths := []float64{30, 50, 40, 30, 20, 20, 20}
-		drawTableHeader(pdf, headers, widths)
 
-		// Table rows
-		for i, book := range books {
-			row := []string{
+		// Prepare data for dynamic widths
+		rows := [][]string{}
+		for _, book := range books {
+			rows = append(rows, []string{
 				book.ID.String(),
 				book.Title,
 				book.Author,
@@ -143,7 +151,13 @@ func DownloadBooksHandler(c *gin.Context) {
 				fmt.Sprintf("%d", book.PublishedYear.Int32),
 				fmt.Sprintf("%d", book.AvailableCopies.Int32),
 				fmt.Sprintf("%d", book.TotalCopies),
-			}
+			})
+		}
+		headers := []string{"ID", "Title", "Author", "Genre", "Published Year", "Available Copies", "Total Copies"}
+		widths := getDynamicWidths(headers, rows, 20, 80)
+
+		drawTableHeader(pdf, headers, widths)
+		for i, row := range rows {
 			drawTableRow(pdf, row, widths, i)
 		}
 
@@ -158,6 +172,7 @@ func DownloadBooksHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid format, use ?format=csv or ?format=pdf"})
 	}
 }
+
 
 func DownloadUsersHandler(c *gin.Context) {
 	format := c.Query("format")
