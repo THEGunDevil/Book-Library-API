@@ -11,6 +11,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countUsers = `-- name: CountUsers :one
+SELECT COUNT(*) FROM users
+`
+
+func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countUsers)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (first_name, last_name, email, password_hash, phone_number, token_version)
 VALUES ($1, $2, $3, $4, $5, $6)
@@ -162,6 +173,53 @@ WHERE id = $1
 func (q *Queries) IncrementTokenVersion(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, incrementTokenVersion, id)
 	return err
+}
+
+const listUsersPaginated = `-- name: ListUsersPaginated :many
+SELECT id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban FROM users
+ORDER BY created_at DESC
+LIMIT $1 OFFSET $2
+`
+
+type ListUsersPaginatedParams struct {
+	Limit  int32
+	Offset int32
+}
+
+func (q *Queries) ListUsersPaginated(ctx context.Context, arg ListUsersPaginatedParams) ([]User, error) {
+	rows, err := q.db.Query(ctx, listUsersPaginated, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.FirstName,
+			&i.LastName,
+			&i.Bio,
+			&i.PhoneNumber,
+			&i.Email,
+			&i.PasswordHash,
+			&i.Role,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.TokenVersion,
+			&i.IsBanned,
+			&i.BanReason,
+			&i.BanUntil,
+			&i.IsPermanentBan,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateUserBanByID = `-- name: UpdateUserBanByID :one

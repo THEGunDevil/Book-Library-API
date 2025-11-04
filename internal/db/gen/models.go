@@ -42,14 +42,6 @@ type Review struct {
 	UpdatedAt pgtype.Timestamp
 }
 
-type Session struct {
-	ID           pgtype.UUID
-	UserID       pgtype.UUID
-	RefreshToken string
-	ExpiresAt    pgtype.Timestamp
-	CreatedAt    pgtype.Timestamp
-}
-
 type User struct {
 	ID             pgtype.UUID
 	FirstName      string

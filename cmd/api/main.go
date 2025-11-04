@@ -41,6 +41,9 @@ func main() {
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
+	r.GET("/download/books",middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DownloadBooksHandler)
+	r.GET("/download/users",middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DownloadUsersHandler)
+	r.GET("/download/borrows", middleware.AuthMiddleware(), middleware.AdminOnly(),handlers.DownloadBorrowsHandler)
 
 	// Auth routes (public)
 	authGroup := r.Group("/auth")
@@ -55,7 +58,7 @@ func main() {
 	userGroup := r.Group("/users")
 	userGroup.Use(middleware.AuthMiddleware())
 	{
-		userGroup.GET("/user", handlers.GetUserHandler)
+		userGroup.GET("/user", handlers.GetUsersHandler)
 		userGroup.GET("/user/:id", handlers.GetUserByIDHandler)
 		userGroup.GET("/user/profile/:id", handlers.GetProfileDataByIDHandler)
 		// only admin can update user info
@@ -98,7 +101,6 @@ func main() {
 		reviewGroup.GET("/review/:id", handlers.GetReviewsByReviewIDHandler)
 		reviewGroup.DELETE("/review/:id", handlers.DeleteReviewsByIDHandler)
 	}
-
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"

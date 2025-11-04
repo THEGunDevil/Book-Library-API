@@ -11,6 +11,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countBorrows = `-- name: CountBorrows :one
+SELECT COUNT(*) FROM borrows
+`
+
+func (q *Queries) CountBorrows(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countBorrows)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createBorrow = `-- name: CreateBorrow :one
 INSERT INTO borrows (user_id,book_id,due_date,returned_at) VALUES ($1,$2,$3,$4)
 RETURNING id, user_id, book_id, borrowed_at, due_date, returned_at
@@ -177,6 +188,44 @@ func (q *Queries) ListBorrowByUserID(ctx context.Context, userID pgtype.UUID) ([
 			&i.DueDate,
 			&i.ReturnedAt,
 			&i.Title,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listBorrowPaginated = `-- name: ListBorrowPaginated :many
+SELECT id, user_id, book_id, borrowed_at, due_date, returned_at FROM borrows
+ORDER BY borrowed_at DESC
+LIMIT $1 OFFSET $2
+`
+
+type ListBorrowPaginatedParams struct {
+	Limit  int32
+	Offset int32
+}
+
+func (q *Queries) ListBorrowPaginated(ctx context.Context, arg ListBorrowPaginatedParams) ([]Borrow, error) {
+	rows, err := q.db.Query(ctx, listBorrowPaginated, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Borrow
+	for rows.Next() {
+		var i Borrow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.BookID,
+			&i.BorrowedAt,
+			&i.DueDate,
+			&i.ReturnedAt,
 		); err != nil {
 			return nil, err
 		}

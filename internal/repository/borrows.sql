@@ -27,3 +27,11 @@ RETURNING *;
 UPDATE borrows
 SET returned_at = NOW()
 WHERE id = $1 AND returned_at IS NULL;
+
+-- name: ListBorrowPaginated :many
+SELECT * FROM borrows
+ORDER BY borrowed_at DESC
+LIMIT $1 OFFSET $2;
+
+-- name: CountBorrows :one
+SELECT COUNT(*) FROM borrows;

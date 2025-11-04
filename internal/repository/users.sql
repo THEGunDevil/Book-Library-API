@@ -40,3 +40,10 @@ RETURNING *;
 UPDATE users
 SET token_version = token_version + 1
 WHERE id = $1;
+-- name: ListUsersPaginated :many
+SELECT * FROM users
+ORDER BY created_at DESC
+LIMIT $1 OFFSET $2;
+
+-- name: CountUsers :one
+SELECT COUNT(*) FROM users;

@@ -2,9 +2,13 @@ package handlers
 
 import (
 	"errors"
+	"math"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/THEGunDevil/GoForBackend/internal/db"
+	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
 	"github.com/THEGunDevil/GoForBackend/internal/models"
 	"github.com/THEGunDevil/GoForBackend/internal/service"
 	"github.com/gin-gonic/gin"
@@ -54,7 +58,7 @@ func ReturnBookHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := service.Return(parsedID,req)
+	resp, err := service.Return(parsedID, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -63,24 +67,71 @@ func ReturnBookHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 func GetAllBorrowsHandlers(c *gin.Context) {
-	borrows, err := db.Q.ListBorrow(c.Request.Context())
+	page := 1
+	limit := 10
+
+	// Read query params
+	if p := c.Query("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = parsed
+		}
+	}
+	if l := c.Query("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	offset := (page - 1) * limit
+
+	params := gen.ListBorrowPaginatedParams{
+		Limit:  int32(limit),
+		Offset: int32(offset),
+	}
+
+	// 1️⃣ Fetch paginated borrows
+	borrows, err := db.Q.ListBorrowPaginated(c.Request.Context(), params)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// 2️⃣ Total count
+	totalCount, err := db.Q.CountBorrows(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 3️⃣ Total pages
+	totalPages := int(math.Ceil(float64(totalCount) / float64(limit)))
+
+	// 4️⃣ Build response
 	var response []models.BorrowResponse
 	for _, b := range borrows {
+		var returnedAt *time.Time
+		if b.ReturnedAt.Valid {
+			returnedAt = &b.ReturnedAt.Time
+		}
 		response = append(response, models.BorrowResponse{
 			ID:         b.ID.Bytes,
 			UserID:     b.UserID.Bytes,
 			BookID:     b.BookID.Bytes,
 			BorrowedAt: b.BorrowedAt.Time,
 			DueDate:    b.DueDate.Time,
-			ReturnedAt: &b.ReturnedAt.Time,
+			ReturnedAt: returnedAt,
 		})
 	}
 
-	c.JSON(http.StatusOK, response)
+	// 5️⃣ Return paginated response
+	c.JSON(http.StatusOK, gin.H{
+		"page":        page,
+		"limit":       limit,
+		"count":       len(response),
+		"total_count": totalCount,
+		"total_pages": totalPages,
+		"borrows":     response,
+	})
 }
 func GetBorrowsByIDHandler(c *gin.Context) {
 	idStr := c.Param("id")

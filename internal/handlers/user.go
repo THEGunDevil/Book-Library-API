@@ -3,7 +3,9 @@ package handlers
 import (
 	"errors"
 	"log"
+	"math"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/THEGunDevil/GoForBackend/internal/db"
@@ -16,32 +18,72 @@ import (
 )
 
 // GetUserHandler fetches user by email
-func GetUserHandler(c *gin.Context) {
-	email := c.Query("email")
-	if email == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "email is required"})
-		return
+func GetUsersHandler(c *gin.Context) {
+	page := 1
+	limit := 10
+
+	// Read query params
+	if p := c.Query("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = parsed
+		}
+	}
+	if l := c.Query("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+			limit = parsed
+		}
 	}
 
-	user, err := db.Q.GetUserByEmail(c.Request.Context(), email)
+	offset := (page - 1) * limit
+
+	params := gen.ListUsersPaginatedParams{
+		Limit:  int32(limit),
+		Offset: int32(offset),
+	}
+
+	// 1️⃣ Fetch paginated users
+	users, err := db.Q.ListUsersPaginated(c.Request.Context(), params)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	resp := models.UserResponse{
-		ID:          user.ID.Bytes,
-		FirstName:   user.FirstName,
-		LastName:    user.LastName,
-		Bio:         user.Bio, // added bio
-		Email:       user.Email,
-		PhoneNumber: user.PhoneNumber,
-		Role:        user.Role.String,
-		CreatedAt:   user.CreatedAt.Time,
+	// 2️⃣ Count total users
+	totalCount, err := db.Q.CountUsers(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 
-	c.JSON(http.StatusOK, resp)
+	// 3️⃣ Compute total pages
+	totalPages := int(math.Ceil(float64(totalCount) / float64(limit)))
+
+	// 4️⃣ Build response
+	var response []models.UserResponse
+	for _, user := range users {
+		response = append(response, models.UserResponse{
+			ID:          user.ID.Bytes,
+			FirstName:   user.FirstName,
+			LastName:    user.LastName,
+			Bio:         user.Bio,
+			Email:       user.Email,
+			PhoneNumber: user.PhoneNumber,
+			Role:        user.Role.String,
+			CreatedAt:   user.CreatedAt.Time,
+		})
+	}
+
+	// 5️⃣ Return paginated data
+	c.JSON(http.StatusOK, gin.H{
+		"page":        page,
+		"limit":       limit,
+		"count":       len(response),
+		"total_count": totalCount,
+		"total_pages": totalPages,
+		"users":       response,
+	})
 }
+
 
 // GetUserByIDHandler fetches user by ID
 func GetUserByIDHandler(c *gin.Context) {
