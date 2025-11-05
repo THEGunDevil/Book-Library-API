@@ -200,8 +200,9 @@ func (q *Queries) ListBorrowByUserID(ctx context.Context, userID pgtype.UUID) ([
 }
 
 const listBorrowPaginated = `-- name: ListBorrowPaginated :many
-SELECT id, user_id, book_id, borrowed_at, due_date, returned_at FROM borrows
-ORDER BY borrowed_at DESC
+SELECT b.id, b.user_id, b.book_id, b.borrowed_at, b.due_date, b.returned_at, bk.title AS book_title
+FROM borrows b
+JOIN books bk ON b.book_id = bk.id
 LIMIT $1 OFFSET $2
 `
 
@@ -210,15 +211,25 @@ type ListBorrowPaginatedParams struct {
 	Offset int32
 }
 
-func (q *Queries) ListBorrowPaginated(ctx context.Context, arg ListBorrowPaginatedParams) ([]Borrow, error) {
+type ListBorrowPaginatedRow struct {
+	ID         pgtype.UUID
+	UserID     pgtype.UUID
+	BookID     pgtype.UUID
+	BorrowedAt pgtype.Timestamp
+	DueDate    pgtype.Timestamp
+	ReturnedAt pgtype.Timestamp
+	BookTitle  string
+}
+
+func (q *Queries) ListBorrowPaginated(ctx context.Context, arg ListBorrowPaginatedParams) ([]ListBorrowPaginatedRow, error) {
 	rows, err := q.db.Query(ctx, listBorrowPaginated, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Borrow
+	var items []ListBorrowPaginatedRow
 	for rows.Next() {
-		var i Borrow
+		var i ListBorrowPaginatedRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
@@ -226,6 +237,7 @@ func (q *Queries) ListBorrowPaginated(ctx context.Context, arg ListBorrowPaginat
 			&i.BorrowedAt,
 			&i.DueDate,
 			&i.ReturnedAt,
+			&i.BookTitle,
 		); err != nil {
 			return nil, err
 		}

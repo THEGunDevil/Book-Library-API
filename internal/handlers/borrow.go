@@ -113,10 +113,12 @@ func GetAllBorrowsHandlers(c *gin.Context) {
 		if b.ReturnedAt.Valid {
 			returnedAt = &b.ReturnedAt.Time
 		}
+
 		response = append(response, models.BorrowResponse{
 			ID:         b.ID.Bytes,
 			UserID:     b.UserID.Bytes,
 			BookID:     b.BookID.Bytes,
+			BookTitle:  b.BookTitle,
 			BorrowedAt: b.BorrowedAt.Time,
 			DueDate:    b.DueDate.Time,
 			ReturnedAt: returnedAt,

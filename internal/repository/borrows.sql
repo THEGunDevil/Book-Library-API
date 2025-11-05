@@ -29,8 +29,9 @@ SET returned_at = NOW()
 WHERE id = $1 AND returned_at IS NULL;
 
 -- name: ListBorrowPaginated :many
-SELECT * FROM borrows
-ORDER BY borrowed_at DESC
+SELECT b.id, b.user_id, b.book_id, b.borrowed_at, b.due_date, b.returned_at, bk.title AS book_title
+FROM borrows b
+JOIN books bk ON b.book_id = bk.id
 LIMIT $1 OFFSET $2;
 
 -- name: CountBorrows :one
