@@ -13,19 +13,21 @@ import (
 func SendEmail(name, to, subject, body string) error {
 	from := os.Getenv("GMAIL_USER")
 	password := os.Getenv("GMAIL_PASSWORD")
-
+	
 	m := gomail.NewMessage()
-	// Include sender name
 	m.SetHeader("From", fmt.Sprintf("%s <%s>", name, from))
 	m.SetHeader("To", to)
 	m.SetHeader("Subject", subject)
 	m.SetBody("text/plain", body)
-
-	d := gomail.NewDialer("smtp.gmail.com", 587, from, password)
-
+	
+	// Use port 465 with SSL instead of 587 with TLS
+	d := gomail.NewDialer("smtp.gmail.com", 465, from, password)
+	d.SSL = true  // Enable SSL
+	
 	if err := d.DialAndSend(m); err != nil {
 		return fmt.Errorf("failed to send email: %v", err)
 	}
+	
 	return nil
 }
 
