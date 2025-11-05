@@ -226,7 +226,7 @@ const updateUserBanByID = `-- name: UpdateUserBanByID :one
 UPDATE users
 SET is_banned = COALESCE($1, is_banned),
     ban_reason = COALESCE($2, ban_reason),
-    ban_until = COALESCE($3, ban_until),
+    ban_until = $3,
     is_permanent_ban = COALESCE($4, is_permanent_ban)
 WHERE id = $5
 RETURNING id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban

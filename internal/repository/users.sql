@@ -31,7 +31,7 @@ RETURNING *;
 UPDATE users
 SET is_banned = COALESCE(sqlc.narg('is_banned'), is_banned),
     ban_reason = COALESCE(sqlc.narg('ban_reason'), ban_reason),
-    ban_until = COALESCE(sqlc.narg('ban_until'), ban_until),
+    ban_until = sqlc.narg('ban_until'),
     is_permanent_ban = COALESCE(sqlc.narg('is_permanent_ban'), is_permanent_ban)
 WHERE id = sqlc.arg('id')
 RETURNING *;
