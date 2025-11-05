@@ -47,15 +47,22 @@ func ContactHandler(c *gin.Context) {
 		return
 	}
 
+	// Log environment variables (remove password logging in production!)
+	fmt.Printf("GMAIL_USER: %s\n", os.Getenv("GMAIL_USER"))
+	fmt.Printf("GMAIL_PASSWORD exists: %v\n", os.Getenv("GMAIL_PASSWORD") != "")
+
 	body := fmt.Sprintf("From: %s <%s>\n\n%s", req.Name, req.Email, req.Message)
-
-	// Replace with your receiving email
 	recipient := "himelsd117@gmail.com"
-
+	
 	if err := SendEmail(req.Name, recipient, req.Subject, body); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send email"})
+		// Log the actual error
+		fmt.Printf("Email error: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to send email",
+			"details": err.Error(), // Include in development only
+		})
 		return
 	}
-
+	
 	c.JSON(http.StatusOK, gin.H{"message": "Email sent successfully!"})
 }
