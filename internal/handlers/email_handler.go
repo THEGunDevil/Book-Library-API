@@ -13,7 +13,6 @@ import (
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
 )
 
-// ContactRequest defines the user-submitted contact form data
 type ContactRequest struct {
 	Name    string `json:"name" binding:"required,max=100"`
 	Email   string `json:"email" binding:"required,email"`
@@ -21,7 +20,6 @@ type ContactRequest struct {
 	Message string `json:"message" binding:"required,max=5000"`
 }
 
-// ContactEmailHandler sends contact form submissions via SendGrid API
 func ContactEmailHandler(c *gin.Context) {
 	var req ContactRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -29,25 +27,23 @@ func ContactEmailHandler(c *gin.Context) {
 		return
 	}
 
-	// Additional email format validation
 	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 	if !emailRegex.MatchString(req.Email) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email format"})
 		return
 	}
 
-	// Load SendGrid API key and recipient email from environment variables
 	sendgridAPIKey := os.Getenv("SENDGRID_API_KEY")
 	toEmail := os.Getenv("CONTACT_EMAIL")
+	verifiedSender := os.Getenv("VERIFIED_SENDER_EMAIL") // Add this env variable
 
-	if sendgridAPIKey == "" || toEmail == "" {
+	if sendgridAPIKey == "" || toEmail == "" || verifiedSender == "" {
 		log.Println("Missing SendGrid configuration")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Server email not configured"})
 		return
 	}
 
-	// Construct SendGrid email message
-	from := mail.NewEmail("Book Library Contact Form", req.Email)
+	from := mail.NewEmail("Book Library Contact Form", verifiedSender)
 	to := mail.NewEmail("Admin", toEmail)
 	subject := fmt.Sprintf("[Contact Form] %s", html.EscapeString(req.Subject))
 	content := fmt.Sprintf(
@@ -59,8 +55,9 @@ func ContactEmailHandler(c *gin.Context) {
 		html.EscapeString(req.Message),
 	)
 	message := mail.NewSingleEmail(from, subject, to, "", content)
+	// Set the reply-to to the user’s email
+	message.SetReplyTo(mail.NewEmail(req.Name, req.Email))
 
-	// Send the email via SendGrid
 	client := sendgrid.NewSendClient(sendgridAPIKey)
 	response, err := client.Send(message)
 	if err != nil {
@@ -75,6 +72,5 @@ func ContactEmailHandler(c *gin.Context) {
 		return
 	}
 
-	// Success
 	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Message sent successfully"})
 }
