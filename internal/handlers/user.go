@@ -238,14 +238,17 @@ func BanUserByIDHandler(c *gin.Context) {
 		return
 	}
 
+	// Bind request
 	var req models.BanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Handle BanUntil
 	var banUntil pgtype.Timestamp
 	if req.IsPermanentBan {
-		// No expiration date for permanent bans
+		// Permanent ban has no expiration
 		banUntil = pgtype.Timestamp{Valid: false}
 	} else if req.BanUntil != "" {
 		t, err := time.Parse(time.RFC3339, req.BanUntil)
@@ -258,6 +261,7 @@ func BanUserByIDHandler(c *gin.Context) {
 		banUntil = pgtype.Timestamp{Valid: false}
 	}
 
+	// Update user ban
 	params := gen.UpdateUserBanByIDParams{
 		ID:             pgtype.UUID{Bytes: parsedID, Valid: true},
 		IsBanned:       pgtype.Bool{Bool: req.IsBanned, Valid: true},
@@ -273,9 +277,29 @@ func BanUserByIDHandler(c *gin.Context) {
 		return
 	}
 
-	resp := models.UserResponse{
-		ID:        updatedUser.ID.Bytes,
-		BanReason: updatedUser.BanReason.String,
+	// Prepare response
+	var banUntilPtr *time.Time
+	if updatedUser.BanUntil.Valid {
+		banUntilPtr = &updatedUser.BanUntil.Time
+	} else {
+		banUntilPtr = nil
 	}
+
+	resp := models.UserResponse{
+		ID:             updatedUser.ID.Bytes,
+		FirstName:      updatedUser.FirstName,
+		LastName:       updatedUser.LastName,
+		Bio:            updatedUser.Bio,
+		Email:          updatedUser.Email,
+		PhoneNumber:    updatedUser.PhoneNumber,
+		CreatedAt:      updatedUser.CreatedAt.Time,
+		Role:           updatedUser.Role.String,
+		TokenVersion:   int(updatedUser.TokenVersion),
+		IsBanned:       updatedUser.IsBanned.Bool,
+		BanReason:      updatedUser.BanReason.String,
+		BanUntil:       banUntilPtr,            // properly handle null
+		IsPermanentBan: updatedUser.IsPermanentBan.Bool,
+	}
+
 	c.JSON(http.StatusOK, resp)
 }
