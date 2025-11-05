@@ -84,7 +84,6 @@ func GetUsersHandler(c *gin.Context) {
 	})
 }
 
-
 // GetUserByIDHandler fetches user by ID
 func GetUserByIDHandler(c *gin.Context) {
 	userIDVal, exists := c.Get("userID")
@@ -130,18 +129,18 @@ func GetAllUsersHandler(c *gin.Context) {
 	var resp []models.UserResponse
 	for _, u := range users {
 		resp = append(resp, models.UserResponse{
-		ID:            u.ID.Bytes,
-		FirstName:     u.FirstName,
-		LastName:      u.LastName,
-		Bio:           u.Bio,
-		Email:         u.Email,
-		PhoneNumber:   u.PhoneNumber,
-		Role:          u.Role.String,
-		IsBanned:      u.IsBanned.Bool,
-		BanUntil:      &u.BanUntil.Time,
-		BanReason:     u.BanReason.String,
-		IsPermanentBan:u.IsPermanentBan.Bool,
-		CreatedAt:     u.CreatedAt.Time,
+			ID:             u.ID.Bytes,
+			FirstName:      u.FirstName,
+			LastName:       u.LastName,
+			Bio:            u.Bio,
+			Email:          u.Email,
+			PhoneNumber:    u.PhoneNumber,
+			Role:           u.Role.String,
+			IsBanned:       u.IsBanned.Bool,
+			BanUntil:       &u.BanUntil.Time,
+			BanReason:      u.BanReason.String,
+			IsPermanentBan: u.IsPermanentBan.Bool,
+			CreatedAt:      u.CreatedAt.Time,
 		})
 	}
 
@@ -250,13 +249,8 @@ func BanUserByIDHandler(c *gin.Context) {
 	if req.IsPermanentBan {
 		// Permanent ban has no expiration
 		banUntil = pgtype.Timestamp{Valid: false}
-	} else if req.BanUntil != "" {
-		t, err := time.Parse(time.RFC3339, req.BanUntil)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid date format for ban_until (expected RFC3339)"})
-			return
-		}
-		banUntil = pgtype.Timestamp{Time: t, Valid: true}
+	} else if req.BanUntil != nil {
+		banUntil = pgtype.Timestamp{Time: *req.BanUntil, Valid: true}
 	} else {
 		banUntil = pgtype.Timestamp{Valid: false}
 	}
@@ -297,7 +291,7 @@ func BanUserByIDHandler(c *gin.Context) {
 		TokenVersion:   int(updatedUser.TokenVersion),
 		IsBanned:       updatedUser.IsBanned.Bool,
 		BanReason:      updatedUser.BanReason.String,
-		BanUntil:       banUntilPtr,            // properly handle null
+		BanUntil:       banUntilPtr, // properly handle null
 		IsPermanentBan: updatedUser.IsPermanentBan.Bool,
 	}
 

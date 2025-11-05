@@ -46,8 +46,8 @@ type UserResponse struct {
 	IsPermanentBan bool       `json:"is_permanent_ban"`    // true = permanent ban
 }
 type BanRequest struct {
-	IsBanned       bool   `json:"is_banned"`
-	BanReason      string `json:"ban_reason"`
-	BanUntil       string `json:"ban_until"`        // optional, RFC3339 format
-	IsPermanentBan bool   `json:"is_permanent_ban"` // true = permanent ban
+	IsBanned       bool       `json:"is_banned"`
+	BanReason      string     `json:"ban_reason"`
+	BanUntil       *time.Time `json:"ban_until"`        // nullable
+	IsPermanentBan bool       `json:"is_permanent_ban"` // true = permanent ban
 }
