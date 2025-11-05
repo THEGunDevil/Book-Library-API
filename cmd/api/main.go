@@ -17,7 +17,10 @@ import (
 
 func main() {
 	// Load env
-	godotenv.Load()
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("No .env file found")
+	}
 	cloudName := os.Getenv("CLOUDINARY_CLOUD_NAME")
 	apiKey := os.Getenv("CLOUDINARY_API_KEY")
 	apiSecret := os.Getenv("CLOUDINARY_API_SECRET")
@@ -103,7 +106,7 @@ func main() {
 	}
 	contactGroup := r.Group("/contact")
 	{
-		contactGroup.POST("/send",middleware.AuthMiddleware(), handlers.ContactEmailHandler)
+		contactGroup.POST("/send", middleware.AuthMiddleware(), handlers.ContactHandler)
 	}
 
 	port := os.Getenv("PORT")
