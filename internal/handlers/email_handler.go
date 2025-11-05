@@ -74,18 +74,18 @@
 // 		return
 // 	}
 
-// 	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Message sent successfully"})
-// }
+//		c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Message sent successfully"})
+//	}
 package handlers
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
 	"fmt"
 	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/resend/resend-go/v2"
 )
 
 type ContactRequest struct {
@@ -110,12 +110,15 @@ func ContactEmailHandler(c *gin.Context) {
 		return
 	}
 
-	// Build Resend payload
-	payload := map[string]interface{}{
-		"from":    fmt.Sprintf("%s <%s>", req.Name, req.Email),
-		"to":      []string{toEmail},
-		"subject": fmt.Sprintf("[Contact Form] %s", req.Subject),
-		"html": fmt.Sprintf(
+	// Initialize Resend client
+	client := resend.NewClient(apiKey)
+
+	// Build email parameters
+	params := &resend.SendEmailRequest{
+		From:    "BookLibrary <onboarding@resend.dev>", // Must be verified or use default
+		To:      []string{toEmail},
+		Subject: fmt.Sprintf("[Contact Form] %s", req.Subject),
+		Html: fmt.Sprintf(
 			"<p><strong>Name:</strong> %s</p>"+
 				"<p><strong>Email:</strong> %s</p>"+
 				"<p><strong>Message:</strong><br/>%s</p>",
@@ -123,30 +126,18 @@ func ContactEmailHandler(c *gin.Context) {
 		),
 	}
 
-	body, _ := json.Marshal(payload)
-	reqBody := bytes.NewBuffer(body)
-
-	res, err := http.NewRequest("POST", "https://api.resend.com/emails", reqBody)
+	// Send email
+	sent, err := client.Emails.SendWithContext(context.Background(), params)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to build request"})
-		return
-	}
-	res.Header.Add("Authorization", "Bearer "+apiKey)
-	res.Header.Add("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(res)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send email"})
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 && resp.StatusCode != 201 {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Resend API error: %s", resp.Status)})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": fmt.Sprintf("Resend API error: %v", err),
+		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Message sent successfully"})
+	c.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "Message sent successfully",
+		"id":      sent.Id, // optional: Resend email ID for debugging
+	})
 }
-
