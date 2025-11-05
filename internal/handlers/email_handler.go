@@ -69,10 +69,14 @@ func ContactHandler(c *gin.Context) {
 		return
 	}
 
+	// Debug: Check if API key exists
+	apiKey := os.Getenv("RESEND_API_KEY")
+	fmt.Printf("RESEND_API_KEY exists: %v\n", apiKey != "")
+	fmt.Printf("RESEND_API_KEY length: %d\n", len(apiKey))
+
 	body := fmt.Sprintf("From: %s <%s>\n\n%s", req.Name, req.Email, req.Message)
 	recipient := "himelsd117@gmail.com"
 
-	// Use Resend instead of SMTP
 	if err := SendEmailViaResend(req.Name, req.Email, recipient, req.Subject, body); err != nil {
 		fmt.Printf("Email error: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
