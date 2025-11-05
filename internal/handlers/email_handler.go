@@ -9,14 +9,35 @@ import (
 	gomail "gopkg.in/gomail.v2"
 )
 
-// ContactRequest defines the expected JSON structure from the frontend
+// SendEmail sends an email using Gmail SMTP, including sender's name
+func SendEmail(name, to, subject, body string) error {
+	from := os.Getenv("GMAIL_USER")
+	password := os.Getenv("GMAIL_PASSWORD")
+
+	m := gomail.NewMessage()
+	// Include sender name
+	m.SetHeader("From", fmt.Sprintf("%s <%s>", name, from))
+	m.SetHeader("To", to)
+	m.SetHeader("Subject", subject)
+	m.SetBody("text/plain", body)
+
+	d := gomail.NewDialer("smtp.gmail.com", 587, from, password)
+
+	if err := d.DialAndSend(m); err != nil {
+		return fmt.Errorf("failed to send email: %v", err)
+	}
+	return nil
+}
+
+// ContactRequest represents the incoming contact form request
 type ContactRequest struct {
 	Name    string `json:"name" binding:"required,min=2,max=50"`
 	Email   string `json:"email" binding:"required,email"`
+	Subject string `json:"subject" binding:"required,min=2,max=100"`
 	Message string `json:"message" binding:"required"`
 }
 
-// ContactHandler handles the contact form submission and sends email via Gmail SMTP
+// ContactHandler handles contact form submissions
 func ContactHandler(c *gin.Context) {
 	var req ContactRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -24,44 +45,15 @@ func ContactHandler(c *gin.Context) {
 		return
 	}
 
-	from := os.Getenv("GMAIL_USER")
-	password := os.Getenv("GMAIL_PASSWORD")
+	body := fmt.Sprintf("From: %s <%s>\n\n%s", req.Name, req.Email, req.Message)
 
-	// Create a polished subject line
-	subject := fmt.Sprintf("New Contact Form Message from %s <%s>", req.Name, req.Email)
+	// Replace with your receiving email
+	recipient := "himelsd117@gmail.com"
 
-	// Create an HTML body
-	body := fmt.Sprintf(`
-		<h2>New Contact Form Submission</h2>
-		<p><strong>Name:</strong> %s</p>
-		<p><strong>Email:</strong> %s</p>
-		<p><strong>Message:</strong><br/>%s</p>
-	`, req.Name, req.Email, req.Message)
-
-	// Build the email
-	m := gomail.NewMessage()
-	m.SetHeader("From", from)
-	m.SetHeader("To", from) // send to yourself
-	m.SetHeader("Subject", subject)
-	m.SetBody("text/html", body)
-
-	d := gomail.NewDialer("smtp.gmail.com", 587, from, password)
-
-	// Send the email
-	if err := d.DialAndSend(m); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to send email: %v", err)})
+	if err := SendEmail(req.Name, recipient, req.Subject, body); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send email"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Email sent successfully!"})
-}
-
-func main() {
-	r := gin.Default()
-
-	// Route for contact form
-	r.POST("/contact/send", ContactHandler)
-
-	// Start server
-	r.Run() // listens on :8080 by default
 }
