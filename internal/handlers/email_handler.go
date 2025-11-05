@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"crypto/tls"
 	"fmt"
 	"html"
 	"log"
@@ -10,7 +9,8 @@ import (
 	"regexp"
 
 	"github.com/gin-gonic/gin"
-	gomail "gopkg.in/mail.v2"
+	"github.com/sendgrid/sendgrid-go"
+	"github.com/sendgrid/sendgrid-go/helpers/mail"
 )
 
 // ContactRequest defines the user-submitted contact form data
@@ -21,7 +21,7 @@ type ContactRequest struct {
 	Message string `json:"message" binding:"required,max=5000"`
 }
 
-// ContactEmailHandler sends contact form submissions to a configured email
+// ContactEmailHandler sends contact form submissions via SendGrid API
 func ContactEmailHandler(c *gin.Context) {
 	var req ContactRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -29,115 +29,52 @@ func ContactEmailHandler(c *gin.Context) {
 		return
 	}
 
-	// Additional validation for email format
+	// Additional email format validation
 	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 	if !emailRegex.MatchString(req.Email) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email format"})
 		return
 	}
 
-	// Load email configuration from environment variables
-	smtpUser := os.Getenv("SMTP_USER")
-	smtpPass := os.Getenv("SMTP_APP_PASSWORD")
-	smtpHost := os.Getenv("SMTP_HOST")
-	smtpPort := 587 // Default Gmail SMTP port
+	// Load SendGrid API key and recipient email from environment variables
+	sendgridAPIKey := os.Getenv("SENDGRID_API_KEY")
 	toEmail := os.Getenv("CONTACT_EMAIL")
 
-	if smtpUser == "" || smtpPass == "" || smtpHost == "" || toEmail == "" {
-		log.Println("Missing SMTP configuration")
+	if sendgridAPIKey == "" || toEmail == "" {
+		log.Println("Missing SendGrid configuration")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Server email not configured"})
 		return
 	}
 
-	// Create email message
-	m := gomail.NewMessage()
-	m.SetHeader("From", smtpUser)
-	m.SetHeader("To", toEmail)
-	m.SetHeader("Subject", fmt.Sprintf("[Contact Form] %s", html.EscapeString(req.Subject)))
-	// Escape inputs to prevent HTML injection
-	m.SetBody("text/html", fmt.Sprintf(
+	// Construct SendGrid email message
+	from := mail.NewEmail("Book Library Contact Form", req.Email)
+	to := mail.NewEmail("Admin", toEmail)
+	subject := fmt.Sprintf("[Contact Form] %s", html.EscapeString(req.Subject))
+	content := fmt.Sprintf(
 		"<p><strong>Name:</strong> %s</p>"+
 			"<p><strong>Email:</strong> %s</p>"+
 			"<p><strong>Message:</strong><br/>%s</p>",
 		html.EscapeString(req.Name),
 		html.EscapeString(req.Email),
 		html.EscapeString(req.Message),
-	))
+	)
+	message := mail.NewSingleEmail(from, subject, to, "", content)
 
-	// Configure SMTP dialer
-	d := gomail.NewDialer(smtpHost, smtpPort, smtpUser, smtpPass)
-	d.TLSConfig = &tls.Config{ServerName: smtpHost} // Ensure proper TLS configuration
-
-	if err := d.DialAndSend(m); err != nil {
-		log.Printf("Failed to send email: %T %v", err, err) // log type and message
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	// Send the email via SendGrid
+	client := sendgrid.NewSendClient(sendgridAPIKey)
+	response, err := client.Send(message)
+	if err != nil {
+		log.Printf("SendGrid error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send email"})
 		return
 	}
 
-		c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Message sent successfully"})
+	if response.StatusCode >= 400 {
+		log.Printf("SendGrid returned status %d: %s", response.StatusCode, response.Body)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send email"})
+		return
 	}
-// package handlers
 
-// import (
-// 	"context"
-// 	"fmt"
-// 	"net/http"
-// 	"os"
-
-// 	"github.com/gin-gonic/gin"
-// 	"github.com/resend/resend-go/v2"
-// )
-
-// type ContactRequest struct {
-// 	Name    string `json:"name" binding:"required,max=100"`
-// 	Email   string `json:"email" binding:"required,email"`
-// 	Subject string `json:"subject" binding:"required,max=200"`
-// 	Message string `json:"message" binding:"required,max=5000"`
-// }
-
-// func ContactEmailHandler(c *gin.Context) {
-// 	var req ContactRequest
-// 	if err := c.ShouldBindJSON(&req); err != nil {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: " + err.Error()})
-// 		return
-// 	}
-
-// 	apiKey := os.Getenv("RESEND_API_KEY")
-// 	toEmail := os.Getenv("CONTACT_EMAIL")
-
-// 	if apiKey == "" || toEmail == "" {
-// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Server email not configured"})
-// 		return
-// 	}
-
-// 	// Initialize Resend client
-// 	client := resend.NewClient(apiKey)
-
-// 	// Build email parameters
-// 	params := &resend.SendEmailRequest{
-// 		From:    "BookLibrary <onboarding@resend.dev>", // Must be verified or use default
-// 		To:      []string{toEmail},
-// 		Subject: fmt.Sprintf("[Contact Form] %s", req.Subject),
-// 		Html: fmt.Sprintf(
-// 			"<p><strong>Name:</strong> %s</p>"+
-// 				"<p><strong>Email:</strong> %s</p>"+
-// 				"<p><strong>Message:</strong><br/>%s</p>",
-// 			req.Name, req.Email, req.Message,
-// 		),
-// 	}
-
-// 	// Send email
-// 	sent, err := client.Emails.SendWithContext(context.Background(), params)
-// 	if err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{
-// 			"error": fmt.Sprintf("Resend API error: %v", err),
-// 		})
-// 		return
-// 	}
-
-// 	c.JSON(http.StatusOK, gin.H{
-// 		"status":  "success",
-// 		"message": "Message sent successfully",
-// 		"id":      sent.Id, // optional: Resend email ID for debugging
-// 	})
-// }
+	// Success
+	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Message sent successfully"})
+}
