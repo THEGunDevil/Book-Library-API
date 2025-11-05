@@ -79,75 +79,74 @@
 package handlers
 
 import (
-    "fmt"
-    "html"
-    "log"
-    "net/http"
-    "os"
-    "regexp"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
 
-    "github.com/gin-gonic/gin"
-    "github.com/resend/resend-go/v2"
+	"github.com/gin-gonic/gin"
 )
 
-// ContactRequest defines the user-submitted contact form data
 type ContactRequest struct {
-    Name    string `json:"name" binding:"required,max=100"`
-    Email   string `json:"email" binding:"required,email"`
-    Subject string `json:"subject" binding:"required,max=200"`
-    Message string `json:"message" binding:"required,max=5000"`
+	Name    string `json:"name" binding:"required,max=100"`
+	Email   string `json:"email" binding:"required,email"`
+	Subject string `json:"subject" binding:"required,max=200"`
+	Message string `json:"message" binding:"required,max=5000"`
 }
 
-// ContactEmailHandler sends contact form submissions via Resend API
 func ContactEmailHandler(c *gin.Context) {
-    var req ContactRequest
-    if err := c.ShouldBindJSON(&req); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: " + err.Error()})
-        return
-    }
+	var req ContactRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: " + err.Error()})
+		return
+	}
 
-    // Additional email format validation
-    emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
-    if !emailRegex.MatchString(req.Email) {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email format"})
-        return
-    }
+	apiKey := os.Getenv("RESEND_API_KEY")
+	toEmail := os.Getenv("CONTACT_EMAIL")
 
-    apiKey := os.Getenv("RESEND_API_KEY")
-    toEmail := os.Getenv("CONTACT_EMAIL")
-    if apiKey == "" || toEmail == "" {
-        log.Println("Missing Resend API key or contact email configuration")
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Server email not configured"})
-        return
-    }
+	if apiKey == "" || toEmail == "" {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Server email not configured"})
+		return
+	}
 
-    client := resend.NewClient(apiKey)
+	// Build Resend payload
+	payload := map[string]interface{}{
+		"from":    fmt.Sprintf("%s <%s>", req.Name, req.Email),
+		"to":      []string{toEmail},
+		"subject": fmt.Sprintf("[Contact Form] %s", req.Subject),
+		"html": fmt.Sprintf(
+			"<p><strong>Name:</strong> %s</p>"+
+				"<p><strong>Email:</strong> %s</p>"+
+				"<p><strong>Message:</strong><br/>%s</p>",
+			req.Name, req.Email, req.Message,
+		),
+	}
 
-    fromAddress := fmt.Sprintf("%s <%s>", "Contact Form", toEmail)
-    subject := fmt.Sprintf("[Contact Form] %s", html.EscapeString(req.Subject))
-    htmlBody := fmt.Sprintf(
-        "<p><strong>Name:</strong> %s</p>"+
-            "<p><strong>Email:</strong> %s</p>"+
-            "<p><strong>Message:</strong><br/>%s</p>",
-        html.EscapeString(req.Name),
-        html.EscapeString(req.Email),
-        html.EscapeString(req.Message),
-    )
+	body, _ := json.Marshal(payload)
+	reqBody := bytes.NewBuffer(body)
 
-    params := &resend.SendEmailRequest{
-        From:    fromAddress,
-        To:      []string{toEmail},
-        Subject: subject,
-        Html:    htmlBody,
-        ReplyTo: req.Email,                   // So you can reply to the user
-    }
+	res, err := http.NewRequest("POST", "https://api.resend.com/emails", reqBody)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to build request"})
+		return
+	}
+	res.Header.Add("Authorization", "Bearer "+apiKey)
+	res.Header.Add("Content-Type", "application/json")
 
-    sent, err := client.Emails.Send(params)
-    if err != nil {
-        log.Printf("Resend email send failed: %T %v", err, err)
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send email"})
-        return
-    }
+	client := &http.Client{}
+	resp, err := client.Do(res)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send email"})
+		return
+	}
+	defer resp.Body.Close()
 
-    c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Message sent successfully", "id": sent.Id})
+	if resp.StatusCode != 200 && resp.StatusCode != 201 {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Resend API error: %s", resp.Status)})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Message sent successfully"})
 }
+
