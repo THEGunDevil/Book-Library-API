@@ -1,76 +1,124 @@
 package handlers
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
-	"html"
+	"io"
 	"log"
 	"net/http"
 	"os"
-	"regexp"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sendgrid/sendgrid-go"
-	"github.com/sendgrid/sendgrid-go/helpers/mail"
 )
 
 type ContactRequest struct {
-	Name    string `json:"name" binding:"required,max=100"`
+	Name    string `json:"name" binding:"required,min=2,max=50"`
 	Email   string `json:"email" binding:"required,email"`
 	Subject string `json:"subject" binding:"required,max=200"`
-	Message string `json:"message" binding:"required,max=5000"`
+	Message string `json:"message" binding:"required,min=10,max=1000"`
 }
+
+type Response struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
+type ResendEmailRequest struct {
+	From    string   `json:"from"`
+	To      []string `json:"to"`
+	Subject string   `json:"subject"`
+	Text    string   `json:"text"`
+	ReplyTo string   `json:"reply_to"`
+}
+
+var (
+	resendAPIKey = os.Getenv("RESEND_API_KEY")
+	resendURL    = "https://api.resend.com/emails"
+	fromEmail    = os.Getenv("FROM_EMAIL")
+	toEmail      = os.Getenv("TO_EMAIL")
+)
 
 func ContactEmailHandler(c *gin.Context) {
 	var req ContactRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: " + err.Error()})
+		c.JSON(http.StatusBadRequest, Response{
+			Success: false,
+			Message: "Invalid JSON: " + err.Error(),
+		})
 		return
 	}
 
-	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
-	if !emailRegex.MatchString(req.Email) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email format"})
+	// Basic sanitization (remove potential <script> tags)
+	req.Message = strings.ReplaceAll(req.Message, "<script>", "")
+	req.Message = strings.ReplaceAll(req.Message, "</script>", "")
+	req.Subject = strings.ReplaceAll(req.Subject, "<script>", "")
+	req.Subject = strings.ReplaceAll(req.Subject, "</script>", "")
+
+	// Use user's subject directly
+	subject := req.Subject
+	body := fmt.Sprintf(`New contact form submission:
+
+Name: %s
+Email: %s
+Message: %s
+
+Submitted: %s`, req.Name, req.Email, req.Message, time.Now().Format(time.RFC1123))
+
+	// Send email via Resend
+	if err := sendEmail(fromEmail, toEmail, subject, body, req.Email); err != nil {
+		log.Printf("Failed to send email: %v", err)
+		c.JSON(http.StatusInternalServerError, Response{
+			Success: false,
+			Message: "Failed to send message. Try again later.",
+		})
 		return
 	}
 
-	sendgridAPIKey := os.Getenv("SENDGRID_API_KEY")
-	toEmail := os.Getenv("CONTACT_EMAIL")
-	verifiedSender := os.Getenv("VERIFIED_SENDER_EMAIL") // Add this env variable
+	c.JSON(http.StatusOK, Response{
+		Success: true,
+		Message: "Message sent successfully!",
+	})
+}
 
-	if sendgridAPIKey == "" || toEmail == "" || verifiedSender == "" {
-		log.Println("Missing SendGrid configuration")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Server email not configured"})
-		return
+func sendEmail(from, to, subject, body, replyTo string) error {
+	reqBody := ResendEmailRequest{
+		From:    from,
+		To:      []string{to},
+		Subject: subject,
+		Text:    body,
+		ReplyTo: replyTo, // User's email for replies
 	}
 
-	from := mail.NewEmail("Book Library Contact Form", verifiedSender)
-	to := mail.NewEmail("Admin", toEmail)
-	subject := fmt.Sprintf("[Contact Form] %s", html.EscapeString(req.Subject))
-	content := fmt.Sprintf(
-		"<p><strong>Name:</strong> %s</p>"+
-			"<p><strong>Email:</strong> %s</p>"+
-			"<p><strong>Message:</strong><br/>%s</p>",
-		html.EscapeString(req.Name),
-		html.EscapeString(req.Email),
-		html.EscapeString(req.Message),
-	)
-	message := mail.NewSingleEmail(from, subject, to, "", content)
-	// Set the reply-to to the user’s email
-	message.SetReplyTo(mail.NewEmail(req.Name, req.Email))
-
-	client := sendgrid.NewSendClient(sendgridAPIKey)
-	response, err := client.Send(message)
+	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
-		log.Printf("SendGrid error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send email"})
-		return
+		return fmt.Errorf("JSON marshal: %w", err)
 	}
 
-	if response.StatusCode >= 400 {
-		log.Printf("SendGrid returned status %d: %s", response.StatusCode, response.Body)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send email"})
-		return
+	idempotencyKey := fmt.Sprintf("contact-%d", time.Now().UnixNano())
+	httpReq, err := http.NewRequest("POST", resendURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("HTTP new request: %w", err)
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Message sent successfully"})
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+resendAPIKey)
+	httpReq.Header.Set("Idempotency-Key", idempotencyKey)
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("HTTP send: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("Resend API error %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	log.Printf("Email sent successfully via Resend to %s", to)
+	return nil
 }
