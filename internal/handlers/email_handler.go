@@ -1,33 +1,55 @@
 package handlers
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"net/http"
 	"os"
-
-	"github.com/gin-gonic/gin"
-	gomail "gopkg.in/gomail.v2"
 )
 
-// SendEmail sends an email using Gmail SMTP, including sender's name
-func SendEmail(name, to, subject, body string) error {
-	from := os.Getenv("GMAIL_USER")
-	password := os.Getenv("GMAIL_PASSWORD")
-	
-	m := gomail.NewMessage()
-	m.SetHeader("From", fmt.Sprintf("%s <%s>", name, from))
-	m.SetHeader("To", to)
-	m.SetHeader("Subject", subject)
-	m.SetBody("text/plain", body)
-	
-	// Use port 465 with SSL instead of 587 with TLS
-	d := gomail.NewDialer("smtp.gmail.com", 465, from, password)
-	d.SSL = true  // Enable SSL
-	
-	if err := d.DialAndSend(m); err != nil {
-		return fmt.Errorf("failed to send email: %v", err)
+// SendEmailViaResend sends email using Resend API
+func SendEmailViaResend(name, email, to, subject, body string) error {
+	apiKey := os.Getenv("RESEND_API_KEY")
+	if apiKey == "" {
+		return fmt.Errorf("RESEND_API_KEY not set")
 	}
-	
+
+	payload := map[string]interface{}{
+		"from":     "BookLibrary Contact <onboarding@resend.dev>",
+		"to":       []string{to},
+		"subject":  subject,
+		"text":     body,
+		"reply_to": email, // Allow replies to go to the sender
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal json: %v", err)
+	}
+
+	req, err := http.NewRequest("POST", "https://api.resend.com/emails", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %v", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		var result map[string]interface{}
+		json.NewDecoder(resp.Body).Decode(&result)
+		return fmt.Errorf("resend API error %d: %v", resp.StatusCode, result)
+	}
+
 	return nil
 }
 
@@ -47,22 +69,18 @@ func ContactHandler(c *gin.Context) {
 		return
 	}
 
-	// Log environment variables (remove password logging in production!)
-	fmt.Printf("GMAIL_USER: %s\n", os.Getenv("GMAIL_USER"))
-	fmt.Printf("GMAIL_PASSWORD exists: %v\n", os.Getenv("GMAIL_PASSWORD") != "")
-
 	body := fmt.Sprintf("From: %s <%s>\n\n%s", req.Name, req.Email, req.Message)
 	recipient := "himelsd117@gmail.com"
-	
-	if err := SendEmail(req.Name, recipient, req.Subject, body); err != nil {
-		// Log the actual error
+
+	// Use Resend instead of SMTP
+	if err := SendEmailViaResend(req.Name, req.Email, recipient, req.Subject, body); err != nil {
 		fmt.Printf("Email error: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to send email",
-			"details": err.Error(), // Include in development only
+			"error":   "Failed to send email",
+			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Email sent successfully!"})
 }
