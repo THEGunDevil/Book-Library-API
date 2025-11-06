@@ -44,7 +44,7 @@ func SendEmailViaResend(name, email, to, subject, body string) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 202 {
+	if resp.StatusCode != 200 && resp.StatusCode != 202 {
 		var result map[string]interface{}
 		json.NewDecoder(resp.Body).Decode(&result)
 		return fmt.Errorf("resend API error %d: %v", resp.StatusCode, result)
