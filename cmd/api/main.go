@@ -106,7 +106,7 @@ func main() {
 	}
 	contactGroup := r.Group("/contact")
 	{
-		contactGroup.POST("/send", middleware.AuthMiddleware(), handlers.ContactHandler)
+		contactGroup.POST("/send", handlers.ContactHandler)
 	}
 
 	port := os.Getenv("PORT")

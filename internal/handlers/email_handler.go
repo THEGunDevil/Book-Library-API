@@ -17,7 +17,7 @@ func SendEmailViaResend(name, email, to, subject, body string) error {
 	}
 
 	payload := map[string]interface{}{
-		"from":     "BookLibrary Contact <onboarding@resend.dev>",
+		"from":     "Book Library Support <onboarding@resend.dev>",
 		"to":       []string{to},
 		"subject":  subject,
 		"text":     body,
