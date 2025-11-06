@@ -113,10 +113,16 @@ func GetAllBorrowsHandlers(c *gin.Context) {
 		if b.ReturnedAt.Valid {
 			returnedAt = &b.ReturnedAt.Time
 		}
+		user, err := db.Q.GetUserByID(c.Request.Context(), b.UserID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 
 		response = append(response, models.BorrowResponse{
 			ID:         b.ID.Bytes,
 			UserID:     b.UserID.Bytes,
+			UserName:   user.FirstName + " " + user.LastName,
 			BookID:     b.BookID.Bytes,
 			BookTitle:  b.BookTitle,
 			BorrowedAt: b.BorrowedAt.Time,

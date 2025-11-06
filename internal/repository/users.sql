@@ -11,6 +11,8 @@ WHERE email = $1;
 SELECT * FROM users
 WHERE id = $1;
 
+-- name: GetAllUser :many
+SELECT * FROM users;
 -- name: UpdateUserByID :one
 UPDATE users
 SET

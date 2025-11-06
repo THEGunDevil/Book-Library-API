@@ -67,6 +67,46 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const getAllUser = `-- name: GetAllUser :many
+SELECT id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban FROM users
+`
+
+func (q *Queries) GetAllUser(ctx context.Context) ([]User, error) {
+	rows, err := q.db.Query(ctx, getAllUser)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.FirstName,
+			&i.LastName,
+			&i.Bio,
+			&i.PhoneNumber,
+			&i.Email,
+			&i.PasswordHash,
+			&i.Role,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.TokenVersion,
+			&i.IsBanned,
+			&i.BanReason,
+			&i.BanUntil,
+			&i.IsPermanentBan,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
 SELECT id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban FROM users
 WHERE email = $1
