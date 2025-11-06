@@ -32,6 +32,17 @@ type Borrow struct {
 	ReturnedAt pgtype.Timestamp
 }
 
+type Reservation struct {
+	ID          pgtype.UUID
+	UserID      pgtype.UUID
+	BookID      pgtype.UUID
+	Status      string
+	CreatedAt   pgtype.Timestamptz
+	NotifiedAt  pgtype.Timestamptz
+	FulfilledAt pgtype.Timestamptz
+	CancelledAt pgtype.Timestamptz
+}
+
 type Review struct {
 	ID        pgtype.UUID
 	UserID    pgtype.UUID

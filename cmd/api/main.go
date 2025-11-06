@@ -84,6 +84,14 @@ func main() {
 		bookGroup.DELETE("/:id", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DeleteBookHandler)
 	}
 
+	reservationGroup := r.Group("/reservations")
+	reservationGroup.Use(middleware.AuthMiddleware())
+	{
+		reservationGroup.POST("/", handlers.CreateReservationHandler)
+		reservationGroup.GET("/next/:id", middleware.AdminOnly(), handlers.GetNextReservationHandler)
+		reservationGroup.PATCH("/:id/status", middleware.AdminOnly(), handlers.UpdateReservationStatusHandler)
+	}
+
 	// Borrow routes (protected, for any logged-in user)
 	borrowGroup := r.Group("/borrows")
 	borrowGroup.Use(middleware.AuthMiddleware())
