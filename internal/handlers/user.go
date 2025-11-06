@@ -59,7 +59,6 @@ func GetUsersHandler(c *gin.Context) {
 	// 3️⃣ Build response
 	var response []models.UserResponse
 	for _, user := range users {
-		// 🟢 Count borrowed books for each user
 		activeBorrowsCount, err := db.Q.CountActiveBorrowsByUserID(
 			c.Request.Context(),
 			pgtype.UUID{Bytes: user.ID.Bytes, Valid: true},
@@ -68,12 +67,13 @@ func GetUsersHandler(c *gin.Context) {
 			log.Printf("Failed to count active borrows for user %v: %v", user.ID, err)
 			activeBorrowsCount = 0
 		}
-		allBorrowsCount, err := db.Q.CountActiveBorrowsByUserID(
+
+		allBorrowsCount, err := db.Q.CountBorrowedBooksByUserID(
 			c.Request.Context(),
 			pgtype.UUID{Bytes: user.ID.Bytes, Valid: true},
 		)
 		if err != nil {
-			log.Printf("Failed to count borrows for user %v: %v", user.ID, err)
+			log.Printf("Failed to count all borrows for user %v: %v", user.ID, err)
 			allBorrowsCount = 0
 		}
 
