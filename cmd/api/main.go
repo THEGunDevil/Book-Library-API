@@ -61,7 +61,6 @@ func main() {
 	userGroup := r.Group("/users")
 	userGroup.Use(middleware.AuthMiddleware())
 	{
-		// userGroup.GET("/user", handlers.GetUsersHandler)
 		userGroup.GET("/user/:id", handlers.GetUserByIDHandler)
 		userGroup.GET("/user/profile/:id", handlers.GetProfileDataByIDHandler)
 		userGroup.PATCH("/user/:id", handlers.UpdateUserByIDHandler)
