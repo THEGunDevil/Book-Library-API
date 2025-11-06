@@ -36,3 +36,16 @@ LIMIT $1 OFFSET $2;
 
 -- name: CountBorrows :one
 SELECT COUNT(*) FROM borrows;
+
+-- name: CountBorrowedBooksByUserID :one
+SELECT COUNT(*)
+FROM borrows
+WHERE user_id = $1;
+
+-- name: CountActiveBorrowsByUserID :one
+SELECT COUNT(*)
+FROM borrows
+WHERE user_id = $1
+AND returned_at IS NULL;
+
+

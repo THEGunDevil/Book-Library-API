@@ -22,7 +22,6 @@ func GetUsersHandler(c *gin.Context) {
 	page := 1
 	limit := 10
 
-	// Read query params
 	if p := c.Query("page"); p != "" {
 		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
 			page = parsed
@@ -55,25 +54,49 @@ func GetUsersHandler(c *gin.Context) {
 		return
 	}
 
-	// 3️⃣ Compute total pages
 	totalPages := int(math.Ceil(float64(totalCount) / float64(limit)))
 
-	// 4️⃣ Build response
+	// 3️⃣ Build response
 	var response []models.UserResponse
 	for _, user := range users {
+		// 🟢 Count borrowed books for each user
+		activeBorrowsCount, err := db.Q.CountActiveBorrowsByUserID(
+			c.Request.Context(),
+			pgtype.UUID{Bytes: user.ID.Bytes, Valid: true},
+		)
+		if err != nil {
+			log.Printf("Failed to count active borrows for user %v: %v", user.ID, err)
+			activeBorrowsCount = 0
+		}
+		allBorrowsCount, err := db.Q.CountActiveBorrowsByUserID(
+			c.Request.Context(),
+			pgtype.UUID{Bytes: user.ID.Bytes, Valid: true},
+		)
+		if err != nil {
+			log.Printf("Failed to count borrows for user %v: %v", user.ID, err)
+			allBorrowsCount = 0
+		}
+
 		response = append(response, models.UserResponse{
-			ID:          user.ID.Bytes,
-			FirstName:   user.FirstName,
-			LastName:    user.LastName,
-			Bio:         user.Bio,
-			Email:       user.Email,
-			PhoneNumber: user.PhoneNumber,
-			Role:        user.Role.String,
-			CreatedAt:   user.CreatedAt.Time,
+			ID:                 user.ID.Bytes,
+			FirstName:          user.FirstName,
+			LastName:           user.LastName,
+			Bio:                user.Bio,
+			Email:              user.Email,
+			PhoneNumber:        user.PhoneNumber,
+			Role:               user.Role.String,
+			IsBanned:           user.IsBanned.Bool,
+			BanUntil:           &user.BanUntil.Time,
+			BanReason:          user.BanReason.String,
+			IsPermanentBan:     user.IsPermanentBan.Bool,
+			AllBorrowsCount:    int(allBorrowsCount),
+			ActiveBorrowsCount: int(activeBorrowsCount),
+			CreatedAt:          user.CreatedAt.Time,
+
+			// 👈 optional: add field to struct
 		})
 	}
 
-	// 5️⃣ Return paginated data
 	c.JSON(http.StatusOK, gin.H{
 		"page":        page,
 		"limit":       limit,
@@ -103,45 +126,37 @@ func GetUserByIDHandler(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
 	}
-
-	resp := models.UserResponse{
-		ID:          user.ID.Bytes,
-		FirstName:   user.FirstName,
-		LastName:    user.LastName,
-		Bio:         user.Bio, // added bio
-		Email:       user.Email,
-		PhoneNumber: user.PhoneNumber,
-		Role:        user.Role.String,
-		CreatedAt:   user.CreatedAt.Time,
-	}
-
-	c.JSON(http.StatusOK, resp)
-}
-
-// GetAllUsersHandler fetches all users
-func GetAllUsersHandler(c *gin.Context) {
-	users, err := db.Q.GetAllUsers(c.Request.Context())
+	activeBorrowsCount, err := db.Q.CountActiveBorrowsByUserID(
+		c.Request.Context(),
+		pgtype.UUID{Bytes: user.ID.Bytes, Valid: true},
+	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch users"})
-		return
+		log.Printf("Failed to count active borrows for user %v: %v", user.ID, err)
+		activeBorrowsCount = 0
 	}
-
-	var resp []models.UserResponse
-	for _, u := range users {
-		resp = append(resp, models.UserResponse{
-			ID:             u.ID.Bytes,
-			FirstName:      u.FirstName,
-			LastName:       u.LastName,
-			Bio:            u.Bio,
-			Email:          u.Email,
-			PhoneNumber:    u.PhoneNumber,
-			Role:           u.Role.String,
-			IsBanned:       u.IsBanned.Bool,
-			BanUntil:       &u.BanUntil.Time,
-			BanReason:      u.BanReason.String,
-			IsPermanentBan: u.IsPermanentBan.Bool,
-			CreatedAt:      u.CreatedAt.Time,
-		})
+	allBorrowsCount, err := db.Q.CountActiveBorrowsByUserID(
+		c.Request.Context(),
+		pgtype.UUID{Bytes: user.ID.Bytes, Valid: true},
+	)
+	if err != nil {
+		log.Printf("Failed to count borrows for user %v: %v", user.ID, err)
+		allBorrowsCount = 0
+	}
+	resp := models.UserResponse{
+		ID:                 user.ID.Bytes,
+		FirstName:          user.FirstName,
+		LastName:           user.LastName,
+		Bio:                user.Bio,
+		Email:              user.Email,
+		PhoneNumber:        user.PhoneNumber,
+		Role:               user.Role.String,
+		IsBanned:           user.IsBanned.Bool,
+		BanUntil:           &user.BanUntil.Time,
+		BanReason:          user.BanReason.String,
+		IsPermanentBan:     user.IsPermanentBan.Bool,
+		AllBorrowsCount:    int(allBorrowsCount),
+		ActiveBorrowsCount: int(activeBorrowsCount),
+		CreatedAt:          user.CreatedAt.Time,
 	}
 
 	c.JSON(http.StatusOK, resp)

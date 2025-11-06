@@ -11,6 +11,33 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countActiveBorrowsByUserID = `-- name: CountActiveBorrowsByUserID :one
+SELECT COUNT(*)
+FROM borrows
+WHERE user_id = $1
+AND returned_at IS NULL
+`
+
+func (q *Queries) CountActiveBorrowsByUserID(ctx context.Context, userID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countActiveBorrowsByUserID, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countBorrowedBooksByUserID = `-- name: CountBorrowedBooksByUserID :one
+SELECT COUNT(*)
+FROM borrows
+WHERE user_id = $1
+`
+
+func (q *Queries) CountBorrowedBooksByUserID(ctx context.Context, userID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countBorrowedBooksByUserID, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countBorrows = `-- name: CountBorrows :one
 SELECT COUNT(*) FROM borrows
 `

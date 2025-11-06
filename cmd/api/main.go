@@ -61,12 +61,12 @@ func main() {
 	userGroup := r.Group("/users")
 	userGroup.Use(middleware.AuthMiddleware())
 	{
-		userGroup.GET("/user", handlers.GetUsersHandler)
+		// userGroup.GET("/user", handlers.GetUsersHandler)
 		userGroup.GET("/user/:id", handlers.GetUserByIDHandler)
 		userGroup.GET("/user/profile/:id", handlers.GetProfileDataByIDHandler)
+		userGroup.PATCH("/user/:id", handlers.UpdateUserByIDHandler)
 		// only admin can update user info
-		userGroup.GET("/", middleware.AdminOnly(), handlers.GetAllUsersHandler)
-		userGroup.PATCH("/user/:id", middleware.AdminOnly(), handlers.UpdateUserByIDHandler)
+		userGroup.GET("/", middleware.AdminOnly(), handlers.GetUsersHandler)
 		userGroup.PATCH("/user/ban/:id", middleware.AdminOnly(), handlers.BanUserByIDHandler)
 	}
 

@@ -11,11 +11,6 @@ WHERE email = $1;
 SELECT * FROM users
 WHERE id = $1;
 
--- name: GetAllUsers :many
-
-SELECT * FROM users;
-
-
 -- name: UpdateUserByID :one
 UPDATE users
 SET
@@ -47,3 +42,4 @@ LIMIT $1 OFFSET $2;
 
 -- name: CountUsers :one
 SELECT COUNT(*) FROM users;
+
