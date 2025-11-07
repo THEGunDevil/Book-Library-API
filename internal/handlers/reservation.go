@@ -115,3 +115,38 @@ func UpdateReservationStatusHandler(c *gin.Context) {
 	})
 }
 
+// GetAllReservationsHandler fetches all reservations for admin or the user's own reservations
+func GetAllReservationsHandler(c *gin.Context) {
+    // Extract user info from context (assuming middleware.AuthMiddleware set it)
+    user, exists := c.Get("user")
+    if !exists {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+        return
+    }
+
+    appUser, ok := user.(models.User)
+    if !ok {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user context"})
+        return
+    }
+
+    var reservations []gen.Reservation
+    var err error
+
+    // Admin can see all reservations
+    if appUser.Role == "admin" {
+        reservations, err = db.Q.GetAllReservations(c.Request.Context())
+    } else {
+        // Regular user can only see their own
+        reservations, err = db.Q.GetReservationsByUser(c.Request.Context(),
+            pgtype.UUID{Bytes: appUser.ID, Valid: true},
+        )
+    }
+
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch reservations"})
+        return
+    }
+
+    c.JSON(http.StatusOK, reservations)
+}

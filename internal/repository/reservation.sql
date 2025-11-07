@@ -17,3 +17,11 @@ WHERE book_id = $1
   AND status = 'pending'
 ORDER BY created_at ASC
 LIMIT 1;
+-- name: GetAllReservations :many
+SELECT * FROM reservations
+ORDER BY created_at DESC;
+
+-- name: GetReservationsByUser :many
+SELECT * FROM reservations
+WHERE user_id = $1
+ORDER BY created_at DESC;

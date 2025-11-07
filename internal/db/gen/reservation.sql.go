@@ -38,6 +38,40 @@ func (q *Queries) CreateReservation(ctx context.Context, arg CreateReservationPa
 	return i, err
 }
 
+const getAllReservations = `-- name: GetAllReservations :many
+SELECT id, user_id, book_id, status, created_at, notified_at, fulfilled_at, cancelled_at FROM reservations
+ORDER BY created_at DESC
+`
+
+func (q *Queries) GetAllReservations(ctx context.Context) ([]Reservation, error) {
+	rows, err := q.db.Query(ctx, getAllReservations)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Reservation
+	for rows.Next() {
+		var i Reservation
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.BookID,
+			&i.Status,
+			&i.CreatedAt,
+			&i.NotifiedAt,
+			&i.FulfilledAt,
+			&i.CancelledAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getNextReservationForBook = `-- name: GetNextReservationForBook :one
 SELECT id, user_id, book_id, status, created_at, notified_at, fulfilled_at, cancelled_at
 FROM reservations
@@ -61,6 +95,41 @@ func (q *Queries) GetNextReservationForBook(ctx context.Context, bookID pgtype.U
 		&i.CancelledAt,
 	)
 	return i, err
+}
+
+const getReservationsByUser = `-- name: GetReservationsByUser :many
+SELECT id, user_id, book_id, status, created_at, notified_at, fulfilled_at, cancelled_at FROM reservations
+WHERE user_id = $1
+ORDER BY created_at DESC
+`
+
+func (q *Queries) GetReservationsByUser(ctx context.Context, userID pgtype.UUID) ([]Reservation, error) {
+	rows, err := q.db.Query(ctx, getReservationsByUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Reservation
+	for rows.Next() {
+		var i Reservation
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.BookID,
+			&i.Status,
+			&i.CreatedAt,
+			&i.NotifiedAt,
+			&i.FulfilledAt,
+			&i.CancelledAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateReservationStatus = `-- name: UpdateReservationStatus :exec
