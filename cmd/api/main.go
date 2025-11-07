@@ -89,8 +89,8 @@ func main() {
 	{
 		reservationGroup.POST("/", handlers.CreateReservationHandler)
 		reservationGroup.GET("/", handlers.GetReservationsHandler)
+		reservationGroup.PATCH("/:id/status", handlers.UpdateReservationStatusHandler)
 		reservationGroup.GET("/next/:id", middleware.AdminOnly(), handlers.GetNextReservationHandler)
-		reservationGroup.PATCH("/:id/status", middleware.AdminOnly(), handlers.UpdateReservationStatusHandler)
 	}
 
 	// Borrow routes (protected, for any logged-in user)
