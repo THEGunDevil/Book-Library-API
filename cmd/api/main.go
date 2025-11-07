@@ -89,6 +89,7 @@ func main() {
 	{
 		reservationGroup.POST("/", handlers.CreateReservationHandler)
 		reservationGroup.GET("/:id", handlers.GetReservationsByBookIDHandler)
+		reservationGroup.GET("/:id", handlers.GetReservationsByReservationID)
 		reservationGroup.GET("/", middleware.AdminOnly(), handlers.GetReservationsHandler)
 		reservationGroup.PATCH("/:id/status", handlers.UpdateReservationStatusHandler)
 		reservationGroup.GET("/next/:id", middleware.AdminOnly(), handlers.GetNextReservationHandler)
