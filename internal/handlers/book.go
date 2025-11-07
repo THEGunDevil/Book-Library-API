@@ -246,7 +246,7 @@ func UpdateBookByIDHandler(c *gin.Context) {
 
 	// Helper for string fields
 	setText := func(reqVal *string) pgtype.Text {
-		if reqVal != nil {
+		if reqVal != nil && *reqVal != "" {
 			return pgtype.Text{String: *reqVal, Valid: true}
 		}
 		return pgtype.Text{Valid: false}
@@ -278,7 +278,11 @@ func UpdateBookByIDHandler(c *gin.Context) {
 			url, err := service.UploadImageToCloudinary(f, req.Image.Filename)
 			if err == nil {
 				params.ImageUrl = pgtype.Text{String: url, Valid: true}
+			} else {
+				params.ImageUrl = pgtype.Text{Valid: false}
 			}
+		} else {
+			params.ImageUrl = pgtype.Text{Valid: false}
 		}
 	} else {
 		params.ImageUrl = pgtype.Text{Valid: false}
@@ -305,6 +309,7 @@ func UpdateBookByIDHandler(c *gin.Context) {
 		UpdatedAt:       updatedBook.UpdatedAt.Time,
 	})
 }
+
 
 // SearchBooksHandler searches books by title/author/genre
 

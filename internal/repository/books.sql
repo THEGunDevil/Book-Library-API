@@ -21,7 +21,6 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING *;
 
 -- name: UpdateBookByID :one
--- name: UpdateBookByID :one
 UPDATE books
 SET
     title = COALESCE(sqlc.narg('title'), title),
