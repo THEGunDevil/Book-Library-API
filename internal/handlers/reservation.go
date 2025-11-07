@@ -46,6 +46,7 @@ func GetReservationsHandler(c *gin.Context) {
 				FulfilledAt: r.FulfilledAt.Time,
 				CancelledAt: r.CancelledAt.Time,
 				UserName:    r.UserName,
+				UserEmail:   r.Email,
 				BookTitle:   r.Title,
 				BookAuthor:  r.Author,
 				BookImage:   r.ImageUrl,
@@ -69,6 +70,7 @@ func GetReservationsHandler(c *gin.Context) {
 				FulfilledAt: r.FulfilledAt.Time,
 				CancelledAt: r.CancelledAt.Time,
 				UserName:    r.UserName,
+				UserEmail:   r.Email,
 				BookTitle:   r.Title,
 				BookAuthor:  r.Author,
 				BookImage:   r.ImageUrl,
@@ -135,7 +137,7 @@ func CreateReservationHandler(c *gin.Context) {
 	if err == nil && count > 0 {
 		c.JSON(http.StatusConflict, gin.H{"error": "You already have an active reservation for this book"})
 		return
-	}	// Create reservation
+	} // Create reservation
 	r, err := db.Q.CreateReservation(c.Request.Context(), gen.CreateReservationParams{
 		UserID: pgtype.UUID{Bytes: userUUID, Valid: true},
 		BookID: pgtype.UUID{Bytes: bookUUID, Valid: true},
@@ -150,7 +152,7 @@ func CreateReservationHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create reservation"})
 		return
 	}
-	resp :=models.ReservationResponse{
+	resp := models.ReservationResponse{
 		ID:          r.ID.Bytes,
 		BookID:      r.BookID.Bytes,
 		UserID:      r.UserID.Bytes,
@@ -179,7 +181,7 @@ func GetNextReservationHandler(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "No pending reservations for this book"})
 		return
 	}
-	resp :=models.ReservationResponse{
+	resp := models.ReservationResponse{
 		ID:          r.ID.Bytes,
 		BookID:      r.BookID.Bytes,
 		UserID:      r.UserID.Bytes,
@@ -189,9 +191,10 @@ func GetNextReservationHandler(c *gin.Context) {
 		FulfilledAt: r.FulfilledAt.Time,
 		CancelledAt: r.CancelledAt.Time,
 		UserName:    r.UserName,
-		BookTitle:   r.Title,
-		BookAuthor:  r.Author,
-		BookImage:   r.ImageUrl,
+		UserEmail:   r.Email,
+		BookTitle:  r.Title,
+		BookAuthor: r.Author,
+		BookImage:  r.ImageUrl,
 	}
 	c.JSON(http.StatusOK, resp)
 }

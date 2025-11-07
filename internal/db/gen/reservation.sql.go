@@ -138,6 +138,7 @@ SELECT
     r.fulfilled_at, 
     r.cancelled_at, 
     CONCAT(u.first_name, ' ', u.last_name) as user_name,
+    u.email,
     b.title,
     b.author,
     b.image_url
@@ -159,6 +160,7 @@ type GetNextReservationForBookRow struct {
 	FulfilledAt pgtype.Timestamptz
 	CancelledAt pgtype.Timestamptz
 	UserName    interface{}
+	Email       string
 	Title       string
 	Author      string
 	ImageUrl    string
@@ -177,6 +179,7 @@ func (q *Queries) GetNextReservationForBook(ctx context.Context, bookID pgtype.U
 		&i.FulfilledAt,
 		&i.CancelledAt,
 		&i.UserName,
+		&i.Email,
 		&i.Title,
 		&i.Author,
 		&i.ImageUrl,
@@ -195,6 +198,7 @@ SELECT
     r.fulfilled_at,
     r.cancelled_at,    
     CONCAT(u.first_name, ' ', u.last_name) as user_name,
+    u.email,
     b.title,
     b.author,
     b.image_url
@@ -215,6 +219,7 @@ type GetUserReservationsRow struct {
 	FulfilledAt pgtype.Timestamptz
 	CancelledAt pgtype.Timestamptz
 	UserName    interface{}
+	Email       string
 	Title       string
 	Author      string
 	ImageUrl    string
@@ -239,6 +244,7 @@ func (q *Queries) GetUserReservations(ctx context.Context, userID pgtype.UUID) (
 			&i.FulfilledAt,
 			&i.CancelledAt,
 			&i.UserName,
+			&i.Email,
 			&i.Title,
 			&i.Author,
 			&i.ImageUrl,

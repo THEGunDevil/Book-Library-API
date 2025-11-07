@@ -23,6 +23,7 @@ SELECT
     r.fulfilled_at, 
     r.cancelled_at, 
     CONCAT(u.first_name, ' ', u.last_name) as user_name,
+    u.email,
     b.title,
     b.author,
     b.image_url
@@ -45,6 +46,7 @@ SELECT
     r.fulfilled_at,
     r.cancelled_at,    
     CONCAT(u.first_name, ' ', u.last_name) as user_name,
+    u.email,
     b.title,
     b.author,
     b.image_url
