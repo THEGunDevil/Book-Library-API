@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/THEGunDevil/GoForBackend/internal/db"
 	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
@@ -9,81 +10,142 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/lib/pq"
 )
 
-// CreateReservationHandler creates a new reservation
+// GetReservationsHandler gets reservations based on user role
+func GetReservationsHandler(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	role, _ := c.Get("role")
+	userUUID, ok := userID.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	var reservations interface{}
+	var err error
+
+	if role == "admin" {
+		reservations, err = db.Q.GetAllReservations(c.Request.Context())
+	} else {
+		reservations, err = db.Q.GetUserReservations(c.Request.Context(),
+			pgtype.UUID{Bytes: userUUID, Valid: true})
+	}
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch reservations"})
+		return
+	}
+
+	c.JSON(http.StatusOK, reservations)
+}
+
+// CreateReservationHandler creates a new book reservation
 func CreateReservationHandler(c *gin.Context) {
-	var req models.CreateReservationParams
+	var req struct {
+		UserID string `json:"user_id" binding:"required"`
+		BookID string `json:"book_id" binding:"required"`
+	}
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Ensure the UUIDs are valid
-	if req.UserID == uuid.Nil || req.BookID == uuid.Nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid UserID or BookID"})
+	// Verify the requesting user matches the reservation user (unless admin)
+	requestingUserID, _ := c.Get("userID")
+	role, _ := c.Get("role")
+
+	if role != "admin" && requestingUserID.(uuid.UUID).String() != req.UserID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Cannot create reservation for another user"})
 		return
 	}
 
-	reservation, err := db.Q.CreateReservation(c.Request.Context(), gen.CreateReservationParams{
-		UserID: pgtype.UUID{Bytes: req.UserID, Valid: true},
-		BookID: pgtype.UUID{Bytes: req.BookID, Valid: true},
-	})
+	// Parse UUIDs
+	userUUID, err := uuid.Parse(req.UserID)
 	if err != nil {
-		// Handle unique constraint violation (duplicate pending reservation)
-		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == "23505" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	bookUUID, err := uuid.Parse(req.BookID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book ID format"})
+		return
+	}
+
+	// Check if book exists and is unavailable
+	book, err := db.Q.GetBookByID(c.Request.Context(),
+		pgtype.UUID{Bytes: bookUUID, Valid: true})
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Book not found"})
+		return
+	}
+
+	if book.AvailableCopies.Int32 > 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Book is available, please borrow instead"})
+		return
+	}
+
+	// Check for existing active reservation (handled by DB unique constraint, but good to check)
+	count, err := db.Q.CheckExistingReservation(c.Request.Context(), gen.CheckExistingReservationParams{
+		UserID: pgtype.UUID{Bytes: userUUID, Valid: true},
+		BookID: pgtype.UUID{Bytes: bookUUID, Valid: true},
+	})
+	if err == nil && count > 0 {
+		c.JSON(http.StatusConflict, gin.H{"error": "You already have an active reservation for this book"})
+		return
+	}
+
+	// Create reservation
+	reservation, err := db.Q.CreateReservation(c.Request.Context(), gen.CreateReservationParams{
+		UserID: pgtype.UUID{Bytes: userUUID, Valid: true},
+		BookID: pgtype.UUID{Bytes: bookUUID, Valid: true},
+	})
+
+	if err != nil {
+		// Check if it's a unique constraint violation
+		if strings.Contains(err.Error(), "unique_user_book_pending") {
 			c.JSON(http.StatusConflict, gin.H{"error": "You already have a pending reservation for this book"})
 			return
 		}
-
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create reservation"})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"message":     "Reservation created successfully",
-		"reservation": reservation,
-	})
+	c.JSON(http.StatusCreated, reservation)
 }
 
-// GetNextReservationHandler fetches the next pending reservation for a book
+// GetNextReservationHandler gets the next pending reservation for a book (admin only)
 func GetNextReservationHandler(c *gin.Context) {
-	bookID := c.Param("id")
-	if bookID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Book ID is required"})
-		return
-	}
-
-	bookUUID, err := uuid.Parse(bookID)
+	bookIDStr := c.Param("id")
+	bookUUID, err := uuid.Parse(bookIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book ID"})
 		return
 	}
 
-	reservation, err := db.Q.GetNextReservationForBook(c.Request.Context(), pgtype.UUID{Bytes: bookUUID, Valid: true})
+	reservation, err := db.Q.GetNextReservationForBook(c.Request.Context(),
+		pgtype.UUID{Bytes: bookUUID, Valid: true})
 	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
-			c.JSON(http.StatusOK, gin.H{"message": "No pending reservations for this book"})
-			return
-		}
-
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch next reservation"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "No pending reservations for this book"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message":     "Next reservation fetched successfully",
-		"reservation": reservation,
-	})
+	c.JSON(http.StatusOK, reservation)
 }
 
-// UpdateReservationStatusHandler updates the status of a reservation
-// UpdateReservationStatusHandler updates the status of a reservation (PATCH)
+// UpdateReservationStatusHandler updates a reservation's status (admin only)
 func UpdateReservationStatusHandler(c *gin.Context) {
-	reservationID := c.Param("id")
-	if reservationID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Reservation ID is required"})
+	reservationIDStr := c.Param("id")
+	reservationUUID, err := uuid.Parse(reservationIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reservation ID"})
 		return
 	}
 
@@ -93,60 +155,15 @@ func UpdateReservationStatusHandler(c *gin.Context) {
 		return
 	}
 
-	resUUID, err := uuid.Parse(reservationID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reservation ID"})
-		return
-	}
-
-	err = db.Q.UpdateReservationStatus(c.Request.Context(), gen.UpdateReservationStatusParams{
+	reservation, err := db.Q.UpdateReservationStatus(c.Request.Context(), gen.UpdateReservationStatusParams{
+		ID:     pgtype.UUID{Bytes: reservationUUID, Valid: true},
 		Status: req.Status,
-		ID:     pgtype.UUID{Bytes: resUUID, Valid: true},
 	})
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update reservation status"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Reservation status updated successfully",
-		"status":  req.Status,
-		"id":      reservationID,
-	})
-}
-
-// GetAllReservationsHandler fetches all reservations for admin or the user's own reservations
-func GetAllReservationsHandler(c *gin.Context) {
-    // Extract user info from context (assuming middleware.AuthMiddleware set it)
-    user, exists := c.Get("user")
-    if !exists {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-        return
-    }
-
-    appUser, ok := user.(models.User)
-    if !ok {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user context"})
-        return
-    }
-
-    var reservations []gen.Reservation
-    var err error
-
-    // Admin can see all reservations
-    if appUser.Role == "admin" {
-        reservations, err = db.Q.GetAllReservations(c.Request.Context())
-    } else {
-        // Regular user can only see their own
-        reservations, err = db.Q.GetReservationsByUser(c.Request.Context(),
-            pgtype.UUID{Bytes: appUser.ID, Valid: true},
-        )
-    }
-
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch reservations"})
-        return
-    }
-
-    c.JSON(http.StatusOK, reservations)
+	c.JSON(http.StatusOK, reservation)
 }

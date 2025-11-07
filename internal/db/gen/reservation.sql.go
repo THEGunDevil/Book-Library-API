@@ -11,6 +11,24 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const checkExistingReservation = `-- name: CheckExistingReservation :one
+SELECT COUNT(*) as count
+FROM reservations
+WHERE user_id = $1 AND book_id = $2 AND status IN ('pending', 'notified')
+`
+
+type CheckExistingReservationParams struct {
+	UserID pgtype.UUID
+	BookID pgtype.UUID
+}
+
+func (q *Queries) CheckExistingReservation(ctx context.Context, arg CheckExistingReservationParams) (int64, error) {
+	row := q.db.QueryRow(ctx, checkExistingReservation, arg.UserID, arg.BookID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createReservation = `-- name: CreateReservation :one
 INSERT INTO reservations (user_id, book_id, status)
 VALUES ($1, $2, 'pending')
@@ -39,19 +57,51 @@ func (q *Queries) CreateReservation(ctx context.Context, arg CreateReservationPa
 }
 
 const getAllReservations = `-- name: GetAllReservations :many
-SELECT id, user_id, book_id, status, created_at, notified_at, fulfilled_at, cancelled_at FROM reservations
-ORDER BY created_at DESC
+SELECT 
+    r.id,
+    r.user_id,
+    r.book_id,
+    r.status,
+    r.created_at,
+    r.notified_at,
+    r.fulfilled_at,
+    r.cancelled_at,
+    CONCAT(u.first_name, ' ', u.last_name) as user_name,
+    u.email as user_email,
+    b.title as book_title,
+    b.author as book_author,
+    b.image_url as book_image
+FROM reservations r
+JOIN users u ON r.user_id = u.id
+JOIN books b ON r.book_id = b.id
+ORDER BY r.created_at DESC
 `
 
-func (q *Queries) GetAllReservations(ctx context.Context) ([]Reservation, error) {
+type GetAllReservationsRow struct {
+	ID          pgtype.UUID
+	UserID      pgtype.UUID
+	BookID      pgtype.UUID
+	Status      string
+	CreatedAt   pgtype.Timestamptz
+	NotifiedAt  pgtype.Timestamptz
+	FulfilledAt pgtype.Timestamptz
+	CancelledAt pgtype.Timestamptz
+	UserName    interface{}
+	UserEmail   string
+	BookTitle   string
+	BookAuthor  string
+	BookImage   string
+}
+
+func (q *Queries) GetAllReservations(ctx context.Context) ([]GetAllReservationsRow, error) {
 	rows, err := q.db.Query(ctx, getAllReservations)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Reservation
+	var items []GetAllReservationsRow
 	for rows.Next() {
-		var i Reservation
+		var i GetAllReservationsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
@@ -61,6 +111,11 @@ func (q *Queries) GetAllReservations(ctx context.Context) ([]Reservation, error)
 			&i.NotifiedAt,
 			&i.FulfilledAt,
 			&i.CancelledAt,
+			&i.UserName,
+			&i.UserEmail,
+			&i.BookTitle,
+			&i.BookAuthor,
+			&i.BookImage,
 		); err != nil {
 			return nil, err
 		}
@@ -75,8 +130,7 @@ func (q *Queries) GetAllReservations(ctx context.Context) ([]Reservation, error)
 const getNextReservationForBook = `-- name: GetNextReservationForBook :one
 SELECT id, user_id, book_id, status, created_at, notified_at, fulfilled_at, cancelled_at
 FROM reservations
-WHERE book_id = $1
-  AND status = 'pending'
+WHERE book_id = $1 AND status = 'pending'
 ORDER BY created_at ASC
 LIMIT 1
 `
@@ -97,21 +151,48 @@ func (q *Queries) GetNextReservationForBook(ctx context.Context, bookID pgtype.U
 	return i, err
 }
 
-const getReservationsByUser = `-- name: GetReservationsByUser :many
-SELECT id, user_id, book_id, status, created_at, notified_at, fulfilled_at, cancelled_at FROM reservations
-WHERE user_id = $1
-ORDER BY created_at DESC
+const getUserReservations = `-- name: GetUserReservations :many
+SELECT 
+    r.id,
+    r.user_id,
+    r.book_id,
+    r.status,
+    r.created_at,
+    r.notified_at,
+    r.fulfilled_at,
+    r.cancelled_at,
+    b.title as book_title,
+    b.author as book_author,
+    b.image_url as book_image
+FROM reservations r
+JOIN books b ON r.book_id = b.id
+WHERE r.user_id = $1
+ORDER BY r.created_at DESC
 `
 
-func (q *Queries) GetReservationsByUser(ctx context.Context, userID pgtype.UUID) ([]Reservation, error) {
-	rows, err := q.db.Query(ctx, getReservationsByUser, userID)
+type GetUserReservationsRow struct {
+	ID          pgtype.UUID
+	UserID      pgtype.UUID
+	BookID      pgtype.UUID
+	Status      string
+	CreatedAt   pgtype.Timestamptz
+	NotifiedAt  pgtype.Timestamptz
+	FulfilledAt pgtype.Timestamptz
+	CancelledAt pgtype.Timestamptz
+	BookTitle   string
+	BookAuthor  string
+	BookImage   string
+}
+
+func (q *Queries) GetUserReservations(ctx context.Context, userID pgtype.UUID) ([]GetUserReservationsRow, error) {
+	rows, err := q.db.Query(ctx, getUserReservations, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Reservation
+	var items []GetUserReservationsRow
 	for rows.Next() {
-		var i Reservation
+		var i GetUserReservationsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
@@ -121,6 +202,9 @@ func (q *Queries) GetReservationsByUser(ctx context.Context, userID pgtype.UUID)
 			&i.NotifiedAt,
 			&i.FulfilledAt,
 			&i.CancelledAt,
+			&i.BookTitle,
+			&i.BookAuthor,
+			&i.BookImage,
 		); err != nil {
 			return nil, err
 		}
@@ -132,21 +216,33 @@ func (q *Queries) GetReservationsByUser(ctx context.Context, userID pgtype.UUID)
 	return items, nil
 }
 
-const updateReservationStatus = `-- name: UpdateReservationStatus :exec
+const updateReservationStatus = `-- name: UpdateReservationStatus :one
 UPDATE reservations
-SET status = $1,
-    notified_at = CASE WHEN $1 = 'notified' AND notified_at IS NULL THEN now() ELSE notified_at END,
-    fulfilled_at = CASE WHEN $1 = 'fulfilled' AND fulfilled_at IS NULL THEN now() ELSE fulfilled_at END,
-    cancelled_at = CASE WHEN $1 = 'cancelled' AND cancelled_at IS NULL THEN now() ELSE cancelled_at END
-WHERE id = $2
+SET status = $2,
+    notified_at = CASE WHEN $2 = 'notified' AND notified_at IS NULL THEN now() ELSE notified_at END,
+    fulfilled_at = CASE WHEN $2 = 'fulfilled' AND fulfilled_at IS NULL THEN now() ELSE fulfilled_at END,
+    cancelled_at = CASE WHEN $2 = 'cancelled' AND cancelled_at IS NULL THEN now() ELSE cancelled_at END
+WHERE id = $1
+RETURNING id, user_id, book_id, status, created_at, notified_at, fulfilled_at, cancelled_at
 `
 
 type UpdateReservationStatusParams struct {
-	Status string
 	ID     pgtype.UUID
+	Status string
 }
 
-func (q *Queries) UpdateReservationStatus(ctx context.Context, arg UpdateReservationStatusParams) error {
-	_, err := q.db.Exec(ctx, updateReservationStatus, arg.Status, arg.ID)
-	return err
+func (q *Queries) UpdateReservationStatus(ctx context.Context, arg UpdateReservationStatusParams) (Reservation, error) {
+	row := q.db.QueryRow(ctx, updateReservationStatus, arg.ID, arg.Status)
+	var i Reservation
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.BookID,
+		&i.Status,
+		&i.CreatedAt,
+		&i.NotifiedAt,
+		&i.FulfilledAt,
+		&i.CancelledAt,
+	)
+	return i, err
 }
