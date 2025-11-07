@@ -266,4 +266,35 @@ func GetReservationsByBookIDHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, reservations)
 }
+func GetReservationsByReservationID(c *gin.Context) {
+	idStr := c.Param("id") // Correct: Param, not Params
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book ID"})
+		return
+	}
 
+	// Fetch raw reservations from DB
+	r, err := db.Q.GetReservationsByReservationID(c.Request.Context(), pgtype.UUID{Bytes: id, Valid: true})
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reservation ID"})
+		return
+	}
+	res := models.ReservationResponse{
+		ID:          r.ID.Bytes,
+		BookID:      r.BookID.Bytes,
+		UserID:      r.UserID.Bytes,
+		Status:      r.Status,
+		CreatedAt:   r.CreatedAt.Time,
+		NotifiedAt:  r.NotifiedAt.Time,
+		FulfilledAt: r.FulfilledAt.Time,
+		CancelledAt: r.CancelledAt.Time,
+		UserName:    r.UserName,
+		UserEmail:   r.Email,
+		BookTitle:   r.Title,
+		BookAuthor:  r.Author,
+		BookImage:   r.ImageUrl,
+	}
+
+	c.JSON(http.StatusOK, res)
+}
