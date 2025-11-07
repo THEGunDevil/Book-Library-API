@@ -192,9 +192,9 @@ func GetNextReservationHandler(c *gin.Context) {
 		CancelledAt: r.CancelledAt.Time,
 		UserName:    r.UserName,
 		UserEmail:   r.Email,
-		BookTitle:  r.Title,
-		BookAuthor: r.Author,
-		BookImage:  r.ImageUrl,
+		BookTitle:   r.Title,
+		BookAuthor:  r.Author,
+		BookImage:   r.ImageUrl,
 	}
 	c.JSON(http.StatusOK, resp)
 }
@@ -226,3 +226,44 @@ func UpdateReservationStatusHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, reservation)
 }
+func GetReservationsByBookIDHandler(c *gin.Context) {
+	idStr := c.Param("id") // Correct: Param, not Params
+	bookID, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book ID"})
+		return
+	}
+
+	// Fetch raw reservations from DB
+	dbReservations, err := db.Q.GetReservationsByBookID(
+		c.Request.Context(),
+		pgtype.UUID{Bytes: bookID, Valid: true},
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch reservations"})
+		return
+	}
+
+	// Map to response objects
+	var reservations []models.ReservationResponse
+	for _, r := range dbReservations {
+		reservations = append(reservations, models.ReservationResponse{
+			ID:          r.ID.Bytes,
+			BookID:      r.BookID.Bytes,
+			UserID:      r.UserID.Bytes,
+			Status:      r.Status,
+			CreatedAt:   r.CreatedAt.Time,
+			NotifiedAt:  r.NotifiedAt.Time,
+			FulfilledAt: r.FulfilledAt.Time,
+			CancelledAt: r.CancelledAt.Time,
+			UserName:    r.UserName,
+			UserEmail:   r.Email,
+			BookTitle:   r.Title,
+			BookAuthor:  r.Author,
+			BookImage:   r.ImageUrl,
+		})
+	}
+
+	c.JSON(http.StatusOK, reservations)
+}
+
