@@ -259,6 +259,69 @@ func (q *Queries) GetReservationsByBookID(ctx context.Context, bookID pgtype.UUI
 	return items, nil
 }
 
+const getReservationsByBookIDAndUserID = `-- name: GetReservationsByBookIDAndUserID :one
+SELECT 
+    r.id,
+    r.user_id,
+    r.book_id,
+    r.status,
+    r.created_at,
+    r.notified_at,
+    r.fulfilled_at,
+    r.cancelled_at,    
+    CONCAT(u.first_name, ' ', u.last_name) as user_name,
+    u.email,
+    b.title,
+    b.author,
+    b.image_url
+FROM reservations r
+JOIN users u ON r.user_id = u.id
+JOIN books b ON r.book_id = b.id
+WHERE r.book_id = $1 AND r.user_id = $2
+`
+
+type GetReservationsByBookIDAndUserIDParams struct {
+	BookID pgtype.UUID
+	UserID pgtype.UUID
+}
+
+type GetReservationsByBookIDAndUserIDRow struct {
+	ID          pgtype.UUID
+	UserID      pgtype.UUID
+	BookID      pgtype.UUID
+	Status      string
+	CreatedAt   pgtype.Timestamptz
+	NotifiedAt  pgtype.Timestamptz
+	FulfilledAt pgtype.Timestamptz
+	CancelledAt pgtype.Timestamptz
+	UserName    interface{}
+	Email       string
+	Title       string
+	Author      string
+	ImageUrl    string
+}
+
+func (q *Queries) GetReservationsByBookIDAndUserID(ctx context.Context, arg GetReservationsByBookIDAndUserIDParams) (GetReservationsByBookIDAndUserIDRow, error) {
+	row := q.db.QueryRow(ctx, getReservationsByBookIDAndUserID, arg.BookID, arg.UserID)
+	var i GetReservationsByBookIDAndUserIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.BookID,
+		&i.Status,
+		&i.CreatedAt,
+		&i.NotifiedAt,
+		&i.FulfilledAt,
+		&i.CancelledAt,
+		&i.UserName,
+		&i.Email,
+		&i.Title,
+		&i.Author,
+		&i.ImageUrl,
+	)
+	return i, err
+}
+
 const getReservationsByReservationID = `-- name: GetReservationsByReservationID :one
 SELECT 
     r.id,

@@ -76,7 +76,25 @@ JOIN users u ON r.user_id = u.id
 JOIN books b ON r.book_id = b.id
 WHERE r.book_id = $1
 ORDER BY r.created_at DESC;
-
+-- name: GetReservationsByBookIDAndUserID :one
+SELECT 
+    r.id,
+    r.user_id,
+    r.book_id,
+    r.status,
+    r.created_at,
+    r.notified_at,
+    r.fulfilled_at,
+    r.cancelled_at,    
+    CONCAT(u.first_name, ' ', u.last_name) as user_name,
+    u.email,
+    b.title,
+    b.author,
+    b.image_url
+FROM reservations r
+JOIN users u ON r.user_id = u.id
+JOIN books b ON r.book_id = b.id
+WHERE r.book_id = $1 AND r.user_id = $2;
 -- name: GetReservationsByReservationID :one
 SELECT 
     r.id,

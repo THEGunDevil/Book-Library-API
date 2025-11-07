@@ -226,6 +226,59 @@ func UpdateReservationStatusHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, reservation)
 }
+func GetReservationsByBookIDAndUserIDHandler(c *gin.Context) {
+	bookIDStr := c.Param("id")              // from /reservations/book/:id
+	userIDStr := c.Query("user_id")         // from ?user_id=<UUID>
+
+	if bookIDStr == "" || userIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing book_id or user_id"})
+		return
+	}
+
+	bookUUID, err := uuid.Parse(bookIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book ID"})
+		return
+	}
+
+	userUUID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	// ✅ Call a new query that filters by BOTH
+	r, err := db.Q.GetReservationsByBookIDAndUserID(
+		c.Request.Context(),
+		gen.GetReservationsByBookIDAndUserIDParams{
+			BookID: pgtype.UUID{Bytes: bookUUID, Valid: true},
+			UserID: pgtype.UUID{Bytes: userUUID, Valid: true},
+		},
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch reservations"})
+		return
+	}
+		resp := models.ReservationResponse{
+			ID:          r.ID.Bytes,
+			BookID:      r.BookID.Bytes,
+			UserID:      r.UserID.Bytes,
+			Status:      r.Status,
+			CreatedAt:   r.CreatedAt.Time,
+			NotifiedAt:  r.NotifiedAt.Time,
+			FulfilledAt: r.FulfilledAt.Time,
+			CancelledAt: r.CancelledAt.Time,
+			UserName:    r.UserName,
+			UserEmail:   r.Email,
+			BookTitle:   r.Title,
+			BookAuthor:  r.Author,
+			BookImage:   r.ImageUrl,
+		}
+	
+
+	c.JSON(http.StatusOK, resp)
+}
+
 func GetReservationsByBookIDHandler(c *gin.Context) {
 	idStr := c.Param("id") // Correct: Param, not Params
 	bookID, err := uuid.Parse(idStr)
