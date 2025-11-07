@@ -13,11 +13,26 @@ WHERE id = $1
 RETURNING id, user_id, book_id, status, created_at, notified_at, fulfilled_at, cancelled_at;
 
 -- name: GetNextReservationForBook :one
-SELECT id, user_id, book_id, status, created_at, notified_at, fulfilled_at, cancelled_at
-FROM reservations
-WHERE book_id = $1 AND status = 'pending'
-ORDER BY created_at ASC
+SELECT 
+    r.id, 
+    r.user_id, 
+    r.book_id, 
+    r.status, 
+    r.created_at, 
+    r.notified_at, 
+    r.fulfilled_at, 
+    r.cancelled_at, 
+    CONCAT(u.first_name, ' ', u.last_name) as user_name,
+    b.title,
+    b.author,
+    b.image_url
+FROM reservations r
+JOIN users u ON r.user_id = u.id
+JOIN books b ON r.book_id = b.id
+WHERE r.book_id = $1 AND r.status = 'pending'
+ORDER BY r.created_at ASC
 LIMIT 1;
+
 
 -- name: GetUserReservations :many
 SELECT 
@@ -30,10 +45,11 @@ SELECT
     r.fulfilled_at,
     r.cancelled_at,    
     CONCAT(u.first_name, ' ', u.last_name) as user_name,
-    b.title as book_title,
-    b.author as book_author,
-    b.image_url as book_image
+    b.title,
+    b.author,
+    b.image_url
 FROM reservations r
+JOIN users u ON r.user_id = u.id
 JOIN books b ON r.book_id = b.id
 WHERE r.user_id = $1
 ORDER BY r.created_at DESC;
@@ -49,10 +65,10 @@ SELECT
     r.fulfilled_at,
     r.cancelled_at,
     CONCAT(u.first_name, ' ', u.last_name) as user_name,
-    u.email as user_email,
-    b.title as book_title,
-    b.author as book_author,
-    b.image_url as book_image
+    u.email,
+    b.title,
+    b.author,
+    b.image_url
 FROM reservations r
 JOIN users u ON r.user_id = u.id
 JOIN books b ON r.book_id = b.id

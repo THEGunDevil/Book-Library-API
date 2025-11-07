@@ -67,10 +67,10 @@ SELECT
     r.fulfilled_at,
     r.cancelled_at,
     CONCAT(u.first_name, ' ', u.last_name) as user_name,
-    u.email as user_email,
-    b.title as book_title,
-    b.author as book_author,
-    b.image_url as book_image
+    u.email,
+    b.title,
+    b.author,
+    b.image_url
 FROM reservations r
 JOIN users u ON r.user_id = u.id
 JOIN books b ON r.book_id = b.id
@@ -87,10 +87,10 @@ type GetAllReservationsRow struct {
 	FulfilledAt pgtype.Timestamptz
 	CancelledAt pgtype.Timestamptz
 	UserName    interface{}
-	UserEmail   string
-	BookTitle   string
-	BookAuthor  string
-	BookImage   string
+	Email       string
+	Title       string
+	Author      string
+	ImageUrl    string
 }
 
 func (q *Queries) GetAllReservations(ctx context.Context) ([]GetAllReservationsRow, error) {
@@ -112,10 +112,10 @@ func (q *Queries) GetAllReservations(ctx context.Context) ([]GetAllReservationsR
 			&i.FulfilledAt,
 			&i.CancelledAt,
 			&i.UserName,
-			&i.UserEmail,
-			&i.BookTitle,
-			&i.BookAuthor,
-			&i.BookImage,
+			&i.Email,
+			&i.Title,
+			&i.Author,
+			&i.ImageUrl,
 		); err != nil {
 			return nil, err
 		}
@@ -128,16 +128,45 @@ func (q *Queries) GetAllReservations(ctx context.Context) ([]GetAllReservationsR
 }
 
 const getNextReservationForBook = `-- name: GetNextReservationForBook :one
-SELECT id, user_id, book_id, status, created_at, notified_at, fulfilled_at, cancelled_at
-FROM reservations
-WHERE book_id = $1 AND status = 'pending'
-ORDER BY created_at ASC
+SELECT 
+    r.id, 
+    r.user_id, 
+    r.book_id, 
+    r.status, 
+    r.created_at, 
+    r.notified_at, 
+    r.fulfilled_at, 
+    r.cancelled_at, 
+    CONCAT(u.first_name, ' ', u.last_name) as user_name,
+    b.title,
+    b.author,
+    b.image_url
+FROM reservations r
+JOIN users u ON r.user_id = u.id
+JOIN books b ON r.book_id = b.id
+WHERE r.book_id = $1 AND r.status = 'pending'
+ORDER BY r.created_at ASC
 LIMIT 1
 `
 
-func (q *Queries) GetNextReservationForBook(ctx context.Context, bookID pgtype.UUID) (Reservation, error) {
+type GetNextReservationForBookRow struct {
+	ID          pgtype.UUID
+	UserID      pgtype.UUID
+	BookID      pgtype.UUID
+	Status      string
+	CreatedAt   pgtype.Timestamptz
+	NotifiedAt  pgtype.Timestamptz
+	FulfilledAt pgtype.Timestamptz
+	CancelledAt pgtype.Timestamptz
+	UserName    interface{}
+	Title       string
+	Author      string
+	ImageUrl    string
+}
+
+func (q *Queries) GetNextReservationForBook(ctx context.Context, bookID pgtype.UUID) (GetNextReservationForBookRow, error) {
 	row := q.db.QueryRow(ctx, getNextReservationForBook, bookID)
-	var i Reservation
+	var i GetNextReservationForBookRow
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
@@ -147,6 +176,10 @@ func (q *Queries) GetNextReservationForBook(ctx context.Context, bookID pgtype.U
 		&i.NotifiedAt,
 		&i.FulfilledAt,
 		&i.CancelledAt,
+		&i.UserName,
+		&i.Title,
+		&i.Author,
+		&i.ImageUrl,
 	)
 	return i, err
 }
@@ -162,10 +195,11 @@ SELECT
     r.fulfilled_at,
     r.cancelled_at,    
     CONCAT(u.first_name, ' ', u.last_name) as user_name,
-    b.title as book_title,
-    b.author as book_author,
-    b.image_url as book_image
+    b.title,
+    b.author,
+    b.image_url
 FROM reservations r
+JOIN users u ON r.user_id = u.id
 JOIN books b ON r.book_id = b.id
 WHERE r.user_id = $1
 ORDER BY r.created_at DESC
@@ -181,9 +215,9 @@ type GetUserReservationsRow struct {
 	FulfilledAt pgtype.Timestamptz
 	CancelledAt pgtype.Timestamptz
 	UserName    interface{}
-	BookTitle   string
-	BookAuthor  string
-	BookImage   string
+	Title       string
+	Author      string
+	ImageUrl    string
 }
 
 func (q *Queries) GetUserReservations(ctx context.Context, userID pgtype.UUID) ([]GetUserReservationsRow, error) {
@@ -205,9 +239,9 @@ func (q *Queries) GetUserReservations(ctx context.Context, userID pgtype.UUID) (
 			&i.FulfilledAt,
 			&i.CancelledAt,
 			&i.UserName,
-			&i.BookTitle,
-			&i.BookAuthor,
-			&i.BookImage,
+			&i.Title,
+			&i.Author,
+			&i.ImageUrl,
 		); err != nil {
 			return nil, err
 		}

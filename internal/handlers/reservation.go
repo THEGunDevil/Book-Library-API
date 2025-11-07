@@ -46,9 +46,9 @@ func GetReservationsHandler(c *gin.Context) {
 				FulfilledAt: r.FulfilledAt.Time,
 				CancelledAt: r.CancelledAt.Time,
 				UserName:    r.UserName,
-				BookTitle:   r.BookTitle,
-				BookAuthor:  r.BookAuthor,
-				BookImage:   r.BookImage,
+				BookTitle:   r.Title,
+				BookAuthor:  r.Author,
+				BookImage:   r.ImageUrl,
 			})
 		}
 	} else {
@@ -69,9 +69,9 @@ func GetReservationsHandler(c *gin.Context) {
 				FulfilledAt: r.FulfilledAt.Time,
 				CancelledAt: r.CancelledAt.Time,
 				UserName:    r.UserName,
-				BookTitle:   r.BookTitle,
-				BookAuthor:  r.BookAuthor,
-				BookImage:   r.BookImage,
+				BookTitle:   r.Title,
+				BookAuthor:  r.Author,
+				BookImage:   r.ImageUrl,
 			})
 		}
 	}
@@ -135,10 +135,8 @@ func CreateReservationHandler(c *gin.Context) {
 	if err == nil && count > 0 {
 		c.JSON(http.StatusConflict, gin.H{"error": "You already have an active reservation for this book"})
 		return
-	}
-
-	// Create reservation
-	reservation, err := db.Q.CreateReservation(c.Request.Context(), gen.CreateReservationParams{
+	}	// Create reservation
+	r, err := db.Q.CreateReservation(c.Request.Context(), gen.CreateReservationParams{
 		UserID: pgtype.UUID{Bytes: userUUID, Valid: true},
 		BookID: pgtype.UUID{Bytes: bookUUID, Valid: true},
 	})
@@ -152,8 +150,18 @@ func CreateReservationHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create reservation"})
 		return
 	}
+	resp :=models.ReservationResponse{
+		ID:          r.ID.Bytes,
+		BookID:      r.BookID.Bytes,
+		UserID:      r.UserID.Bytes,
+		Status:      r.Status,
+		CreatedAt:   r.CreatedAt.Time,
+		NotifiedAt:  r.NotifiedAt.Time,
+		FulfilledAt: r.FulfilledAt.Time,
+		CancelledAt: r.CancelledAt.Time,
+	}
 
-	c.JSON(http.StatusCreated, reservation)
+	c.JSON(http.StatusCreated, resp)
 }
 
 // GetNextReservationHandler gets the next pending reservation for a book (admin only)
@@ -165,14 +173,27 @@ func GetNextReservationHandler(c *gin.Context) {
 		return
 	}
 
-	reservation, err := db.Q.GetNextReservationForBook(c.Request.Context(),
+	r, err := db.Q.GetNextReservationForBook(c.Request.Context(),
 		pgtype.UUID{Bytes: bookUUID, Valid: true})
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "No pending reservations for this book"})
 		return
 	}
-
-	c.JSON(http.StatusOK, reservation)
+	resp :=models.ReservationResponse{
+		ID:          r.ID.Bytes,
+		BookID:      r.BookID.Bytes,
+		UserID:      r.UserID.Bytes,
+		Status:      r.Status,
+		CreatedAt:   r.CreatedAt.Time,
+		NotifiedAt:  r.NotifiedAt.Time,
+		FulfilledAt: r.FulfilledAt.Time,
+		CancelledAt: r.CancelledAt.Time,
+		UserName:    r.UserName,
+		BookTitle:   r.Title,
+		BookAuthor:  r.Author,
+		BookImage:   r.ImageUrl,
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 // UpdateReservationStatusHandler updates a reservation's status (admin only)
