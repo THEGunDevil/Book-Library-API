@@ -27,22 +27,57 @@ func GetReservationsHandler(c *gin.Context) {
 		return
 	}
 
-	var reservations interface{}
-	var err error
+	var reservations []models.ReservationResponse
 
 	if role == "admin" {
-		reservations, err = db.Q.GetAllReservations(c.Request.Context())
+		adminRes, err := db.Q.GetAllReservations(c.Request.Context())
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch reservations"})
+			return
+		}
+		for _, r := range adminRes {
+			reservations = append(reservations, models.ReservationResponse{
+				ID:          r.ID.Bytes,
+				BookID:      r.BookID.Bytes,
+				UserID:      r.UserID.Bytes,
+				Status:      r.Status,
+				CreatedAt:   r.CreatedAt.Time,
+				NotifiedAt:  r.NotifiedAt.Time,
+				FulfilledAt: r.FulfilledAt.Time,
+				CancelledAt: r.CancelledAt.Time,
+				UserName:    r.UserName,
+				BookTitle:   r.BookTitle,
+				BookAuthor:  r.BookAuthor,
+				BookImage:   r.BookImage,
+			})
+		}
 	} else {
-		reservations, err = db.Q.GetUserReservations(c.Request.Context(),
+		userRes, err := db.Q.GetUserReservations(c.Request.Context(),
 			pgtype.UUID{Bytes: userUUID, Valid: true})
-	}
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch reservations"})
-		return
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch reservations"})
+			return
+		}
+		for _, r := range userRes {
+			reservations = append(reservations, models.ReservationResponse{
+				ID:          r.ID.Bytes,
+				BookID:      r.BookID.Bytes,
+				UserID:      r.UserID.Bytes,
+				Status:      r.Status,
+				CreatedAt:   r.CreatedAt.Time,
+				NotifiedAt:  r.NotifiedAt.Time,
+				FulfilledAt: r.FulfilledAt.Time,
+				CancelledAt: r.CancelledAt.Time,
+				UserName:    r.UserName,
+				BookTitle:   r.BookTitle,
+				BookAuthor:  r.BookAuthor,
+				BookImage:   r.BookImage,
+			})
+		}
 	}
 
 	c.JSON(http.StatusOK, reservations)
+
 }
 
 // CreateReservationHandler creates a new book reservation

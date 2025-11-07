@@ -28,7 +28,8 @@ SELECT
     r.created_at,
     r.notified_at,
     r.fulfilled_at,
-    r.cancelled_at,
+    r.cancelled_at,    
+    CONCAT(u.first_name, ' ', u.last_name) as user_name,
     b.title as book_title,
     b.author as book_author,
     b.image_url as book_image

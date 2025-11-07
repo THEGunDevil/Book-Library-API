@@ -7,14 +7,19 @@ import (
 )
 
 type ReservationResponse struct {
-    ID          uuid.UUID      `json:"id"`           // Reservation UUID
-    UserID      uuid.UUID     `json:"user_id"`      // User who made the reservation
-    BookID      uuid.UUID     `json:"book_id"`      // Reserved book
-    Status      string     `json:"status"`       // pending | notified | fulfilled | cancelled
-    CreatedAt   time.Time  `json:"created_at"`   // When reservation was made
-    NotifiedAt  *time.Time `json:"notified_at"`  // When user was notified (nullable)
-    FulfilledAt *time.Time `json:"fulfilled_at"` // When reservation was converted to borrow (nullable)
-    CancelledAt *time.Time `json:"cancelled_at"` // When reservation was cancelled (nullable)
+	ID          uuid.UUID `json:"id"`
+	UserID      uuid.UUID `json:"user_id"`
+	BookID      uuid.UUID `json:"book_id"`
+	Status      string      `json:"status"`
+	CreatedAt   time.Time   `json:"created_at"`
+	NotifiedAt  time.Time   `json:"notified_at"`
+	FulfilledAt time.Time   `json:"fulfilled_at"`
+	CancelledAt time.Time   `json:"cancelled_at"`
+	UserName    interface{} `json:"user_name"`
+	UserEmail   string      `json:"email"`
+	BookTitle   string      `json:"book_title"`
+	BookAuthor  string      `json:"author"`
+	BookImage   string      `json:"image_url"`
 }
 
 type CreateReservationParams struct {
