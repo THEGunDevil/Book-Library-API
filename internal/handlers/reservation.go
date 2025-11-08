@@ -142,7 +142,7 @@ func GetReservationsHandler(c *gin.Context) {
 	} else {
 		// Use sqlc struct for user pagination
 		params := gen.GetUserReservationsParams{
-			UserID: pgtype.UUID{Bytes: userUUID,Valid: true},
+			UserID: pgtype.UUID{Bytes: userUUID, Valid: true},
 			Limit:  int32(limit),
 			Offset: int32(offset),
 		}
@@ -180,8 +180,6 @@ func GetReservationsHandler(c *gin.Context) {
 		"count":        len(reservations),
 	})
 }
-
-
 
 // CreateReservationHandler creates a new book reservation
 
@@ -368,4 +366,52 @@ func GetReservationsByReservationID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, res)
+}
+func UpdateBookCopiesToDeleteReservations(c *gin.Context) {
+	bookIdStr := c.Param("id")
+	bookID, err := uuid.Parse(bookIdStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book ID"})
+		return
+	}
+
+	var req models.UpdateBookRequest
+	if err := c.ShouldBind(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	params := gen.UpdateBookByIDParams{
+		ID: pgtype.UUID{Bytes: bookID, Valid: true},
+	}
+
+	setInt := func(reqVal *int32) pgtype.Int4 {
+		if reqVal != nil {
+			return pgtype.Int4{Int32: *reqVal, Valid: true}
+		}
+		return pgtype.Int4{Valid: false}
+	}
+
+	params.AvailableCopies = setInt(req.AvailableCopies)
+
+	// 1️⃣ Update the book
+	b, err := db.Q.UpdateBookByID(c.Request.Context(), params)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update book"})
+		return
+	}
+
+	// 2️⃣ Cleanup reservations if AvailableCopies > 0
+	if b.AvailableCopies.Valid && b.AvailableCopies.Int32 > 0 {
+		if err := db.Q.CleanupReservations(c.Request.Context(), pgtype.UUID{Bytes: bookID, Valid: true}); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cleanup reservations"})
+			return
+		}
+	}
+
+	// 3️⃣ Return success
+	c.JSON(http.StatusOK, gin.H{
+		"message":          "Book updated successfully",
+		"available_copies": b.AvailableCopies.Int32,
+	})
 }

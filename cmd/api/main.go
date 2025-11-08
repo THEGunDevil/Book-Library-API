@@ -82,6 +82,8 @@ func main() {
 		bookGroup.POST("/", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.CreateBookHandler)
 		bookGroup.PATCH("/:id", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.UpdateBookByIDHandler)
 		bookGroup.DELETE("/:id", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DeleteBookHandler)
+		bookGroup.PATCH("/:id/copies", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.UpdateBookCopiesToDeleteReservations)
+
 	}
 
 	reservationGroup := r.Group("/reservations")
@@ -116,6 +118,7 @@ func main() {
 		reviewGroup.DELETE("/review/:id", handlers.DeleteReviewsByIDHandler)
 	}
 	contactGroup := r.Group("/contact")
+	contactGroup.Use(middleware.AuthMiddleware())
 	{
 		contactGroup.POST("/send", handlers.ContactHandler)
 	}

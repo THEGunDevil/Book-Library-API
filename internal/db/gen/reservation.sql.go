@@ -29,6 +29,18 @@ func (q *Queries) CheckExistingReservation(ctx context.Context, arg CheckExistin
 	return count, err
 }
 
+const cleanupReservations = `-- name: CleanupReservations :exec
+DELETE FROM reservations
+WHERE book_id = $1
+  AND status = 'pending'
+`
+
+// Delete all pending reservations for a specific book
+func (q *Queries) CleanupReservations(ctx context.Context, bookID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, cleanupReservations, bookID)
+	return err
+}
+
 const createReservation = `-- name: CreateReservation :one
 INSERT INTO reservations (user_id, book_id,status)
 VALUES ($1, $2,'pending')

@@ -142,3 +142,9 @@ LIMIT $1 OFFSET $2;
 SELECT COUNT(*) as count
 FROM reservations
 WHERE user_id = $1 AND book_id = $2;
+
+-- name: CleanupReservations :exec
+-- Delete all pending reservations for a specific book
+DELETE FROM reservations
+WHERE book_id = $1
+  AND status = 'pending';
