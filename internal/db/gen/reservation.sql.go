@@ -75,7 +75,13 @@ FROM reservations r
 JOIN users u ON r.user_id = u.id
 JOIN books b ON r.book_id = b.id
 ORDER BY r.created_at DESC
+LIMIT $1 OFFSET $2
 `
+
+type GetAllReservationsParams struct {
+	Limit  int32
+	Offset int32
+}
 
 type GetAllReservationsRow struct {
 	ID          pgtype.UUID
@@ -93,8 +99,8 @@ type GetAllReservationsRow struct {
 	ImageUrl    string
 }
 
-func (q *Queries) GetAllReservations(ctx context.Context) ([]GetAllReservationsRow, error) {
-	rows, err := q.db.Query(ctx, getAllReservations)
+func (q *Queries) GetAllReservations(ctx context.Context, arg GetAllReservationsParams) ([]GetAllReservationsRow, error) {
+	rows, err := q.db.Query(ctx, getAllReservations, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -400,7 +406,14 @@ JOIN users u ON r.user_id = u.id
 JOIN books b ON r.book_id = b.id
 WHERE r.user_id = $1
 ORDER BY r.created_at DESC
+LIMIT $2 OFFSET $3
 `
+
+type GetUserReservationsParams struct {
+	UserID pgtype.UUID
+	Limit  int32
+	Offset int32
+}
 
 type GetUserReservationsRow struct {
 	ID          pgtype.UUID
@@ -418,8 +431,8 @@ type GetUserReservationsRow struct {
 	ImageUrl    string
 }
 
-func (q *Queries) GetUserReservations(ctx context.Context, userID pgtype.UUID) ([]GetUserReservationsRow, error) {
-	rows, err := q.db.Query(ctx, getUserReservations, userID)
+func (q *Queries) GetUserReservations(ctx context.Context, arg GetUserReservationsParams) ([]GetUserReservationsRow, error) {
+	rows, err := q.db.Query(ctx, getUserReservations, arg.UserID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/THEGunDevil/GoForBackend/internal/db"
@@ -89,14 +90,37 @@ func GetReservationsHandler(c *gin.Context) {
 		return
 	}
 
+	// ---- Parse pagination query params ----
+	pageQuery := c.DefaultQuery("page", "1")
+	limitQuery := c.DefaultQuery("limit", "20")
+
+	page, err := strconv.Atoi(pageQuery)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	limit, err := strconv.Atoi(limitQuery)
+	if err != nil || limit < 1 {
+		limit = 20
+	}
+	offset := (page - 1) * limit
+
 	var reservations []models.ReservationResponse
 
+	ctx := c.Request.Context()
+
 	if role == "admin" {
-		adminRes, err := db.Q.GetAllReservations(c.Request.Context())
+		// Use sqlc struct for admin pagination
+		params := gen.GetAllReservationsParams{
+			Limit:  int32(limit),
+			Offset: int32(offset),
+		}
+
+		adminRes, err := db.Q.GetAllReservations(ctx, params)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch reservations"})
 			return
 		}
+
 		for _, r := range adminRes {
 			reservations = append(reservations, models.ReservationResponse{
 				ID:          r.ID.Bytes,
@@ -114,13 +138,21 @@ func GetReservationsHandler(c *gin.Context) {
 				BookImage:   r.ImageUrl,
 			})
 		}
+
 	} else {
-		userRes, err := db.Q.GetUserReservations(c.Request.Context(),
-			pgtype.UUID{Bytes: userUUID, Valid: true})
+		// Use sqlc struct for user pagination
+		params := gen.GetUserReservationsParams{
+			UserID: pgtype.UUID{Bytes: userUUID,Valid: true},
+			Limit:  int32(limit),
+			Offset: int32(offset),
+		}
+
+		userRes, err := db.Q.GetUserReservations(ctx, params)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch reservations"})
 			return
 		}
+
 		for _, r := range userRes {
 			reservations = append(reservations, models.ReservationResponse{
 				ID:          r.ID.Bytes,
@@ -140,9 +172,16 @@ func GetReservationsHandler(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, reservations)
-
+	// Return reservations along with pagination info
+	c.JSON(http.StatusOK, gin.H{
+		"reservations": reservations,
+		"page":         page,
+		"limit":        limit,
+		"count":        len(reservations),
+	})
 }
+
+
 
 // CreateReservationHandler creates a new book reservation
 
