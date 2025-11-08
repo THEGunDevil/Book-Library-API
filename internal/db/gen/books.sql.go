@@ -340,8 +340,9 @@ SET
     author = COALESCE($2, author),
     published_year = COALESCE($3, published_year),
     isbn = COALESCE($4, isbn),
-    available_copies = COALESCE($5, available_copies),
-    total_copies = COALESCE($6, total_copies),
+    total_copies = COALESCE($5, total_copies),
+    available_copies = COALESCE($6,
+                               COALESCE($5, total_copies)), -- 👈 update automatically
     genre = COALESCE($7, genre),
     description = COALESCE($8, description),
     image_url = COALESCE($9, image_url),
@@ -355,8 +356,8 @@ type UpdateBookByIDParams struct {
 	Author          pgtype.Text
 	PublishedYear   pgtype.Int4
 	Isbn            pgtype.Text
-	AvailableCopies pgtype.Int4
 	TotalCopies     pgtype.Int4
+	AvailableCopies pgtype.Int4
 	Genre           pgtype.Text
 	Description     pgtype.Text
 	ImageUrl        pgtype.Text
@@ -369,8 +370,8 @@ func (q *Queries) UpdateBookByID(ctx context.Context, arg UpdateBookByIDParams) 
 		arg.Author,
 		arg.PublishedYear,
 		arg.Isbn,
-		arg.AvailableCopies,
 		arg.TotalCopies,
+		arg.AvailableCopies,
 		arg.Genre,
 		arg.Description,
 		arg.ImageUrl,

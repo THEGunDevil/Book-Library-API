@@ -21,20 +21,23 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING *;
 
 -- name: UpdateBookByID :one
+-- name: UpdateBookByID :one
 UPDATE books
 SET
     title = COALESCE(sqlc.narg('title'), title),
     author = COALESCE(sqlc.narg('author'), author),
     published_year = COALESCE(sqlc.narg('published_year'), published_year),
     isbn = COALESCE(sqlc.narg('isbn'), isbn),
-    available_copies = COALESCE(sqlc.narg('available_copies'), available_copies),
     total_copies = COALESCE(sqlc.narg('total_copies'), total_copies),
+    available_copies = COALESCE(sqlc.narg('available_copies'),
+                               COALESCE(sqlc.narg('total_copies'), total_copies)), -- 👈 update automatically
     genre = COALESCE(sqlc.narg('genre'), genre),
     description = COALESCE(sqlc.narg('description'), description),
     image_url = COALESCE(sqlc.narg('image_url'), image_url),
     updated_at = NOW()
 WHERE id = sqlc.arg('id')
 RETURNING *;
+
 
 
 
