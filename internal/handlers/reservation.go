@@ -408,12 +408,10 @@ func UpdateBookCopiesToDeleteReservations(c *gin.Context) {
 	}
 
 	// 5️⃣ Cleanup reservations if AvailableCopies is now 0
-	if updatedBook.AvailableCopies.Valid && updatedBook.AvailableCopies.Int32 == 0 {
 		if err := db.Q.CleanupReservations(c.Request.Context(), pgtype.UUID{Bytes: bookID, Valid: true}); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cleanup reservations"})
 			return
 		}
-	}
 
 	// 6️⃣ Return success
 	c.JSON(http.StatusOK, gin.H{
