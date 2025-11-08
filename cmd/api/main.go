@@ -91,9 +91,8 @@ func main() {
 		reservationGroup.GET("/book/:id", handlers.GetReservationsByBookIDHandler)
 		reservationGroup.GET("/book/:id/user", handlers.GetReservationsByBookIDAndUserIDHandler)
 		reservationGroup.GET("/reservation/:id", handlers.GetReservationsByReservationID)
-		reservationGroup.GET("/reservation/:id", handlers.UpdateReservationStatusHandler)
 		reservationGroup.GET("/", middleware.AdminOnly(), handlers.GetReservationsHandler)
-		reservationGroup.PATCH("/:id/status", handlers.UpdateReservationStatusHandler)
+		reservationGroup.PATCH("/:id/status", middleware.AdminOnly(), handlers.UpdateReservationStatusHandler)
 		reservationGroup.GET("/next/:id", middleware.AdminOnly(), handlers.GetNextReservationHandler)
 	}
 
