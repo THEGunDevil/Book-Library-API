@@ -368,51 +368,57 @@ func GetReservationsByReservationID(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 func UpdateBookCopiesToDeleteReservations(c *gin.Context) {
-	bookIdStr := c.Param("id")
-	bookID, err := uuid.Parse(bookIdStr)
+	// 1️⃣ Parse book ID from URL
+	bookIDStr := c.Param("id")
+	bookID, err := uuid.Parse(bookIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book ID"})
 		return
 	}
 
-	var req models.UpdateBookRequest
+	// 2️⃣ Bind JSON request
+	var req struct {
+		TotalCopies     *int32 `json:"total_copies"`
+		AvailableCopies *int32 `json:"available_copies"`
+	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
 
+	// 3️⃣ Prepare params
 	params := gen.UpdateBookByIDParams{
-		ID: pgtype.UUID{Bytes: bookID, Valid: true},
+		ID:              pgtype.UUID{Bytes: bookID, Valid: true},
+		TotalCopies:     pgtype.Int4{Valid: false},
+		AvailableCopies: pgtype.Int4{Valid: false},
 	}
 
-	setInt := func(reqVal *int32) pgtype.Int4 {
-		if reqVal != nil {
-			return pgtype.Int4{Int32: *reqVal, Valid: true}
-		}
-		return pgtype.Int4{Valid: false}
+	if req.TotalCopies != nil {
+		params.TotalCopies = pgtype.Int4{Int32: *req.TotalCopies, Valid: true}
+	}
+	if req.AvailableCopies != nil {
+		params.AvailableCopies = pgtype.Int4{Int32: *req.AvailableCopies, Valid: true}
 	}
 
-	params.TotalCopies = setInt(req.TotalCopies)
-	params.AvailableCopies = setInt(req.AvailableCopies)
-
-	// 1️⃣ Update the book
-	b, err := db.Q.UpdateBookByID(c.Request.Context(), params)
+	// 4️⃣ Update book
+	updatedBook, err := db.Q.UpdateBookByID(c.Request.Context(), params)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update book"})
 		return
 	}
 
-	// 2️⃣ Cleanup reservations if AvailableCopies > 0
-	if (b.AvailableCopies.Valid && b.AvailableCopies.Int32 == 0) && b.TotalCopies==0{
+	// 5️⃣ Cleanup reservations if AvailableCopies is now 0
+	if updatedBook.AvailableCopies.Valid && updatedBook.AvailableCopies.Int32 == 0 {
 		if err := db.Q.CleanupReservations(c.Request.Context(), pgtype.UUID{Bytes: bookID, Valid: true}); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cleanup reservations"})
 			return
 		}
 	}
 
-	// 3️⃣ Return success
+	// 6️⃣ Return success
 	c.JSON(http.StatusOK, gin.H{
 		"message":          "Book updated successfully",
-		"available_copies": b.AvailableCopies.Int32,
+		"available_copies": updatedBook.AvailableCopies.Int32,
+		"total_copies":     updatedBook.TotalCopies,
 	})
 }
