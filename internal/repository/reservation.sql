@@ -143,8 +143,3 @@ SELECT COUNT(*) as count
 FROM reservations
 WHERE user_id = $1 AND book_id = $2;
 
--- name: CleanupReservations :exec
-DELETE FROM reservations
-WHERE book_id = $1
-  AND LOWER(status) = 'pending';
-

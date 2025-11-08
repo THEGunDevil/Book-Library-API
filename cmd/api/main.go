@@ -82,8 +82,6 @@ func main() {
 		bookGroup.POST("/", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.CreateBookHandler)
 		bookGroup.PATCH("/:id", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.UpdateBookByIDHandler)
 		bookGroup.DELETE("/:id", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DeleteBookHandler)
-		bookGroup.POST("/:id/copies", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.UpdateBookCopiesToDeleteReservations)
-
 	}
 
 	reservationGroup := r.Group("/reservations")
@@ -93,6 +91,7 @@ func main() {
 		reservationGroup.GET("/book/:id", handlers.GetReservationsByBookIDHandler)
 		reservationGroup.GET("/book/:id/user", handlers.GetReservationsByBookIDAndUserIDHandler)
 		reservationGroup.GET("/reservation/:id", handlers.GetReservationsByReservationID)
+		reservationGroup.GET("/reservation/:id", handlers.UpdateReservationStatusHandler)
 		reservationGroup.GET("/", middleware.AdminOnly(), handlers.GetReservationsHandler)
 		reservationGroup.PATCH("/:id/status", handlers.UpdateReservationStatusHandler)
 		reservationGroup.GET("/next/:id", middleware.AdminOnly(), handlers.GetNextReservationHandler)

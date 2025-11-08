@@ -215,34 +215,72 @@ func GetNextReservationHandler(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, resp)
 }
-
-// UpdateReservationStatusHandler updates a reservation's status (admin only)
 func UpdateReservationStatusHandler(c *gin.Context) {
-	reservationIDStr := c.Param("id")
-	reservationUUID, err := uuid.Parse(reservationIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reservation ID"})
-		return
-	}
+    // 1️⃣ Get reservation ID from URL
+    idStr := c.Param("id")
+    reservationID, err := uuid.Parse(idStr)
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reservation ID"})
+        return
+    }
 
-	var req models.UpdateReservationStatusRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+    // 2️⃣ Bind JSON body for status
+    var req struct {
+        Status string `json:"status" binding:"required,oneof=pending notified fulfilled cancelled"`
+    }
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body or status"})
+        return
+    }
 
-	reservation, err := db.Q.UpdateReservationStatus(c.Request.Context(), gen.UpdateReservationStatusParams{
-		ID:     pgtype.UUID{Bytes: reservationUUID, Valid: true},
-		Status: req.Status,
-	})
+    // 3️⃣ Update reservation status
+    updatedRes, err := db.Q.UpdateReservationStatus(
+        c.Request.Context(),
+        gen.UpdateReservationStatusParams{
+            ID:     pgtype.UUID{Bytes: reservationID, Valid: true},
+            Status: req.Status,
+        },
+    )
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update reservation status"})
+        return
+    }
 
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update reservation status"})
-		return
-	}
+    // 4️⃣ Fetch user & book info
+    user, err := db.Q.GetUserByID(c.Request.Context(), pgtype.UUID{Bytes: updatedRes.UserID.Bytes, Valid: true})
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user info"})
+        return
+    }
 
-	c.JSON(http.StatusOK, reservation)
+    book, err := db.Q.GetBookByID(c.Request.Context(), pgtype.UUID{Bytes: updatedRes.BookID.Bytes, Valid: true})
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch book info"})
+        return
+    }
+
+    // 5️⃣ Map to full ReservationResponse
+    response := models.ReservationResponse{
+        ID:          updatedRes.ID.Bytes,
+        UserID:      updatedRes.UserID.Bytes,
+        BookID:      updatedRes.BookID.Bytes,
+        Status:      updatedRes.Status,
+        CreatedAt:   updatedRes.CreatedAt.Time,
+        NotifiedAt:  updatedRes.NotifiedAt.Time,
+        FulfilledAt: updatedRes.FulfilledAt.Time,
+        CancelledAt: updatedRes.CancelledAt.Time,
+        UserName:    user.FirstName+""+user.LastName,
+        UserEmail:   user.Email,
+        BookTitle:   book.Title,
+        BookAuthor:  book.Author,
+        BookImage:   book.ImageUrl,
+    }
+
+    // 6️⃣ Return response
+    c.JSON(http.StatusOK, response)
 }
+
+
 func GetReservationsByBookIDAndUserIDHandler(c *gin.Context) {
 	bookIDStr := c.Param("id")      // from /reservations/book/:id
 	userIDStr := c.Query("user_id") // from ?user_id=<UUID>
@@ -366,53 +404,4 @@ func GetReservationsByReservationID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, res)
-}
-func UpdateBookCopiesToDeleteReservations(c *gin.Context) {
-	// 1️⃣ Parse book ID from URL
-	bookIDStr := c.Param("id")
-	bookID, err := uuid.Parse(bookIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book ID"})
-		return
-	}
-
-	// 2️⃣ Bind JSON request
-	var req models.UpdateBookRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-		return
-	}
-
-	// 3️⃣ Prepare params
-	params := gen.UpdateBookByIDParams{
-		ID: pgtype.UUID{Bytes: bookID, Valid: true},
-	}
-	setInt := func(reqVal *int32) pgtype.Int4 {
-		if reqVal != nil {
-			return pgtype.Int4{Int32: *reqVal, Valid: true}
-		}
-		return pgtype.Int4{Valid: false}
-	}
-	params.TotalCopies = setInt(req.TotalCopies)
-	params.AvailableCopies = setInt(req.AvailableCopies)
-	// 4️⃣ Update book
-	updatedBook, err := db.Q.UpdateBookByID(c.Request.Context(), params)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update book"})
-		return
-	}
-
-	if *req.AvailableCopies == 0 {
-		if err := db.Q.CleanupReservations(c.Request.Context(), pgtype.UUID{Bytes: bookID, Valid: true}); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cleanup reservations"})
-			return
-		}
-	}
-
-	// 6️⃣ Return success
-	c.JSON(http.StatusOK, gin.H{
-		"message":          "Book updated successfully",
-		"available_copies": updatedBook.AvailableCopies.Int32,
-		"total_copies":     updatedBook.TotalCopies,
-	})
 }
