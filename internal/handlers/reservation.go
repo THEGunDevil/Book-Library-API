@@ -1,18 +1,71 @@
 package handlers
 
 import (
-	"net/http"
-	"strings"
-
 	"github.com/THEGunDevil/GoForBackend/internal/db"
 	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
 	"github.com/THEGunDevil/GoForBackend/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	"net/http"
 )
 
-// GetReservationsHandler gets reservations based on user role
+func CreateReservationHandler(c *gin.Context) {
+	// Get the logged-in user ID from context (no admin logic needed)
+	requestingUserID, _ := c.Get("userID")
+	userUUID := requestingUserID.(uuid.UUID)
+
+	var req struct {
+		BookID string `json:"book_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	bookUUID, err := uuid.Parse(req.BookID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book ID format"})
+		return
+	}
+
+	// Check if book exists
+	book, err := db.Q.GetBookByID(c.Request.Context(), pgtype.UUID{Bytes: bookUUID, Valid: true})
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Book not found"})
+		return
+	}
+
+	if book.AvailableCopies.Int32 > 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Book is available, please borrow instead"})
+		return
+	}
+
+	// Create reservation
+	r, err := db.Q.CreateReservation(c.Request.Context(), gen.CreateReservationParams{
+		UserID: pgtype.UUID{Bytes: userUUID, Valid: true},
+		BookID: pgtype.UUID{Bytes: bookUUID, Valid: true},
+	})
+	if err != nil {
+
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create reservation"})
+		return
+	}
+
+	// Build response
+	resp := models.ReservationResponse{
+		ID:          r.ID.Bytes,
+		BookID:      r.BookID.Bytes,
+		UserID:      r.UserID.Bytes,
+		Status:      r.Status,
+		CreatedAt:   r.CreatedAt.Time,
+		NotifiedAt:  r.NotifiedAt.Time,
+		FulfilledAt: r.FulfilledAt.Time,
+		CancelledAt: r.CancelledAt.Time,
+	}
+
+	c.JSON(http.StatusCreated, resp)
+} // GetReservationsHandler gets reservations based on user role
 func GetReservationsHandler(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
@@ -83,66 +136,6 @@ func GetReservationsHandler(c *gin.Context) {
 }
 
 // CreateReservationHandler creates a new book reservation
-func CreateReservationHandler(c *gin.Context) {
-	// Get the logged-in user ID from context (no admin logic needed)
-	requestingUserID, _ := c.Get("userID")
-	userUUID := requestingUserID.(uuid.UUID)
-
-	var req struct {
-		BookID string `json:"book_id" binding:"required"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	bookUUID, err := uuid.Parse(req.BookID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book ID format"})
-		return
-	}
-
-	// Check if book exists
-	book, err := db.Q.GetBookByID(c.Request.Context(), pgtype.UUID{Bytes: bookUUID, Valid: true})
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Book not found"})
-		return
-	}
-
-	if book.AvailableCopies.Int32 > 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Book is available, please borrow instead"})
-		return
-	}
-
-	// Create reservation
-	r, err := db.Q.CreateReservation(c.Request.Context(), gen.CreateReservationParams{
-		UserID: pgtype.UUID{Bytes: userUUID, Valid: true},
-		BookID: pgtype.UUID{Bytes: bookUUID, Valid: true},
-	})
-	if err != nil {
-		// Handle unique constraint violation
-		if strings.Contains(err.Error(), "unique_user_book") {
-			c.JSON(http.StatusConflict, gin.H{"error": "You already have a reservation for this book"})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create reservation"})
-		return
-	}
-
-	// Build response
-	resp := models.ReservationResponse{
-		ID:          r.ID.Bytes,
-		BookID:      r.BookID.Bytes,
-		UserID:      r.UserID.Bytes,
-		Status:      r.Status,
-		CreatedAt:   r.CreatedAt.Time,
-		NotifiedAt:  r.NotifiedAt.Time,
-		FulfilledAt: r.FulfilledAt.Time,
-		CancelledAt: r.CancelledAt.Time,
-	}
-
-	c.JSON(http.StatusCreated, resp)
-}
 
 // GetNextReservationHandler gets the next pending reservation for a book (admin only)
 func GetNextReservationHandler(c *gin.Context) {
