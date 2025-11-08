@@ -392,7 +392,7 @@ func UpdateBookCopiesToDeleteReservations(c *gin.Context) {
 		return pgtype.Int4{Valid: false}
 	}
 
-	params.AvailableCopies = setInt(req.AvailableCopies)
+	params.TotalCopies = setInt(req.TotalCopies)
 
 	// 1️⃣ Update the book
 	b, err := db.Q.UpdateBookByID(c.Request.Context(), params)
