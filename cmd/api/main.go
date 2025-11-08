@@ -82,7 +82,7 @@ func main() {
 		bookGroup.POST("/", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.CreateBookHandler)
 		bookGroup.PATCH("/:id", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.UpdateBookByIDHandler)
 		bookGroup.DELETE("/:id", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DeleteBookHandler)
-		bookGroup.PATCH("/:id/copies", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.UpdateBookCopiesToDeleteReservations)
+		bookGroup.POST("/:id/copies", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.UpdateBookCopiesToDeleteReservations)
 
 	}
 
