@@ -1,17 +1,19 @@
 package handlers
 
 import (
+	"net/http"
+	"strings"
+
 	"github.com/THEGunDevil/GoForBackend/internal/db"
 	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
 	"github.com/THEGunDevil/GoForBackend/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
-	"net/http"
 )
 
 func CreateReservationHandler(c *gin.Context) {
-	// Get the logged-in user ID from context (no admin logic needed)
+	// Get the logged-in user ID from context
 	requestingUserID, _ := c.Get("userID")
 	userUUID := requestingUserID.(uuid.UUID)
 
@@ -47,6 +49,11 @@ func CreateReservationHandler(c *gin.Context) {
 		BookID: pgtype.UUID{Bytes: bookUUID, Valid: true},
 	})
 	if err != nil {
+		// Handle unique constraint violation (already reserved)
+		if strings.Contains(err.Error(), "unique_user_book") {
+			c.JSON(http.StatusConflict, gin.H{"error": "You already have a reservation for this book"})
+			return
+		}
 
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create reservation"})
 		return
@@ -65,7 +72,9 @@ func CreateReservationHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, resp)
-} // GetReservationsHandler gets reservations based on user role
+}
+
+// GetReservationsHandler gets reservations based on user role
 func GetReservationsHandler(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
