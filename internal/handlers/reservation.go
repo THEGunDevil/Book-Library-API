@@ -84,29 +84,15 @@ func GetReservationsHandler(c *gin.Context) {
 
 // CreateReservationHandler creates a new book reservation
 func CreateReservationHandler(c *gin.Context) {
+	// Get the logged-in user ID from context (no admin logic needed)
+	requestingUserID, _ := c.Get("userID")
+	userUUID := requestingUserID.(uuid.UUID)
+
 	var req struct {
-		UserID string `json:"user_id" binding:"required"`
 		BookID string `json:"book_id" binding:"required"`
 	}
-
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Verify the requesting user matches the reservation user (unless admin)
-	requestingUserID, _ := c.Get("userID")
-	role, _ := c.Get("role")
-
-	if role != "admin" && requestingUserID.(uuid.UUID).String() != req.UserID {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Cannot create reservation for another user"})
-		return
-	}
-
-	// Parse UUIDs
-	userUUID, err := uuid.Parse(req.UserID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
 		return
 	}
 
@@ -116,9 +102,8 @@ func CreateReservationHandler(c *gin.Context) {
 		return
 	}
 
-	// Check if book exists and is unavailable
-	book, err := db.Q.GetBookByID(c.Request.Context(),
-		pgtype.UUID{Bytes: bookUUID, Valid: true})
+	// Check if book exists
+	book, err := db.Q.GetBookByID(c.Request.Context(), pgtype.UUID{Bytes: bookUUID, Valid: true})
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Book not found"})
 		return
@@ -129,29 +114,22 @@ func CreateReservationHandler(c *gin.Context) {
 		return
 	}
 
-	// Check for existing active reservation (handled by DB unique constraint, but good to check)
-	count, err := db.Q.CheckExistingReservation(c.Request.Context(), gen.CheckExistingReservationParams{
-		UserID: pgtype.UUID{Bytes: userUUID, Valid: true},
-		BookID: pgtype.UUID{Bytes: bookUUID, Valid: true},
-	})
-	if err == nil && count > 0 {
-		c.JSON(http.StatusConflict, gin.H{"error": "You already have an active reservation for this book"})
-		return
-	} // Create reservation
+	// Create reservation
 	r, err := db.Q.CreateReservation(c.Request.Context(), gen.CreateReservationParams{
 		UserID: pgtype.UUID{Bytes: userUUID, Valid: true},
 		BookID: pgtype.UUID{Bytes: bookUUID, Valid: true},
 	})
-
 	if err != nil {
-		// Check if it's a unique constraint violation
-		if strings.Contains(err.Error(), "unique_user_book_pending") {
-			c.JSON(http.StatusConflict, gin.H{"error": "You already have a pending reservation for this book"})
+		// Handle unique constraint violation
+		if strings.Contains(err.Error(), "unique_user_book") {
+			c.JSON(http.StatusConflict, gin.H{"error": "You already have a reservation for this book"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create reservation"})
 		return
 	}
+
+	// Build response
 	resp := models.ReservationResponse{
 		ID:          r.ID.Bytes,
 		BookID:      r.BookID.Bytes,
@@ -227,8 +205,8 @@ func UpdateReservationStatusHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, reservation)
 }
 func GetReservationsByBookIDAndUserIDHandler(c *gin.Context) {
-	bookIDStr := c.Param("id")              // from /reservations/book/:id
-	userIDStr := c.Query("user_id")         // from ?user_id=<UUID>
+	bookIDStr := c.Param("id")      // from /reservations/book/:id
+	userIDStr := c.Query("user_id") // from ?user_id=<UUID>
 
 	if bookIDStr == "" || userIDStr == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing book_id or user_id"})
@@ -259,22 +237,21 @@ func GetReservationsByBookIDAndUserIDHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch reservations"})
 		return
 	}
-		resp := models.ReservationResponse{
-			ID:          r.ID.Bytes,
-			BookID:      r.BookID.Bytes,
-			UserID:      r.UserID.Bytes,
-			Status:      r.Status,
-			CreatedAt:   r.CreatedAt.Time,
-			NotifiedAt:  r.NotifiedAt.Time,
-			FulfilledAt: r.FulfilledAt.Time,
-			CancelledAt: r.CancelledAt.Time,
-			UserName:    r.UserName,
-			UserEmail:   r.Email,
-			BookTitle:   r.Title,
-			BookAuthor:  r.Author,
-			BookImage:   r.ImageUrl,
-		}
-	
+	resp := models.ReservationResponse{
+		ID:          r.ID.Bytes,
+		BookID:      r.BookID.Bytes,
+		UserID:      r.UserID.Bytes,
+		Status:      r.Status,
+		CreatedAt:   r.CreatedAt.Time,
+		NotifiedAt:  r.NotifiedAt.Time,
+		FulfilledAt: r.FulfilledAt.Time,
+		CancelledAt: r.CancelledAt.Time,
+		UserName:    r.UserName,
+		UserEmail:   r.Email,
+		BookTitle:   r.Title,
+		BookAuthor:  r.Author,
+		BookImage:   r.ImageUrl,
+	}
 
 	c.JSON(http.StatusOK, resp)
 }

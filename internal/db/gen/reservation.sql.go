@@ -14,7 +14,7 @@ import (
 const checkExistingReservation = `-- name: CheckExistingReservation :one
 SELECT COUNT(*) as count
 FROM reservations
-WHERE user_id = $1 AND book_id = $2 AND status IN ('pending', 'notified')
+WHERE user_id = $1 AND book_id = $2
 `
 
 type CheckExistingReservationParams struct {
@@ -30,8 +30,8 @@ func (q *Queries) CheckExistingReservation(ctx context.Context, arg CheckExistin
 }
 
 const createReservation = `-- name: CreateReservation :one
-INSERT INTO reservations (user_id, book_id, status)
-VALUES ($1, $2, 'pending')
+INSERT INTO reservations (user_id, book_id)
+VALUES ($1, $2)
 RETURNING id, user_id, book_id, status, created_at, notified_at, fulfilled_at, cancelled_at
 `
 
