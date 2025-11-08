@@ -376,7 +376,7 @@ func UpdateBookCopiesToDeleteReservations(c *gin.Context) {
 	}
 
 	var req models.UpdateBookRequest
-	if err := c.ShouldBind(&req); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
