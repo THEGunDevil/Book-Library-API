@@ -54,15 +54,15 @@ func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotification
 	return err
 }
 
-const getUserNotifications = `-- name: GetUserNotifications :many
+const getUserNotificationsByUserID = `-- name: GetUserNotificationsByUserID :many
 SELECT id, user_id, user_name, object_id, object_title, type, notification_title, message, is_read, metadata, created_at
 FROM notifications
 WHERE user_id = $1
 ORDER BY created_at DESC
 `
 
-func (q *Queries) GetUserNotifications(ctx context.Context, userID pgtype.UUID) ([]Notification, error) {
-	rows, err := q.db.Query(ctx, getUserNotifications, userID)
+func (q *Queries) GetUserNotificationsByUserID(ctx context.Context, userID pgtype.UUID) ([]Notification, error) {
+	rows, err := q.db.Query(ctx, getUserNotificationsByUserID, userID)
 	if err != nil {
 		return nil, err
 	}

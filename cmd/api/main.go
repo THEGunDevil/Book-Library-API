@@ -120,7 +120,11 @@ func main() {
 	{
 		contactGroup.POST("/send", handlers.ContactHandler)
 	}
-
+	notificationGroup := r.Group("/contact")
+	notificationGroup.Use(middleware.AuthMiddleware())
+	{
+		notificationGroup.POST("/send", handlers.GetUserNotificationByUserIDHandler)
+	}
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"

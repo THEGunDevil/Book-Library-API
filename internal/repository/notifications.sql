@@ -15,7 +15,7 @@ INSERT INTO notifications (
 )
 RETURNING *;
 
--- name: GetUserNotifications :many
+-- name: GetUserNotificationsByUserID :many
 SELECT *
 FROM notifications
 WHERE user_id = $1
