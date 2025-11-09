@@ -16,8 +16,8 @@ type Book struct {
 	Genre           string
 	PublishedYear   pgtype.Int4
 	Isbn            pgtype.Text
-	AvailableCopies pgtype.Int4
 	TotalCopies     int32
+	AvailableCopies pgtype.Int4
 	CreatedAt       pgtype.Timestamp
 	UpdatedAt       pgtype.Timestamp
 	ImageUrl        string
@@ -30,6 +30,20 @@ type Borrow struct {
 	BorrowedAt pgtype.Timestamp
 	DueDate    pgtype.Timestamp
 	ReturnedAt pgtype.Timestamp
+}
+
+type Notification struct {
+	ID                pgtype.UUID
+	UserID            pgtype.UUID
+	UserName          pgtype.Text
+	ObjectID          pgtype.UUID
+	ObjectTitle       pgtype.Text
+	Type              string
+	NotificationTitle string
+	Message           string
+	IsRead            pgtype.Bool
+	Metadata          []byte
+	CreatedAt         pgtype.Timestamp
 }
 
 type Reservation struct {

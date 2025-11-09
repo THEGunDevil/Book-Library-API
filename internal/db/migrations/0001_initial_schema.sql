@@ -90,6 +90,20 @@ CREATE TABLE reservations (
     CONSTRAINT fk_book FOREIGN KEY (book_id) REFERENCES books (id) ON DELETE CASCADE
 );
 
+CREATE TABLE notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL,
+    user_name TEXT,
+    object_id UUID,
+    object_title TEXT,
+    type TEXT NOT NULL,
+    notification_title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT false,
+    metadata JSONB,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
 -- A user can only have one reservation per book (any status)
 CREATE UNIQUE INDEX unique_user_book ON reservations (user_id, book_id);
 
@@ -97,6 +111,7 @@ CREATE UNIQUE INDEX unique_user_book ON reservations (user_id, book_id);
 CREATE INDEX idx_book_created_at ON reservations (book_id, created_at);
 
 -- +goose Down
+DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS reservations;
 DROP TABLE IF EXISTS reviews;
 DROP TABLE IF EXISTS borrows;

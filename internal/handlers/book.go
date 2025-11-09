@@ -293,6 +293,32 @@ func UpdateBookByIDHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong"})
 		return
 	}
+	updatedBookID, err := uuid.FromBytes(updatedBook.ID.Bytes[:])
+	if err != nil {
+		updatedBookID = uuid.Nil // fallback
+	}
+	if params.AvailableCopies.Valid && params.AvailableCopies.Int32 > 0 {
+		// Fetch reservations for this book
+		reservations, err := db.Q.GetReservationsByBookID(c.Request.Context(), updatedBook.ID)
+		if err == nil && len(reservations) > 0 {
+			for _, r := range reservations {
+				go func(userID pgtype.UUID) {
+					_ = service.NotificationService(
+						c.Request.Context(),
+						models.SendNotificationRequest{
+							UserID:            userID.Bytes,
+							ObjectID:          &updatedBookID,
+							ObjectTitle:       updatedBook.Title,
+							Type:              "BOOK_AVAILABLE",
+							NotificationTitle: "Your reserved book is now available!",
+							Message:           "The book '" + updatedBook.Title + "' you reserved is now available to borrow.",
+							Metadata:          map[string]interface{}{"book_id": updatedBook.ID.Bytes},
+						},
+					)
+				}(r.UserID)
+			}
+		}
+	}
 
 	c.JSON(http.StatusOK, models.BookResponse{
 		ID:              updatedBook.ID.Bytes,
@@ -309,7 +335,6 @@ func UpdateBookByIDHandler(c *gin.Context) {
 		UpdatedAt:       updatedBook.UpdatedAt.Time,
 	})
 }
-
 
 // SearchBooksHandler searches books by title/author/genre
 
