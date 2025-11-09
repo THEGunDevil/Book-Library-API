@@ -35,14 +35,13 @@ func NotificationService(c context.Context, req models.SendNotificationRequest) 
 			log.Printf("❌ [DEBUG] Failed to marshal metadata for user=%v: %v", req.UserID, err)
 			return fmt.Errorf("failed to marshal metadata: %w", err)
 		}
-		// Validate JSON
 		if !json.Valid(metadataBytes) {
 			log.Printf("❌ [DEBUG] Invalid JSON for metadata: %s", string(metadataBytes))
 			return fmt.Errorf("invalid JSON metadata")
 		}
 		log.Printf("🧩 [DEBUG] Metadata JSON: %s", string(metadataBytes))
 	} else {
-		metadataBytes = []byte("{}") // Default to empty JSON object
+		metadataBytes = []byte("{}")
 		log.Printf("⚠️ [DEBUG] No metadata provided, using empty JSON object")
 	}
 

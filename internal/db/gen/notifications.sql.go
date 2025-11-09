@@ -24,7 +24,7 @@ INSERT INTO notifications (
     is_read,
     created_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8::json, false, NOW()
+    $1, $2, $3, $4, $5, $6, $7, $8::jsonb, false, NOW()
 ) RETURNING id, user_id, user_name, object_id, object_title, type, notification_title, message, is_read, metadata, created_at
 `
 
