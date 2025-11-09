@@ -17,9 +17,6 @@ type CreateBookRequest struct {
     Description   string                `json:"description" form:"description" binding:"required"` // required
     Image         *multipart.FileHeader `json:"image" form:"image"`                               // optional file
 }
-
-
-
 type BookResponse struct {
 	ID              uuid.UUID `json:"id"`
 	Title           string    `json:"title"`
