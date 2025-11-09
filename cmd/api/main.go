@@ -120,7 +120,7 @@ func main() {
 	{
 		contactGroup.POST("/send", handlers.ContactHandler)
 	}
-	notificationGroup := r.Group("/notification")
+	notificationGroup := r.Group("/notifications")
 	notificationGroup.Use(middleware.AuthMiddleware())
 	{
 		notificationGroup.GET("/get", handlers.GetUserNotificationByUserIDHandler)
