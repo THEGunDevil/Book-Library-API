@@ -1,4 +1,4 @@
--- name: CreateNotification :exec
+-- name: CreateNotification :one
 INSERT INTO notifications (
     user_id,
     user_name,

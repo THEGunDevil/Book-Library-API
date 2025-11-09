@@ -297,7 +297,7 @@ func UpdateBookByIDHandler(c *gin.Context) {
 	if err != nil {
 		updatedBookID = uuid.Nil // fallback
 	}
-	if params.AvailableCopies.Valid && params.AvailableCopies.Int32 > 0 {
+	if updatedBook.AvailableCopies.Valid && updatedBook.AvailableCopies.Int32 > 0 {
 		// Fetch reservations for this book
 		reservations, err := db.Q.GetReservationsByBookID(c.Request.Context(), updatedBook.ID)
 		if err == nil && len(reservations) > 0 {

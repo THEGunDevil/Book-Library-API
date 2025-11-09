@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
+
 	"github.com/THEGunDevil/GoForBackend/internal/db"
 	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
 	"github.com/THEGunDevil/GoForBackend/internal/models"
@@ -40,8 +42,12 @@ func NotificationService(c context.Context, req models.SendNotificationRequest) 
 		Message:           req.Message,
 		Metadata:          metadataBytes,
 	}
-	if err := db.Q.CreateNotification(c, arg); err != nil {
+	notification, err := db.Q.CreateNotification(c, arg)
+	if err != nil {
+		log.Printf("❌ Failed to create notification: %v", err)
 		return fmt.Errorf("failed to create notification: %w", err)
 	}
+
+	log.Printf("✅ Notification created successfully: ID=%v", notification.ID)
 	return nil
 }

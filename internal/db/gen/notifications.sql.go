@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createNotification = `-- name: CreateNotification :exec
+const createNotification = `-- name: CreateNotification :one
 INSERT INTO notifications (
     user_id,
     user_name,
@@ -40,8 +40,8 @@ type CreateNotificationParams struct {
 	Metadata          []byte
 }
 
-func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotificationParams) error {
-	_, err := q.db.Exec(ctx, createNotification,
+func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotificationParams) (Notification, error) {
+	row := q.db.QueryRow(ctx, createNotification,
 		arg.UserID,
 		arg.UserName,
 		arg.ObjectID,
@@ -51,7 +51,21 @@ func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotification
 		arg.Message,
 		arg.Metadata,
 	)
-	return err
+	var i Notification
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.UserName,
+		&i.ObjectID,
+		&i.ObjectTitle,
+		&i.Type,
+		&i.NotificationTitle,
+		&i.Message,
+		&i.IsRead,
+		&i.Metadata,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const getUserNotificationsByUserID = `-- name: GetUserNotificationsByUserID :many

@@ -23,7 +23,7 @@ func Borrow(userUUID uuid.UUID, req models.CreateBorrowRequest) (models.BorrowRe
 	if err == nil {
 		return models.BorrowResponse{}, errors.New("you have already borrowed this book")
 	}
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	if !errors.Is(err, pgx.ErrNoRows) {
 		return models.BorrowResponse{}, err
 	}
 	// Parse due date
