@@ -8,15 +8,16 @@ import (
 )
 
 type CreateBookRequest struct {
-	Title         string                `form:"title" json:"title"`
-	Author        string                `form:"author" json:"author"`
-	PublishedYear int                   `form:"published_year" json:"published_year"`
-	Isbn          string                `form:"isbn" json:"isbn"`
-	TotalCopies   int                   `form:"total_copies" json:"total_copies"`
-	Genre         string                `form:"genre" json:"genre"`             // new
-	Description   string                `form:"description" json:"description"` // new
-	Image         *multipart.FileHeader `form:"image"`
+    Title         string                `form:"title" json:"title" binding:"required"`
+    Author        string                `form:"author" json:"author" binding:"required"`
+    PublishedYear int                   `form:"published_year" json:"published_year" binding:"required"`
+    Isbn          string                `form:"isbn" json:"isbn" binding:"required"`
+    TotalCopies   int                   `form:"total_copies" json:"total_copies" binding:"required"`
+    Genre         string                `form:"genre" json:"genre" binding:"required"`       
+    Description   string                `form:"description" json:"description" binding:"required"` 
+    Image         *multipart.FileHeader `form:"image" json:"image"` // optional file upload
 }
+
 
 type BookResponse struct {
 	ID              uuid.UUID `json:"id"`
@@ -34,17 +35,18 @@ type BookResponse struct {
 }
 
 type UpdateBookRequest struct {
-	Title           *string               `form:"title"`
-	Author          *string               `form:"author"`
-	PublishedYear   *int32                `form:"published_year"`
-	Isbn            *string               `form:"isbn"`
-	TotalCopies     *int32                `form:"total_copies"`
-	AvailableCopies *int32                `form:"available_copies"`
-	Genre           *string               `form:"genre"`       // new
-	Description     *string               `form:"description"` // new
-	Image           *multipart.FileHeader `form:"image"`       // optional file upload
+    Title           *string               `form:"title" json:"title"`
+    Author          *string               `form:"author" json:"author"`
+    PublishedYear   *int32                `form:"published_year" json:"published_year"`
+    Isbn            *string               `form:"isbn" json:"isbn"`
+    TotalCopies     *int32                `form:"total_copies" json:"total_copies"`
+    AvailableCopies *int32                `form:"available_copies" json:"available_copies"`
+    Genre           *string               `form:"genre" json:"genre"`
+    Description     *string               `form:"description" json:"description"`
+    Image           *multipart.FileHeader `form:"image" json:"image"` // optional file
 }
+
 type SearchBooksParams struct {
-    Genre  *string
-    Search *string
+	Genre  *string
+	Search *string
 }

@@ -22,75 +22,57 @@ import (
 
 // CreateBookHandler handles adding books
 func CreateBookHandler(c *gin.Context) {
-	// Get form values
-	title := c.PostForm("title")
-	author := c.PostForm("author")
-	publishedYearStr := c.PostForm("published_year")
-	isbn := c.PostForm("isbn")
-	totalCopiesStr := c.PostForm("total_copies")
-	genre := c.PostForm("genre")
-	description := c.PostForm("description")
+	var req models.CreateBookRequest
 
-	// Validate required fields
-	if len(title) == 0 || len(title) > 255 {
+	// Try binding JSON first
+	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("[DEBUG] JSON bind failed: %v", err)
+
+		// Fallback to form-data / multipart
+		if err := c.ShouldBind(&req); err != nil {
+			log.Printf("[DEBUG] Form-data bind failed: %v", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+			return
+		}
+	}
+
+	// Validate string lengths
+	if len(req.Title) == 0 || len(req.Title) > 255 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "title must be 1-255 characters"})
 		return
 	}
-	if len(author) == 0 || len(author) > 100 {
+	if len(req.Author) == 0 || len(req.Author) > 100 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "author must be 1-100 characters"})
 		return
 	}
-	if len(genre) == 0 || len(genre) > 100 {
+	if len(req.Genre) == 0 || len(req.Genre) > 100 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "genre must be 1-100 characters"})
 		return
 	}
-	if len(description) == 0 {
+	if len(req.Description) == 0 || len(req.Description) > 255 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "description must be 1-255 characters"})
 		return
 	}
 
-	// Convert numeric fields
-	publishedYear, err := strconv.Atoi(publishedYearStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "published year must be a number"})
-		return
-	}
-
-	totalCopies, err := strconv.Atoi(totalCopiesStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "total copies must be a number"})
-		return
-	}
-
-	// Handle file upload
+	// Handle file upload if provided
 	var imageURL string
-	file, err := c.FormFile("image")
-	if err == nil {
-		f, err := file.Open()
+	if req.Image != nil {
+		f, err := req.Image.Open()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open image"})
 			return
 		}
 		defer f.Close()
 
-		imageURL, err = service.UploadImageToCloudinary(f, file.Filename)
+		imageURL, err = service.UploadImageToCloudinary(f, req.Image.Filename)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "image upload failed"})
 			return
 		}
 	}
 
-	// Call the service
-	bookResp, err := service.AddBook(models.CreateBookRequest{
-		Title:         title,
-		Author:        author,
-		PublishedYear: publishedYear,
-		Isbn:          isbn,
-		TotalCopies:   totalCopies,
-		Genre:         genre,
-		Description:   description,
-	}, imageURL)
-
+	// Call the service to add book
+	bookResp, err := service.AddBook(req, imageURL)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -231,23 +213,35 @@ func DeleteBookHandler(c *gin.Context) {
 // UpdateBookByIDHandler updates a book by ID
 func UpdateBookByIDHandler(c *gin.Context) {
 	idStr := c.Param("id")
+	log.Printf("📝 [DEBUG] UpdateBookByIDHandler called with ID param: %s", idStr)
+
 	parsedID, err := uuid.Parse(idStr)
 	if err != nil {
+		log.Printf("❌ [DEBUG] Invalid UUID param: %s", idStr)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book ID"})
 		return
 	}
 
 	var req models.UpdateBookRequest
-	if err := c.ShouldBind(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-		return
+	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("[DEBUG] JSON bind failed: %v", err)
+
+		// Fallback to form-data / multipart
+		if err := c.ShouldBind(&req); err != nil {
+			log.Printf("[DEBUG] Form-data bind failed: %v", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+			return
+		}
 	}
+
+	log.Printf("[DEBUG] UpdateBookRequest bound successfully: %+v", req)
+
+	log.Printf("📘 [DEBUG] Update request: %+v", req)
 
 	params := gen.UpdateBookByIDParams{
 		ID: pgtype.UUID{Bytes: parsedID, Valid: true},
 	}
 
-	// Helper for string fields
 	setText := func(reqVal *string) pgtype.Text {
 		if reqVal != nil && *reqVal != "" {
 			return pgtype.Text{String: *reqVal, Valid: true}
@@ -255,7 +249,6 @@ func UpdateBookByIDHandler(c *gin.Context) {
 		return pgtype.Text{Valid: false}
 	}
 
-	// Helper for int fields
 	setInt := func(reqVal *int32) pgtype.Int4 {
 		if reqVal != nil {
 			return pgtype.Int4{Int32: *reqVal, Valid: true}
@@ -263,7 +256,7 @@ func UpdateBookByIDHandler(c *gin.Context) {
 		return pgtype.Int4{Valid: false}
 	}
 
-	// Assign fields
+	// Assign request values
 	params.Title = setText(req.Title)
 	params.Author = setText(req.Author)
 	params.Genre = setText(req.Genre)
@@ -273,7 +266,9 @@ func UpdateBookByIDHandler(c *gin.Context) {
 	params.TotalCopies = setInt(req.TotalCopies)
 	params.AvailableCopies = setInt(req.AvailableCopies)
 
-	// Image
+	log.Printf("🧩 [DEBUG] UpdateBookByIDParams ready: %+v", params)
+
+	// Upload image if exists
 	if req.Image != nil {
 		f, err := req.Image.Open()
 		if err == nil {
@@ -281,64 +276,73 @@ func UpdateBookByIDHandler(c *gin.Context) {
 			url, err := service.UploadImageToCloudinary(f, req.Image.Filename)
 			if err == nil {
 				params.ImageUrl = pgtype.Text{String: url, Valid: true}
+				log.Printf("🖼️ [DEBUG] Image uploaded successfully: %s", url)
 			} else {
+				log.Printf("❌ [DEBUG] Image upload failed: %v", err)
 				params.ImageUrl = pgtype.Text{Valid: false}
 			}
 		} else {
+			log.Printf("❌ [DEBUG] Failed to open image file: %v", err)
 			params.ImageUrl = pgtype.Text{Valid: false}
 		}
 	} else {
+		log.Printf("⚠️ [DEBUG] No image provided in update request.")
 		params.ImageUrl = pgtype.Text{Valid: false}
 	}
 
 	updatedBook, err := db.Q.UpdateBookByID(c.Request.Context(), params)
 	if err != nil {
+		log.Printf("❌ [DEBUG] DB update failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong"})
 		return
 	}
+
+	log.Printf("✅ [DEBUG] Book updated successfully: %s | AvailableCopies=%d",
+		updatedBook.Title, updatedBook.AvailableCopies.Int32)
+
 	updatedBookID, err := uuid.FromBytes(updatedBook.ID.Bytes[:])
 	if err != nil {
-		updatedBookID = uuid.Nil // fallback
+		log.Printf("⚠️ [DEBUG] Failed to parse book UUID: %v", err)
+		updatedBookID = uuid.Nil
 	}
+
+	// Notify reservations
 	if updatedBook.AvailableCopies.Valid && updatedBook.AvailableCopies.Int32 > 0 {
-		// Fetch reservations for this book
 		reservations, err := db.Q.GetReservationsByBookID(c.Request.Context(), updatedBook.ID)
 		if err != nil {
-			log.Printf("⚠️ Failed to fetch reservations for book %v: %v", updatedBookID, err)
-		} else if len(reservations) > 0 {
-			log.Printf("📢 Found %d reservations for book: %s", len(reservations), updatedBook.Title)
+			log.Printf("⚠️ [DEBUG] Failed to fetch reservations: %v", err)
+		} else {
+			log.Printf("📢 [DEBUG] Found %d reservations for book '%s'", len(reservations), updatedBook.Title)
 
 			for _, r := range reservations {
-				// Use a background context for goroutines, not the HTTP request context
+				log.Printf("➡️ [DEBUG] Sending notification to userID=%v", r.UserID.Bytes)
 				go func(userID pgtype.UUID) {
-					ctx := context.Background() // ← Use background context
-
+					ctx := context.Background()
 					userUUID, err := uuid.FromBytes(userID.Bytes[:])
 					if err != nil {
-						log.Printf("❌ Invalid user UUID in reservation: %v", err)
+						log.Printf("❌ [DEBUG] Invalid user UUID in reservation: %v", err)
 						return
 					}
 
-					err = service.NotificationService(
-						ctx, // ← Use background context
-						models.SendNotificationRequest{
-							UserID:            userUUID,
-							ObjectID:          &updatedBookID,
-							ObjectTitle:       updatedBook.Title,
-							Type:              "BOOK_AVAILABLE",
-							NotificationTitle: "Your reserved book is now available!",
-							Message:           fmt.Sprintf("The book '%s' you reserved is now available to borrow.", updatedBook.Title),
-							Metadata:          map[string]interface{}{"book_id": updatedBookID.String()},
-						},
-					)
+					err = service.NotificationService(ctx, models.SendNotificationRequest{
+						UserID:            userUUID,
+						ObjectID:          &updatedBookID,
+						ObjectTitle:       updatedBook.Title,
+						Type:              "BOOK_AVAILABLE",
+						NotificationTitle: "Your reserved book is now available!",
+						Message:           fmt.Sprintf("The book '%s' you reserved is now available.", updatedBook.Title),
+						Metadata:          map[string]interface{}{"book_id": updatedBookID.String()},
+					})
 
 					if err != nil {
-						log.Printf("❌ Failed to send notification: %v", err)
+						log.Printf("❌ [DEBUG] Failed to send notification: %v", err)
 					}
 				}(r.UserID)
 			}
 		}
 	}
+
+	log.Printf("✅ [DEBUG] Book update flow complete: ID=%v", updatedBookID)
 
 	c.JSON(http.StatusOK, models.BookResponse{
 		ID:              updatedBook.ID.Bytes,
