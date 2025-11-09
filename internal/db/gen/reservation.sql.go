@@ -212,7 +212,7 @@ FROM reservations r
 JOIN users u ON r.user_id = u.id
 JOIN books b ON r.book_id = b.id
 WHERE r.book_id = $1
-ORDER BY r.created_at DESC
+ORDER BY r.created_at ASC
 `
 
 type GetReservationsByBookIDRow struct {

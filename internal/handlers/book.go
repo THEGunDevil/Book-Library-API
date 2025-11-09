@@ -1,7 +1,10 @@
 package handlers
 
 import (
+	"context"
 	"errors"
+	"fmt"
+	"log"
 	"math"
 	"net/http"
 	"strconv"
@@ -300,21 +303,38 @@ func UpdateBookByIDHandler(c *gin.Context) {
 	if updatedBook.AvailableCopies.Valid && updatedBook.AvailableCopies.Int32 > 0 {
 		// Fetch reservations for this book
 		reservations, err := db.Q.GetReservationsByBookID(c.Request.Context(), updatedBook.ID)
-		if err == nil && len(reservations) > 0 {
+		if err != nil {
+			log.Printf("⚠️ Failed to fetch reservations for book %v: %v", updatedBookID, err)
+		} else if len(reservations) > 0 {
+			log.Printf("📢 Found %d reservations for book: %s", len(reservations), updatedBook.Title)
+
 			for _, r := range reservations {
+				// Use a background context for goroutines, not the HTTP request context
 				go func(userID pgtype.UUID) {
-					_ = service.NotificationService(
-						c.Request.Context(),
+					ctx := context.Background() // ← Use background context
+
+					userUUID, err := uuid.FromBytes(userID.Bytes[:])
+					if err != nil {
+						log.Printf("❌ Invalid user UUID in reservation: %v", err)
+						return
+					}
+
+					err = service.NotificationService(
+						ctx, // ← Use background context
 						models.SendNotificationRequest{
-							UserID:            userID.Bytes,
+							UserID:            userUUID,
 							ObjectID:          &updatedBookID,
 							ObjectTitle:       updatedBook.Title,
 							Type:              "BOOK_AVAILABLE",
 							NotificationTitle: "Your reserved book is now available!",
-							Message:           "The book '" + updatedBook.Title + "' you reserved is now available to borrow.",
-							Metadata:          map[string]interface{}{"book_id": updatedBook.ID.Bytes},
+							Message:           fmt.Sprintf("The book '%s' you reserved is now available to borrow.", updatedBook.Title),
+							Metadata:          map[string]interface{}{"book_id": updatedBookID.String()},
 						},
 					)
+
+					if err != nil {
+						log.Printf("❌ Failed to send notification: %v", err)
+					}
 				}(r.UserID)
 			}
 		}
