@@ -64,7 +64,7 @@ func NotificationService(c context.Context, req models.SendNotificationRequest) 
 		Type:              req.Type,
 		NotificationTitle: req.NotificationTitle,
 		Message:           req.Message,
-		Metadata:          metadataBytes, // Use []byte for JSONB
+		Column8:          metadataBytes, // Use []byte for JSONB
 	}
 	log.Printf("📦 [DEBUG] Inserting notification into DB: %+v", arg)
 

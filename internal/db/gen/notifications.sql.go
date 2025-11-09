@@ -24,9 +24,8 @@ INSERT INTO notifications (
     is_read,
     created_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, false, NOW()
-)
-RETURNING id, user_id, user_name, object_id, object_title, type, notification_title, message, is_read, metadata, created_at
+    $1, $2, $3, $4, $5, $6, $7, $8::json, false, NOW()
+) RETURNING id, user_id, user_name, object_id, object_title, type, notification_title, message, is_read, metadata, created_at
 `
 
 type CreateNotificationParams struct {
@@ -37,7 +36,7 @@ type CreateNotificationParams struct {
 	Type              string
 	NotificationTitle string
 	Message           string
-	Metadata          []byte
+	Column8           []byte
 }
 
 func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotificationParams) (Notification, error) {
@@ -49,7 +48,7 @@ func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotification
 		arg.Type,
 		arg.NotificationTitle,
 		arg.Message,
-		arg.Metadata,
+		arg.Column8,
 	)
 	var i Notification
 	err := row.Scan(
