@@ -27,7 +27,7 @@ func NotificationService(c context.Context, req models.SendNotificationRequest) 
 	userName := fmt.Sprintf("%s %s", u.FirstName, u.LastName)
 	log.Printf("👤 [DEBUG] Found user: %s", userName)
 
-	// Marshal metadata to JSON string
+	// Marshal metadata to JSON
 	var metadataBytes []byte
 	if req.Metadata != nil {
 		metadataBytes, err = json.Marshal(req.Metadata)
@@ -35,8 +35,17 @@ func NotificationService(c context.Context, req models.SendNotificationRequest) 
 			log.Printf("❌ [DEBUG] Failed to marshal metadata for user=%v: %v", req.UserID, err)
 			return fmt.Errorf("failed to marshal metadata: %w", err)
 		}
+		// Validate JSON
+		if !json.Valid(metadataBytes) {
+			log.Printf("❌ [DEBUG] Invalid JSON for metadata: %s", string(metadataBytes))
+			return fmt.Errorf("invalid JSON metadata")
+		}
 		log.Printf("🧩 [DEBUG] Metadata JSON: %s", string(metadataBytes))
+	} else {
+		metadataBytes = []byte("{}") // Default to empty JSON object
+		log.Printf("⚠️ [DEBUG] No metadata provided, using empty JSON object")
 	}
+
 	// Handle ObjectID safely
 	var objectID pgtype.UUID
 	if req.ObjectID != nil {
@@ -55,7 +64,7 @@ func NotificationService(c context.Context, req models.SendNotificationRequest) 
 		Type:              req.Type,
 		NotificationTitle: req.NotificationTitle,
 		Message:           req.Message,
-		Metadata:          metadataBytes, // pass as []byte
+		Metadata:          metadataBytes, // Use []byte for JSONB
 	}
 	log.Printf("📦 [DEBUG] Inserting notification into DB: %+v", arg)
 
