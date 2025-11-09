@@ -27,14 +27,16 @@ func NotificationService(c context.Context, req models.SendNotificationRequest) 
 	userName := fmt.Sprintf("%s %s", u.FirstName, u.LastName)
 	log.Printf("👤 [DEBUG] Found user: %s", userName)
 
-	// Marshal metadata
-	metadataBytes, err := json.Marshal(req.Metadata)
-	if err != nil {
-		log.Printf("❌ [DEBUG] Failed to marshal metadata for user=%v: %v", req.UserID, err)
-		return fmt.Errorf("failed to marshal metadata: %w", err)
+	// Marshal metadata to JSON string
+	var metadataBytes []byte
+	if req.Metadata != nil {
+		metadataBytes, err = json.Marshal(req.Metadata)
+		if err != nil {
+			log.Printf("❌ [DEBUG] Failed to marshal metadata for user=%v: %v", req.UserID, err)
+			return fmt.Errorf("failed to marshal metadata: %w", err)
+		}
+		log.Printf("🧩 [DEBUG] Metadata JSON: %s", string(metadataBytes))
 	}
-	log.Printf("🧩 [DEBUG] Metadata: %s", string(metadataBytes))
-
 	// Handle ObjectID safely
 	var objectID pgtype.UUID
 	if req.ObjectID != nil {
@@ -53,9 +55,8 @@ func NotificationService(c context.Context, req models.SendNotificationRequest) 
 		Type:              req.Type,
 		NotificationTitle: req.NotificationTitle,
 		Message:           req.Message,
-		Metadata:          metadataBytes,
+		Metadata:          metadataBytes, // pass as []byte
 	}
-
 	log.Printf("📦 [DEBUG] Inserting notification into DB: %+v", arg)
 
 	notification, err := db.Q.CreateNotification(c, arg)
