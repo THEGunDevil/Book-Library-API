@@ -223,18 +223,11 @@ func UpdateBookByIDHandler(c *gin.Context) {
 	}
 
 	var req models.UpdateBookRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		log.Printf("[DEBUG] JSON bind failed: %v", err)
-
-		// Fallback to form-data / multipart
-		if err := c.ShouldBind(&req); err != nil {
-			log.Printf("[DEBUG] Form-data bind failed: %v", err)
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
-			return
-		}
+	if err := c.ShouldBind(&req); err != nil {
+		log.Printf("❌ [DEBUG] Invalid request body: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
 	}
-
-	log.Printf("[DEBUG] UpdateBookRequest bound successfully: %+v", req)
 
 	log.Printf("📘 [DEBUG] Update request: %+v", req)
 
