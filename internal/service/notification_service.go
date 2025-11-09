@@ -12,13 +12,18 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// SendNotificationHandler handles sending flexible notifications
-func NotificationService(c context.Context, req models.SendNotificationRequest) error {
-	log.Printf("🔔 [DEBUG] Starting NotificationService for UserID=%v | Type=%s | Title=%s",
+// NotificationService handles creating notifications
+func NotificationService(ctx context.Context, req models.SendNotificationRequest) error {
+	log.Printf("🔔 [DEBUG] NotificationService called for UserID=%v | Type=%s | Title=%s",
 		req.UserID, req.Type, req.NotificationTitle)
 
+	// Validate user ID
+	if req.UserID == [16]byte{} {
+		return fmt.Errorf("invalid UserID")
+	}
+
 	// Fetch user info
-	u, err := db.Q.GetUserByID(c, pgtype.UUID{Bytes: req.UserID, Valid: true})
+	u, err := db.Q.GetUserByID(ctx, pgtype.UUID{Bytes: req.UserID, Valid: true})
 	if err != nil {
 		log.Printf("❌ [DEBUG] GetUserByID failed for UserID=%v: %v", req.UserID, err)
 		return fmt.Errorf("invalid user ID: %w", err)
@@ -27,21 +32,20 @@ func NotificationService(c context.Context, req models.SendNotificationRequest) 
 	userName := fmt.Sprintf("%s %s", u.FirstName, u.LastName)
 	log.Printf("👤 [DEBUG] Found user: %s", userName)
 
-	// Marshal metadata to JSON
-	var metadataBytes []byte
+	// Marshal metadata to JSON bytes
+	metadataBytes := []byte("{}")
 	if req.Metadata != nil {
 		metadataBytes, err = json.Marshal(req.Metadata)
 		if err != nil {
-			log.Printf("❌ [DEBUG] Failed to marshal metadata for user=%v: %v", req.UserID, err)
+			log.Printf("❌ [DEBUG] Failed to marshal metadata: %v", err)
 			return fmt.Errorf("failed to marshal metadata: %w", err)
 		}
 		if !json.Valid(metadataBytes) {
-			log.Printf("❌ [DEBUG] Invalid JSON for metadata: %s", string(metadataBytes))
+			log.Printf("❌ [DEBUG] Invalid JSON metadata: %s", string(metadataBytes))
 			return fmt.Errorf("invalid JSON metadata")
 		}
 		log.Printf("🧩 [DEBUG] Metadata JSON: %s", string(metadataBytes))
 	} else {
-		metadataBytes = []byte("{}")
 		log.Printf("⚠️ [DEBUG] No metadata provided, using empty JSON object")
 	}
 
@@ -54,7 +58,7 @@ func NotificationService(c context.Context, req models.SendNotificationRequest) 
 		log.Printf("⚠️ [DEBUG] No ObjectID provided.")
 	}
 
-	// Prepare params
+	// Prepare params for sqlc CreateNotification
 	arg := gen.CreateNotificationParams{
 		UserID:            pgtype.UUID{Bytes: req.UserID, Valid: true},
 		UserName:          pgtype.Text{String: userName, Valid: true},
@@ -63,13 +67,15 @@ func NotificationService(c context.Context, req models.SendNotificationRequest) 
 		Type:              req.Type,
 		NotificationTitle: req.NotificationTitle,
 		Message:           req.Message,
-		Column8:          metadataBytes, // Use []byte for JSONB
+		Column8:           metadataBytes, // JSONB as []byte
 	}
+
 	log.Printf("📦 [DEBUG] Inserting notification into DB: %+v", arg)
 
-	notification, err := db.Q.CreateNotification(c, arg)
+	// Create notification
+	notification, err := db.Q.CreateNotification(ctx, arg)
 	if err != nil {
-		log.Printf("❌ [DEBUG] Failed to create notification in DB: %v", err)
+		log.Printf("❌ [DEBUG] Failed to create notification: %v", err)
 		return fmt.Errorf("failed to create notification: %w", err)
 	}
 
