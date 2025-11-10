@@ -7,11 +7,11 @@ INSERT INTO notifications (
     type,
     notification_title,
     message,
-    metadata,
+    -- metadata,
     is_read,
     created_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8::jsonb, false, NOW()
+    $1, $2, $3, $4, $5, $6, $7, false, NOW()
 ) RETURNING *;
 
 -- name: GetUserNotificationsByUserID :many

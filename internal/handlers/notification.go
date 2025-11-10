@@ -60,7 +60,7 @@ func GetUserNotificationByUserIDHandler(c *gin.Context) {
 			Type:              n.Type,
 			NotificationTitle: n.NotificationTitle,
 			Message:           n.Message,
-			Metadata:          n.Metadata,
+			// Metadata:          n.Metadata,
 			IsRead:            n.IsRead.Bool,
 			CreatedAt:         n.CreatedAt.Time,
 		})

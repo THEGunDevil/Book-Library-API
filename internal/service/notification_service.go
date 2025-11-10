@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"encoding/json"
+	// "encoding/json"
 	"fmt"
 	"log"
 
@@ -49,13 +49,13 @@ func NotificationService(ctx context.Context, req models.SendNotificationRequest
 	userName := fmt.Sprintf("%s %s", u.FirstName, u.LastName)
 	log.Printf("👤 [DEBUG] Found user: %s", userName)
 
-	// ✅ Marshal metadata safely
-	var meta json.RawMessage
-	if len(req.Metadata) > 0 {
-		meta = req.Metadata
-	} else {
-		meta = json.RawMessage(`{}`)
-	}
+	// // ✅ Marshal metadata safely
+	// var meta json.RawMessage
+	// if len(req.Metadata) > 0 {
+	// 	meta = req.Metadata
+	// } else {
+	// 	meta = json.RawMessage(`{}`)
+	// }
 
 	// ✅ Handle ObjectID safely (*uuid.UUID → *[16]byte)
 	var pgObjectID pgtype.UUID
@@ -74,7 +74,7 @@ func NotificationService(ctx context.Context, req models.SendNotificationRequest
 		Type:              req.Type,
 		NotificationTitle: req.NotificationTitle,
 		Message:           req.Message,
-		Column8:           meta, // ✅ correct type
+		// Column8:           meta, // ✅ correct type
 	}
 
 	log.Printf("📦 [DEBUG] Inserting notification into DB: %+v", arg)
