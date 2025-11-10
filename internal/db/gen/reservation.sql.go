@@ -18,8 +18,8 @@ WHERE user_id = $1 AND book_id = $2
 `
 
 type CheckExistingReservationParams struct {
-	UserID pgtype.UUID
-	BookID pgtype.UUID
+	UserID pgtype.UUID `json:"user_id"`
+	BookID pgtype.UUID `json:"book_id"`
 }
 
 func (q *Queries) CheckExistingReservation(ctx context.Context, arg CheckExistingReservationParams) (int64, error) {
@@ -36,8 +36,8 @@ RETURNING id, user_id, book_id, status, created_at, notified_at, fulfilled_at, c
 `
 
 type CreateReservationParams struct {
-	UserID pgtype.UUID
-	BookID pgtype.UUID
+	UserID pgtype.UUID `json:"user_id"`
+	BookID pgtype.UUID `json:"book_id"`
 }
 
 func (q *Queries) CreateReservation(ctx context.Context, arg CreateReservationParams) (Reservation, error) {
@@ -79,24 +79,24 @@ LIMIT $1 OFFSET $2
 `
 
 type GetAllReservationsParams struct {
-	Limit  int32
-	Offset int32
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
 }
 
 type GetAllReservationsRow struct {
-	ID          pgtype.UUID
-	UserID      pgtype.UUID
-	BookID      pgtype.UUID
-	Status      string
-	CreatedAt   pgtype.Timestamptz
-	NotifiedAt  pgtype.Timestamptz
-	FulfilledAt pgtype.Timestamptz
-	CancelledAt pgtype.Timestamptz
-	UserName    interface{}
-	Email       string
-	Title       string
-	Author      string
-	ImageUrl    string
+	ID          pgtype.UUID        `json:"id"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	BookID      pgtype.UUID        `json:"book_id"`
+	Status      string             `json:"status"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	NotifiedAt  pgtype.Timestamptz `json:"notified_at"`
+	FulfilledAt pgtype.Timestamptz `json:"fulfilled_at"`
+	CancelledAt pgtype.Timestamptz `json:"cancelled_at"`
+	UserName    interface{}        `json:"user_name"`
+	Email       string             `json:"email"`
+	Title       string             `json:"title"`
+	Author      string             `json:"author"`
+	ImageUrl    string             `json:"image_url"`
 }
 
 func (q *Queries) GetAllReservations(ctx context.Context, arg GetAllReservationsParams) ([]GetAllReservationsRow, error) {
@@ -157,19 +157,19 @@ LIMIT 1
 `
 
 type GetNextReservationForBookRow struct {
-	ID          pgtype.UUID
-	UserID      pgtype.UUID
-	BookID      pgtype.UUID
-	Status      string
-	CreatedAt   pgtype.Timestamptz
-	NotifiedAt  pgtype.Timestamptz
-	FulfilledAt pgtype.Timestamptz
-	CancelledAt pgtype.Timestamptz
-	UserName    interface{}
-	Email       string
-	Title       string
-	Author      string
-	ImageUrl    string
+	ID          pgtype.UUID        `json:"id"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	BookID      pgtype.UUID        `json:"book_id"`
+	Status      string             `json:"status"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	NotifiedAt  pgtype.Timestamptz `json:"notified_at"`
+	FulfilledAt pgtype.Timestamptz `json:"fulfilled_at"`
+	CancelledAt pgtype.Timestamptz `json:"cancelled_at"`
+	UserName    interface{}        `json:"user_name"`
+	Email       string             `json:"email"`
+	Title       string             `json:"title"`
+	Author      string             `json:"author"`
+	ImageUrl    string             `json:"image_url"`
 }
 
 func (q *Queries) GetNextReservationForBook(ctx context.Context, bookID pgtype.UUID) (GetNextReservationForBookRow, error) {
@@ -216,19 +216,19 @@ ORDER BY r.created_at ASC
 `
 
 type GetReservationsByBookIDRow struct {
-	ID          pgtype.UUID
-	UserID      pgtype.UUID
-	BookID      pgtype.UUID
-	Status      string
-	CreatedAt   pgtype.Timestamptz
-	NotifiedAt  pgtype.Timestamptz
-	FulfilledAt pgtype.Timestamptz
-	CancelledAt pgtype.Timestamptz
-	UserName    interface{}
-	Email       string
-	Title       string
-	Author      string
-	ImageUrl    string
+	ID          pgtype.UUID        `json:"id"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	BookID      pgtype.UUID        `json:"book_id"`
+	Status      string             `json:"status"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	NotifiedAt  pgtype.Timestamptz `json:"notified_at"`
+	FulfilledAt pgtype.Timestamptz `json:"fulfilled_at"`
+	CancelledAt pgtype.Timestamptz `json:"cancelled_at"`
+	UserName    interface{}        `json:"user_name"`
+	Email       string             `json:"email"`
+	Title       string             `json:"title"`
+	Author      string             `json:"author"`
+	ImageUrl    string             `json:"image_url"`
 }
 
 func (q *Queries) GetReservationsByBookID(ctx context.Context, bookID pgtype.UUID) ([]GetReservationsByBookIDRow, error) {
@@ -287,24 +287,24 @@ WHERE r.book_id = $1 AND r.user_id = $2
 `
 
 type GetReservationsByBookIDAndUserIDParams struct {
-	BookID pgtype.UUID
-	UserID pgtype.UUID
+	BookID pgtype.UUID `json:"book_id"`
+	UserID pgtype.UUID `json:"user_id"`
 }
 
 type GetReservationsByBookIDAndUserIDRow struct {
-	ID          pgtype.UUID
-	UserID      pgtype.UUID
-	BookID      pgtype.UUID
-	Status      string
-	CreatedAt   pgtype.Timestamptz
-	NotifiedAt  pgtype.Timestamptz
-	FulfilledAt pgtype.Timestamptz
-	CancelledAt pgtype.Timestamptz
-	UserName    interface{}
-	Email       string
-	Title       string
-	Author      string
-	ImageUrl    string
+	ID          pgtype.UUID        `json:"id"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	BookID      pgtype.UUID        `json:"book_id"`
+	Status      string             `json:"status"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	NotifiedAt  pgtype.Timestamptz `json:"notified_at"`
+	FulfilledAt pgtype.Timestamptz `json:"fulfilled_at"`
+	CancelledAt pgtype.Timestamptz `json:"cancelled_at"`
+	UserName    interface{}        `json:"user_name"`
+	Email       string             `json:"email"`
+	Title       string             `json:"title"`
+	Author      string             `json:"author"`
+	ImageUrl    string             `json:"image_url"`
 }
 
 func (q *Queries) GetReservationsByBookIDAndUserID(ctx context.Context, arg GetReservationsByBookIDAndUserIDParams) (GetReservationsByBookIDAndUserIDRow, error) {
@@ -350,19 +350,19 @@ WHERE r.id = $1
 `
 
 type GetReservationsByReservationIDRow struct {
-	ID          pgtype.UUID
-	UserID      pgtype.UUID
-	BookID      pgtype.UUID
-	Status      string
-	CreatedAt   pgtype.Timestamptz
-	NotifiedAt  pgtype.Timestamptz
-	FulfilledAt pgtype.Timestamptz
-	CancelledAt pgtype.Timestamptz
-	UserName    interface{}
-	Email       string
-	Title       string
-	Author      string
-	ImageUrl    string
+	ID          pgtype.UUID        `json:"id"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	BookID      pgtype.UUID        `json:"book_id"`
+	Status      string             `json:"status"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	NotifiedAt  pgtype.Timestamptz `json:"notified_at"`
+	FulfilledAt pgtype.Timestamptz `json:"fulfilled_at"`
+	CancelledAt pgtype.Timestamptz `json:"cancelled_at"`
+	UserName    interface{}        `json:"user_name"`
+	Email       string             `json:"email"`
+	Title       string             `json:"title"`
+	Author      string             `json:"author"`
+	ImageUrl    string             `json:"image_url"`
 }
 
 func (q *Queries) GetReservationsByReservationID(ctx context.Context, id pgtype.UUID) (GetReservationsByReservationIDRow, error) {
@@ -410,25 +410,25 @@ LIMIT $2 OFFSET $3
 `
 
 type GetUserReservationsParams struct {
-	UserID pgtype.UUID
-	Limit  int32
-	Offset int32
+	UserID pgtype.UUID `json:"user_id"`
+	Limit  int32       `json:"limit"`
+	Offset int32       `json:"offset"`
 }
 
 type GetUserReservationsRow struct {
-	ID          pgtype.UUID
-	UserID      pgtype.UUID
-	BookID      pgtype.UUID
-	Status      string
-	CreatedAt   pgtype.Timestamptz
-	NotifiedAt  pgtype.Timestamptz
-	FulfilledAt pgtype.Timestamptz
-	CancelledAt pgtype.Timestamptz
-	UserName    interface{}
-	Email       string
-	Title       string
-	Author      string
-	ImageUrl    string
+	ID          pgtype.UUID        `json:"id"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	BookID      pgtype.UUID        `json:"book_id"`
+	Status      string             `json:"status"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	NotifiedAt  pgtype.Timestamptz `json:"notified_at"`
+	FulfilledAt pgtype.Timestamptz `json:"fulfilled_at"`
+	CancelledAt pgtype.Timestamptz `json:"cancelled_at"`
+	UserName    interface{}        `json:"user_name"`
+	Email       string             `json:"email"`
+	Title       string             `json:"title"`
+	Author      string             `json:"author"`
+	ImageUrl    string             `json:"image_url"`
 }
 
 func (q *Queries) GetUserReservations(ctx context.Context, arg GetUserReservationsParams) ([]GetUserReservationsRow, error) {
@@ -476,8 +476,8 @@ RETURNING id, user_id, book_id, status, created_at, notified_at, fulfilled_at, c
 `
 
 type UpdateReservationStatusParams struct {
-	ID     pgtype.UUID
-	Status string
+	ID     pgtype.UUID `json:"id"`
+	Status string      `json:"status"`
 }
 
 func (q *Queries) UpdateReservationStatus(ctx context.Context, arg UpdateReservationStatusParams) (Reservation, error) {

@@ -29,12 +29,12 @@ RETURNING id, first_name, last_name, bio, phone_number, email, password_hash, ro
 `
 
 type CreateUserParams struct {
-	FirstName    string
-	LastName     string
-	Email        string
-	PasswordHash string
-	PhoneNumber  string
-	TokenVersion int32
+	FirstName    string `json:"first_name"`
+	LastName     string `json:"last_name"`
+	Email        string `json:"email"`
+	PasswordHash string `json:"password_hash"`
+	PhoneNumber  string `json:"phone_number"`
+	TokenVersion int32  `json:"token_version"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
@@ -181,8 +181,8 @@ LIMIT $1 OFFSET $2
 `
 
 type ListUsersPaginatedParams struct {
-	Limit  int32
-	Offset int32
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
 }
 
 func (q *Queries) ListUsersPaginated(ctx context.Context, arg ListUsersPaginatedParams) ([]User, error) {
@@ -232,11 +232,11 @@ RETURNING id, first_name, last_name, bio, phone_number, email, password_hash, ro
 `
 
 type UpdateUserBanByIDParams struct {
-	IsBanned       pgtype.Bool
-	BanReason      pgtype.Text
-	BanUntil       pgtype.Timestamp
-	IsPermanentBan pgtype.Bool
-	ID             pgtype.UUID
+	IsBanned       pgtype.Bool      `json:"is_banned"`
+	BanReason      pgtype.Text      `json:"ban_reason"`
+	BanUntil       pgtype.Timestamp `json:"ban_until"`
+	IsPermanentBan pgtype.Bool      `json:"is_permanent_ban"`
+	ID             pgtype.UUID      `json:"id"`
 }
 
 func (q *Queries) UpdateUserBanByID(ctx context.Context, arg UpdateUserBanByIDParams) (User, error) {
@@ -280,11 +280,11 @@ RETURNING id, first_name, last_name, bio, phone_number, email, password_hash, ro
 `
 
 type UpdateUserByIDParams struct {
-	FirstName   pgtype.Text
-	LastName    pgtype.Text
-	PhoneNumber pgtype.Text
-	Bio         pgtype.Text
-	ID          pgtype.UUID
+	FirstName   pgtype.Text `json:"first_name"`
+	LastName    pgtype.Text `json:"last_name"`
+	PhoneNumber pgtype.Text `json:"phone_number"`
+	Bio         pgtype.Text `json:"bio"`
+	ID          pgtype.UUID `json:"id"`
 }
 
 func (q *Queries) UpdateUserByID(ctx context.Context, arg UpdateUserByIDParams) (User, error) {

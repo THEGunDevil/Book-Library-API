@@ -18,10 +18,10 @@ RETURNING id, user_id, book_id, rating, comment, created_at, updated_at
 `
 
 type CreateReviewParams struct {
-	UserID  pgtype.UUID
-	BookID  pgtype.UUID
-	Rating  pgtype.Int4
-	Comment pgtype.Text
+	UserID  pgtype.UUID `json:"user_id"`
+	BookID  pgtype.UUID `json:"book_id"`
+	Rating  pgtype.Int4 `json:"rating"`
+	Comment pgtype.Text `json:"comment"`
 }
 
 func (q *Queries) CreateReview(ctx context.Context, arg CreateReviewParams) (Review, error) {
@@ -63,15 +63,15 @@ ORDER BY r.created_at DESC
 `
 
 type GetReviewsByBookIDRow struct {
-	ID        pgtype.UUID
-	UserID    pgtype.UUID
-	FirstName string
-	LastName  string
-	BookID    pgtype.UUID
-	Rating    pgtype.Int4
-	Comment   pgtype.Text
-	CreatedAt pgtype.Timestamp
-	UpdatedAt pgtype.Timestamp
+	ID        pgtype.UUID      `json:"id"`
+	UserID    pgtype.UUID      `json:"user_id"`
+	FirstName string           `json:"first_name"`
+	LastName  string           `json:"last_name"`
+	BookID    pgtype.UUID      `json:"book_id"`
+	Rating    pgtype.Int4      `json:"rating"`
+	Comment   pgtype.Text      `json:"comment"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+	UpdatedAt pgtype.Timestamp `json:"updated_at"`
 }
 
 func (q *Queries) GetReviewsByBookID(ctx context.Context, bookID pgtype.UUID) ([]GetReviewsByBookIDRow, error) {
@@ -113,15 +113,15 @@ ORDER BY r.created_at DESC
 `
 
 type GetReviewsByReviewIDRow struct {
-	ID        pgtype.UUID
-	UserID    pgtype.UUID
-	FirstName string
-	LastName  string
-	BookID    pgtype.UUID
-	Rating    pgtype.Int4
-	Comment   pgtype.Text
-	CreatedAt pgtype.Timestamp
-	UpdatedAt pgtype.Timestamp
+	ID        pgtype.UUID      `json:"id"`
+	UserID    pgtype.UUID      `json:"user_id"`
+	FirstName string           `json:"first_name"`
+	LastName  string           `json:"last_name"`
+	BookID    pgtype.UUID      `json:"book_id"`
+	Rating    pgtype.Int4      `json:"rating"`
+	Comment   pgtype.Text      `json:"comment"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+	UpdatedAt pgtype.Timestamp `json:"updated_at"`
 }
 
 func (q *Queries) GetReviewsByReviewID(ctx context.Context, id pgtype.UUID) ([]GetReviewsByReviewIDRow, error) {
@@ -163,14 +163,14 @@ ORDER BY r.created_at DESC
 `
 
 type GetReviewsByUserIDRow struct {
-	ID        pgtype.UUID
-	UserID    pgtype.UUID
-	Title     string
-	BookID    pgtype.UUID
-	Rating    pgtype.Int4
-	Comment   pgtype.Text
-	CreatedAt pgtype.Timestamp
-	UpdatedAt pgtype.Timestamp
+	ID        pgtype.UUID      `json:"id"`
+	UserID    pgtype.UUID      `json:"user_id"`
+	Title     string           `json:"title"`
+	BookID    pgtype.UUID      `json:"book_id"`
+	Rating    pgtype.Int4      `json:"rating"`
+	Comment   pgtype.Text      `json:"comment"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+	UpdatedAt pgtype.Timestamp `json:"updated_at"`
 }
 
 func (q *Queries) GetReviewsByUserID(ctx context.Context, userID pgtype.UUID) ([]GetReviewsByUserIDRow, error) {
@@ -212,9 +212,9 @@ RETURNING id, user_id, book_id, rating, comment, created_at, updated_at
 `
 
 type UpdateReviewByIDParams struct {
-	Rating  pgtype.Int4
-	Comment pgtype.Text
-	ID      pgtype.UUID
+	Rating  pgtype.Int4 `json:"rating"`
+	Comment pgtype.Text `json:"comment"`
+	ID      pgtype.UUID `json:"id"`
 }
 
 func (q *Queries) UpdateReviewByID(ctx context.Context, arg UpdateReviewByIDParams) (Review, error) {

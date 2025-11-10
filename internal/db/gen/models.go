@@ -9,78 +9,78 @@ import (
 )
 
 type Book struct {
-	ID              pgtype.UUID
-	Title           string
-	Author          string
-	Description     string
-	Genre           string
-	PublishedYear   pgtype.Int4
-	Isbn            pgtype.Text
-	TotalCopies     int32
-	AvailableCopies pgtype.Int4
-	CreatedAt       pgtype.Timestamp
-	UpdatedAt       pgtype.Timestamp
-	ImageUrl        string
+	ID              pgtype.UUID      `json:"id"`
+	Title           string           `json:"title"`
+	Author          string           `json:"author"`
+	Description     string           `json:"description"`
+	Genre           string           `json:"genre"`
+	PublishedYear   pgtype.Int4      `json:"published_year"`
+	Isbn            pgtype.Text      `json:"isbn"`
+	TotalCopies     int32            `json:"total_copies"`
+	AvailableCopies pgtype.Int4      `json:"available_copies"`
+	CreatedAt       pgtype.Timestamp `json:"created_at"`
+	UpdatedAt       pgtype.Timestamp `json:"updated_at"`
+	ImageUrl        string           `json:"image_url"`
 }
 
 type Borrow struct {
-	ID         pgtype.UUID
-	UserID     pgtype.UUID
-	BookID     pgtype.UUID
-	BorrowedAt pgtype.Timestamp
-	DueDate    pgtype.Timestamp
-	ReturnedAt pgtype.Timestamp
+	ID         pgtype.UUID      `json:"id"`
+	UserID     pgtype.UUID      `json:"user_id"`
+	BookID     pgtype.UUID      `json:"book_id"`
+	BorrowedAt pgtype.Timestamp `json:"borrowed_at"`
+	DueDate    pgtype.Timestamp `json:"due_date"`
+	ReturnedAt pgtype.Timestamp `json:"returned_at"`
 }
 
 type Notification struct {
-	ID                pgtype.UUID
-	UserID            pgtype.UUID
-	UserName          pgtype.Text
-	ObjectID          pgtype.UUID
-	ObjectTitle       pgtype.Text
-	Type              string
-	NotificationTitle string
-	Message           string
-	IsRead            pgtype.Bool
-	Metadata          []byte
-	CreatedAt         pgtype.Timestamp
+	ID                pgtype.UUID      `json:"id"`
+	UserID            pgtype.UUID      `json:"user_id"`
+	UserName          pgtype.Text      `json:"user_name"`
+	ObjectID          pgtype.UUID      `json:"object_id"`
+	ObjectTitle       pgtype.Text      `json:"object_title"`
+	Type              string           `json:"type"`
+	NotificationTitle string           `json:"notification_title"`
+	Message           string           `json:"message"`
+	IsRead            pgtype.Bool      `json:"is_read"`
+	Metadata          []byte           `json:"metadata"`
+	CreatedAt         pgtype.Timestamp `json:"created_at"`
 }
 
 type Reservation struct {
-	ID          pgtype.UUID
-	UserID      pgtype.UUID
-	BookID      pgtype.UUID
-	Status      string
-	CreatedAt   pgtype.Timestamptz
-	NotifiedAt  pgtype.Timestamptz
-	FulfilledAt pgtype.Timestamptz
-	CancelledAt pgtype.Timestamptz
+	ID          pgtype.UUID        `json:"id"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	BookID      pgtype.UUID        `json:"book_id"`
+	Status      string             `json:"status"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	NotifiedAt  pgtype.Timestamptz `json:"notified_at"`
+	FulfilledAt pgtype.Timestamptz `json:"fulfilled_at"`
+	CancelledAt pgtype.Timestamptz `json:"cancelled_at"`
 }
 
 type Review struct {
-	ID        pgtype.UUID
-	UserID    pgtype.UUID
-	BookID    pgtype.UUID
-	Rating    pgtype.Int4
-	Comment   pgtype.Text
-	CreatedAt pgtype.Timestamp
-	UpdatedAt pgtype.Timestamp
+	ID        pgtype.UUID      `json:"id"`
+	UserID    pgtype.UUID      `json:"user_id"`
+	BookID    pgtype.UUID      `json:"book_id"`
+	Rating    pgtype.Int4      `json:"rating"`
+	Comment   pgtype.Text      `json:"comment"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+	UpdatedAt pgtype.Timestamp `json:"updated_at"`
 }
 
 type User struct {
-	ID             pgtype.UUID
-	FirstName      string
-	LastName       string
-	Bio            string
-	PhoneNumber    string
-	Email          string
-	PasswordHash   string
-	Role           pgtype.Text
-	CreatedAt      pgtype.Timestamp
-	UpdatedAt      pgtype.Timestamp
-	TokenVersion   int32
-	IsBanned       pgtype.Bool
-	BanReason      pgtype.Text
-	BanUntil       pgtype.Timestamp
-	IsPermanentBan pgtype.Bool
+	ID             pgtype.UUID      `json:"id"`
+	FirstName      string           `json:"first_name"`
+	LastName       string           `json:"last_name"`
+	Bio            string           `json:"bio"`
+	PhoneNumber    string           `json:"phone_number"`
+	Email          string           `json:"email"`
+	PasswordHash   string           `json:"password_hash"`
+	Role           pgtype.Text      `json:"role"`
+	CreatedAt      pgtype.Timestamp `json:"created_at"`
+	UpdatedAt      pgtype.Timestamp `json:"updated_at"`
+	TokenVersion   int32            `json:"token_version"`
+	IsBanned       pgtype.Bool      `json:"is_banned"`
+	BanReason      pgtype.Text      `json:"ban_reason"`
+	BanUntil       pgtype.Timestamp `json:"ban_until"`
+	IsPermanentBan pgtype.Bool      `json:"is_permanent_ban"`
 }

@@ -55,10 +55,10 @@ RETURNING id, user_id, book_id, borrowed_at, due_date, returned_at
 `
 
 type CreateBorrowParams struct {
-	UserID     pgtype.UUID
-	BookID     pgtype.UUID
-	DueDate    pgtype.Timestamp
-	ReturnedAt pgtype.Timestamp
+	UserID     pgtype.UUID      `json:"user_id"`
+	BookID     pgtype.UUID      `json:"book_id"`
+	DueDate    pgtype.Timestamp `json:"due_date"`
+	ReturnedAt pgtype.Timestamp `json:"returned_at"`
 }
 
 func (q *Queries) CreateBorrow(ctx context.Context, arg CreateBorrowParams) (Borrow, error) {
@@ -85,8 +85,8 @@ SELECT id, user_id, book_id, borrowed_at, due_date, returned_at FROM borrows WHE
 `
 
 type FilterBorrowByUserAndBookIDParams struct {
-	UserID pgtype.UUID
-	BookID pgtype.UUID
+	UserID pgtype.UUID `json:"user_id"`
+	BookID pgtype.UUID `json:"book_id"`
 }
 
 func (q *Queries) FilterBorrowByUserAndBookID(ctx context.Context, arg FilterBorrowByUserAndBookIDParams) (Borrow, error) {
@@ -143,13 +143,13 @@ ORDER BY due_date DESC
 `
 
 type ListBorrowByBookIDRow struct {
-	ID         pgtype.UUID
-	UserID     pgtype.UUID
-	BookID     pgtype.UUID
-	BorrowedAt pgtype.Timestamp
-	DueDate    pgtype.Timestamp
-	ReturnedAt pgtype.Timestamp
-	Title      string
+	ID         pgtype.UUID      `json:"id"`
+	UserID     pgtype.UUID      `json:"user_id"`
+	BookID     pgtype.UUID      `json:"book_id"`
+	BorrowedAt pgtype.Timestamp `json:"borrowed_at"`
+	DueDate    pgtype.Timestamp `json:"due_date"`
+	ReturnedAt pgtype.Timestamp `json:"returned_at"`
+	Title      string           `json:"title"`
 }
 
 func (q *Queries) ListBorrowByBookID(ctx context.Context, bookID pgtype.UUID) ([]ListBorrowByBookIDRow, error) {
@@ -189,13 +189,13 @@ ORDER BY brs.due_date DESC
 `
 
 type ListBorrowByUserIDRow struct {
-	ID         pgtype.UUID
-	UserID     pgtype.UUID
-	BookID     pgtype.UUID
-	BorrowedAt pgtype.Timestamp
-	DueDate    pgtype.Timestamp
-	ReturnedAt pgtype.Timestamp
-	Title      string
+	ID         pgtype.UUID      `json:"id"`
+	UserID     pgtype.UUID      `json:"user_id"`
+	BookID     pgtype.UUID      `json:"book_id"`
+	BorrowedAt pgtype.Timestamp `json:"borrowed_at"`
+	DueDate    pgtype.Timestamp `json:"due_date"`
+	ReturnedAt pgtype.Timestamp `json:"returned_at"`
+	Title      string           `json:"title"`
 }
 
 func (q *Queries) ListBorrowByUserID(ctx context.Context, userID pgtype.UUID) ([]ListBorrowByUserIDRow, error) {
@@ -234,18 +234,18 @@ LIMIT $1 OFFSET $2
 `
 
 type ListBorrowPaginatedParams struct {
-	Limit  int32
-	Offset int32
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
 }
 
 type ListBorrowPaginatedRow struct {
-	ID         pgtype.UUID
-	UserID     pgtype.UUID
-	BookID     pgtype.UUID
-	BorrowedAt pgtype.Timestamp
-	DueDate    pgtype.Timestamp
-	ReturnedAt pgtype.Timestamp
-	BookTitle  string
+	ID         pgtype.UUID      `json:"id"`
+	UserID     pgtype.UUID      `json:"user_id"`
+	BookID     pgtype.UUID      `json:"book_id"`
+	BorrowedAt pgtype.Timestamp `json:"borrowed_at"`
+	DueDate    pgtype.Timestamp `json:"due_date"`
+	ReturnedAt pgtype.Timestamp `json:"returned_at"`
+	BookTitle  string           `json:"book_title"`
 }
 
 func (q *Queries) ListBorrowPaginated(ctx context.Context, arg ListBorrowPaginatedParams) ([]ListBorrowPaginatedRow, error) {

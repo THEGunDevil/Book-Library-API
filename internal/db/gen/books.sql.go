@@ -29,15 +29,15 @@ RETURNING id, title, author, description, genre, published_year, isbn, total_cop
 `
 
 type CreateBookParams struct {
-	Title           string
-	Author          string
-	PublishedYear   pgtype.Int4
-	Isbn            pgtype.Text
-	TotalCopies     int32
-	AvailableCopies pgtype.Int4
-	ImageUrl        string
-	Genre           string
-	Description     string
+	Title           string      `json:"title"`
+	Author          string      `json:"author"`
+	PublishedYear   pgtype.Int4 `json:"published_year"`
+	Isbn            pgtype.Text `json:"isbn"`
+	TotalCopies     int32       `json:"total_copies"`
+	AvailableCopies pgtype.Int4 `json:"available_copies"`
+	ImageUrl        string      `json:"image_url"`
+	Genre           string      `json:"genre"`
+	Description     string      `json:"description"`
 }
 
 func (q *Queries) CreateBook(ctx context.Context, arg CreateBookParams) (Book, error) {
@@ -195,8 +195,8 @@ LIMIT $1 OFFSET $2
 `
 
 type ListBooksPaginatedParams struct {
-	Limit  int32
-	Offset int32
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
 }
 
 func (q *Queries) ListBooksPaginated(ctx context.Context, arg ListBooksPaginatedParams) ([]Book, error) {
@@ -281,23 +281,23 @@ ORDER BY title
 `
 
 type SearchBooksParams struct {
-	Column1 string
-	Column2 string
+	Column1 string `json:"column_1"`
+	Column2 string `json:"column_2"`
 }
 
 type SearchBooksRow struct {
-	ID              pgtype.UUID
-	Title           string
-	Author          string
-	Genre           string
-	PublishedYear   pgtype.Int4
-	Isbn            pgtype.Text
-	AvailableCopies pgtype.Int4
-	TotalCopies     int32
-	Description     string
-	ImageUrl        string
-	CreatedAt       pgtype.Timestamp
-	UpdatedAt       pgtype.Timestamp
+	ID              pgtype.UUID      `json:"id"`
+	Title           string           `json:"title"`
+	Author          string           `json:"author"`
+	Genre           string           `json:"genre"`
+	PublishedYear   pgtype.Int4      `json:"published_year"`
+	Isbn            pgtype.Text      `json:"isbn"`
+	AvailableCopies pgtype.Int4      `json:"available_copies"`
+	TotalCopies     int32            `json:"total_copies"`
+	Description     string           `json:"description"`
+	ImageUrl        string           `json:"image_url"`
+	CreatedAt       pgtype.Timestamp `json:"created_at"`
+	UpdatedAt       pgtype.Timestamp `json:"updated_at"`
 }
 
 func (q *Queries) SearchBooks(ctx context.Context, arg SearchBooksParams) ([]SearchBooksRow, error) {
@@ -351,16 +351,16 @@ RETURNING id, title, author, description, genre, published_year, isbn, total_cop
 `
 
 type UpdateBookByIDParams struct {
-	Title           pgtype.Text
-	Author          pgtype.Text
-	PublishedYear   pgtype.Int4
-	Isbn            pgtype.Text
-	AvailableCopies pgtype.Int4
-	TotalCopies     pgtype.Int4
-	Genre           pgtype.Text
-	Description     pgtype.Text
-	ImageUrl        pgtype.Text
-	ID              pgtype.UUID
+	Title           pgtype.Text `json:"title"`
+	Author          pgtype.Text `json:"author"`
+	PublishedYear   pgtype.Int4 `json:"published_year"`
+	Isbn            pgtype.Text `json:"isbn"`
+	AvailableCopies pgtype.Int4 `json:"available_copies"`
+	TotalCopies     pgtype.Int4 `json:"total_copies"`
+	Genre           pgtype.Text `json:"genre"`
+	Description     pgtype.Text `json:"description"`
+	ImageUrl        pgtype.Text `json:"image_url"`
+	ID              pgtype.UUID `json:"id"`
 }
 
 func (q *Queries) UpdateBookByID(ctx context.Context, arg UpdateBookByIDParams) (Book, error) {
