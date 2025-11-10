@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -317,6 +318,8 @@ func UpdateBookByIDHandler(c *gin.Context) {
 						return
 					}
 
+					meta, _ := json.Marshal(map[string]interface{}{"book_id": updatedBookID.String()})
+
 					err = service.NotificationService(ctx, models.SendNotificationRequest{
 						UserID:            userUUID,
 						ObjectID:          &updatedBookID,
@@ -324,7 +327,7 @@ func UpdateBookByIDHandler(c *gin.Context) {
 						Type:              "BOOK_AVAILABLE",
 						NotificationTitle: "Your reserved book is now available!",
 						Message:           fmt.Sprintf("The book '%s' you reserved is now available.", updatedBook.Title),
-						Metadata:          map[string]interface{}{"book_id": updatedBookID.String()},
+						Metadata:          meta,
 					})
 
 					if err != nil {

@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,7 +16,7 @@ type Notification struct {
 	Type              string         `json:"type"`                // e.g., BOOK_AVAILABLE, REMINDER, SYSTEM_ALERT
 	NotificationTitle string         `json:"notification_title"`  // short title for UI
 	Message           string         `json:"message"`             // full message
-	Metadata          map[string]any `json:"metadata,omitempty"`  // optional extra info
+	Metadata          json.RawMessage `json:"metadata,omitempty"`  // optional extra info
 	IsRead            bool           `json:"is_read"`             // read/unread status
 	CreatedAt         time.Time      `json:"created_at"`          // creation timestamp
 }
@@ -27,5 +28,5 @@ type SendNotificationRequest struct {
 	Type              string         `json:"type" binding:"required"`               // e.g., BOOK_AVAILABLE, REMINDER
 	NotificationTitle string         `json:"notification_title" binding:"required"` // short title
 	Message           string         `json:"message" binding:"required"`            // full message
-	Metadata          map[string]any `json:"metadata,omitempty"`                    // optional extra info
+	Metadata          json.RawMessage `json:"metadata,omitempty"`                    // optional extra info
 }

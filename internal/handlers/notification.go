@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/THEGunDevil/GoForBackend/internal/db"
@@ -35,13 +34,13 @@ func GetUserNotificationByUserIDHandler(c *gin.Context) {
 
 	var response []models.Notification
 	for _, n := range notifications {
-		var metadata map[string]any
-		if n.Metadata != nil {
-			if err := json.Unmarshal(n.Metadata, &metadata); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to unmarshal metadata"})
-				return
-			}
-		}
+		// var metadata map[string]any
+		// if n.Metadata != nil {
+		// 	if err := json.Unmarshal(n.Metadata, &metadata); err != nil {
+		// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to unmarshal metadata"})
+		// 		return
+		// 	}
+		// }
 
 		var objectID *uuid.UUID
 		if n.ObjectID.Valid {
@@ -61,7 +60,7 @@ func GetUserNotificationByUserIDHandler(c *gin.Context) {
 			Type:              n.Type,
 			NotificationTitle: n.NotificationTitle,
 			Message:           n.Message,
-			Metadata:          metadata,
+			Metadata:          n.Metadata,
 			IsRead:            n.IsRead.Bool,
 			CreatedAt:         n.CreatedAt.Time,
 		})
