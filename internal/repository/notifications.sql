@@ -20,7 +20,7 @@ FROM notifications
 WHERE user_id = $1
 ORDER BY created_at DESC;
 
--- name: MarkNotificationAsRead :exec
+-- name: MarkNotificationAsReadByUserID :exec
 UPDATE notifications
 SET is_read = true
-WHERE id = $1;
+WHERE user_id = $1;

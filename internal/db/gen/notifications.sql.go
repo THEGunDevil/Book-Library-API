@@ -104,13 +104,13 @@ func (q *Queries) GetUserNotificationsByUserID(ctx context.Context, userID pgtyp
 	return items, nil
 }
 
-const markNotificationAsRead = `-- name: MarkNotificationAsRead :exec
+const markNotificationAsReadByUserID = `-- name: MarkNotificationAsReadByUserID :exec
 UPDATE notifications
 SET is_read = true
-WHERE id = $1
+WHERE user_id = $1
 `
 
-func (q *Queries) MarkNotificationAsRead(ctx context.Context, id pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, markNotificationAsRead, id)
+func (q *Queries) MarkNotificationAsReadByUserID(ctx context.Context, userID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, markNotificationAsReadByUserID, userID)
 	return err
 }

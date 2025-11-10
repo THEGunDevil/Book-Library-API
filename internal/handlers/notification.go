@@ -61,10 +61,34 @@ func GetUserNotificationByUserIDHandler(c *gin.Context) {
 			NotificationTitle: n.NotificationTitle,
 			Message:           n.Message,
 			// Metadata:          n.Metadata,
-			IsRead:            n.IsRead.Bool,
-			CreatedAt:         n.CreatedAt.Time,
+			IsRead:    n.IsRead.Bool,
+			CreatedAt: n.CreatedAt.Time,
 		})
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+func MarkNotificationAsReadByUserID(c *gin.Context) {
+	idStr := c.Param("id")
+
+	// Parse the user ID from URL param
+	parsedID, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	// Call DB function
+	err = db.Q.MarkNotificationAsReadByUserID(
+		c.Request.Context(),
+		pgtype.UUID{Bytes: parsedID, Valid: true},
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark notifications as read"})
+		return
+	}
+
+	// ✅ Success response
+	c.JSON(http.StatusOK, gin.H{"message": "Notifications marked as read successfully"})
 }
