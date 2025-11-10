@@ -133,7 +133,7 @@ func main() {
 	notificationGroup.Use(middleware.AuthMiddleware())
 	{
 		notificationGroup.GET("/get", handlers.GetUserNotificationByUserIDHandler)
-		notificationGroup.PATCH("/:id", handlers.MarkNotificationAsReadByUserID)
+		notificationGroup.PATCH("/mark-read", handlers.MarkNotificationAsReadByUserID)
 
 	}
 	port := os.Getenv("PORT")
