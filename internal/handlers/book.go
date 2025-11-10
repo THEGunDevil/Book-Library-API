@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -303,39 +302,40 @@ func UpdateBookByIDHandler(c *gin.Context) {
 	// Notify reservations
 	if updatedBook.AvailableCopies.Valid && updatedBook.AvailableCopies.Int32 > 0 {
 		reservations, err := db.Q.GetReservationsByBookID(c.Request.Context(), updatedBook.ID)
-		if err != nil {
-			log.Printf("⚠️ [DEBUG] Failed to fetch reservations: %v", err)
-		} else {
-			log.Printf("📢 [DEBUG] Found %d reservations for book '%s'", len(reservations), updatedBook.Title)
+if err == nil && len(reservations) > 0 {
+    for _, r := range reservations {
+        // capture userID per iteration
+        userID := r.UserID
+        go func(userID pgtype.UUID) {
+            ctx := c.Request.Context() // use request context
+            userUUID, err := uuid.FromBytes(userID.Bytes[:])
+            if err != nil {
+                log.Printf("❌ Invalid user UUID: %v", err)
+                return
+            }
 
-			for _, r := range reservations {
-				log.Printf("➡️ [DEBUG] Sending notification to userID=%v", r.UserID.Bytes)
-				go func(userID pgtype.UUID) {
-					ctx := context.Background()
-					userUUID, err := uuid.FromBytes(userID.Bytes[:])
-					if err != nil {
-						log.Printf("❌ [DEBUG] Invalid user UUID in reservation: %v", err)
-						return
-					}
+            meta, _ := json.Marshal(map[string]interface{}{"book_id": updatedBookID.String()})
+            metaJSON := json.RawMessage(meta)
 
-					meta, _ := json.Marshal(map[string]interface{}{"book_id": updatedBookID.String()})
+            err = service.NotificationService(ctx, models.SendNotificationRequest{
+                UserID:            userUUID,
+                ObjectID:          &updatedBookID,
+                ObjectTitle:       updatedBook.Title,
+                Type:              "BOOK_AVAILABLE",
+                NotificationTitle: "Your reserved book is now available!",
+                Message:           fmt.Sprintf("The book '%s' you reserved is now available.", updatedBook.Title),
+                Metadata:          metaJSON,
+            })
 
-					err = service.NotificationService(ctx, models.SendNotificationRequest{
-						UserID:            userUUID,
-						ObjectID:          &updatedBookID,
-						ObjectTitle:       updatedBook.Title,
-						Type:              "BOOK_AVAILABLE",
-						NotificationTitle: "Your reserved book is now available!",
-						Message:           fmt.Sprintf("The book '%s' you reserved is now available.", updatedBook.Title),
-						Metadata:          meta,
-					})
+            if err != nil {
+                log.Printf("❌ Failed to send notification: %v", err)
+            } else {
+                log.Printf("✅ Notification sent to userID=%v", userUUID)
+            }
+        }(userID)
+    }
+}
 
-					if err != nil {
-						log.Printf("❌ [DEBUG] Failed to send notification: %v", err)
-					}
-				}(r.UserID)
-			}
-		}
 	}
 
 	log.Printf("✅ [DEBUG] Book update flow complete: ID=%v", updatedBookID)

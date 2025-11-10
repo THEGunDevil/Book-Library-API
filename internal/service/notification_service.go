@@ -50,40 +50,31 @@ func NotificationService(ctx context.Context, req models.SendNotificationRequest
 	log.Printf("👤 [DEBUG] Found user: %s", userName)
 
 	// ✅ Marshal metadata safely
-	var metadataBytes []byte
+	var meta json.RawMessage
 	if len(req.Metadata) > 0 {
-		metadataBytes, err = json.Marshal(req.Metadata)
-		if err != nil {
-			log.Printf("❌ [DEBUG] Failed to marshal metadata: %v", err)
-			return fmt.Errorf("failed to marshal metadata: %w", err)
-		}
-		log.Printf("🧩 [DEBUG] Metadata JSON: %s", string(metadataBytes))
+		meta = req.Metadata
 	} else {
-		metadataBytes = []byte(`{}`)
-		log.Printf("⚠️ [DEBUG] No metadata provided, using empty JSON object")
+		meta = json.RawMessage(`{}`)
 	}
 
 	// ✅ Handle ObjectID safely (*uuid.UUID → *[16]byte)
-	var objectID *[16]byte
+	var pgObjectID pgtype.UUID
 	if req.ObjectID != nil {
-		tmp := [16]byte(*req.ObjectID)
-		objectID = &tmp
-		log.Printf("📘 [DEBUG] ObjectID: %v", *req.ObjectID)
+		pgObjectID = UUIDToPGType(*req.ObjectID)
 	} else {
-		objectID = nil
-		log.Printf("⚠️ [DEBUG] No ObjectID provided, will store NULL")
+		pgObjectID = pgtype.UUID{Valid: false} // NULL in DB
 	}
 
 	// ✅ Prepare params for sqlc CreateNotification
 	arg := gen.CreateNotificationParams{
 		UserID:            UUIDToPGType(req.UserID),
 		UserName:          StringToPGText(userName),
-		ObjectID:          UUIDToPGType(*objectID),
+		ObjectID:          pgObjectID,
 		ObjectTitle:       StringToPGText(req.ObjectTitle),
 		Type:              req.Type,
 		NotificationTitle: req.NotificationTitle,
 		Message:           req.Message,
-		Column8:          json.RawMessage(metadataBytes), // ✅ correct type
+		Column8:           meta, // ✅ correct type
 	}
 
 	log.Printf("📦 [DEBUG] Inserting notification into DB: %+v", arg)
