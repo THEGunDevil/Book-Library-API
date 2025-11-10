@@ -70,25 +70,29 @@ func GetUserNotificationByUserIDHandler(c *gin.Context) {
 }
 
 func MarkNotificationAsReadByUserID(c *gin.Context) {
-	idStr := c.Param("id")
-
-	// Parse the user ID from URL param
-	parsedID, err := uuid.Parse(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+	// ✅ Get the authenticated user's ID from middleware context
+	userIDValue, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	// Call DB function
-	err = db.Q.MarkNotificationAsReadByUserID(
+	userUUID, ok := userIDValue.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID in context"})
+		return
+	}
+
+	// ✅ Call DB query
+	err := db.Q.MarkNotificationAsReadByUserID(
 		c.Request.Context(),
-		pgtype.UUID{Bytes: parsedID, Valid: true},
+		pgtype.UUID{Bytes: userUUID, Valid: true},
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark notifications as read"})
 		return
 	}
 
-	// ✅ Success response
 	c.JSON(http.StatusOK, gin.H{"message": "Notifications marked as read successfully"})
 }
+

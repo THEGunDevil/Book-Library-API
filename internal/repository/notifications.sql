@@ -23,4 +23,5 @@ ORDER BY created_at DESC;
 -- name: MarkNotificationAsReadByUserID :exec
 UPDATE notifications
 SET is_read = true
-WHERE user_id = $1;
+WHERE user_id = $1 AND is_read = false;
+

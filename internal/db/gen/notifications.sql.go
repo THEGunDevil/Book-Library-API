@@ -107,7 +107,7 @@ func (q *Queries) GetUserNotificationsByUserID(ctx context.Context, userID pgtyp
 const markNotificationAsReadByUserID = `-- name: MarkNotificationAsReadByUserID :exec
 UPDATE notifications
 SET is_read = true
-WHERE user_id = $1
+WHERE user_id = $1 AND is_read = false
 `
 
 func (q *Queries) MarkNotificationAsReadByUserID(ctx context.Context, userID pgtype.UUID) error {
