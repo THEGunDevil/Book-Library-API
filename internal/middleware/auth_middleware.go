@@ -68,12 +68,15 @@ func AuthMiddleware() gin.HandlerFunc {
 		if user.IsBanned.Bool {
 			if user.IsPermanentBan.Bool {
 				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "your account has been permanently banned", "reason": user.BanReason.String})
+				c.Redirect(http.StatusFound, "/permanent-banned")
 				return
 			}
 			if user.BanUntil.Valid && user.BanUntil.Time.After(time.Now()) {
 				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "your account is temporarily banned", "until": user.BanUntil.Time, "reason": user.BanReason.String})
+				c.Redirect(http.StatusFound, "/temporary-banned")
 				return
 			}
+
 		}
 
 		role, _ := claims["role"].(string)
