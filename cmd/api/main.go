@@ -55,19 +55,19 @@ func main() {
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
+	r.GET("/permanent-banned", func(c *gin.Context) {
+		reason := c.Query("reason")
+		c.HTML(http.StatusOK, "permanent-banned.html", gin.H{
+			"Reason": reason,
+		})
+	})
+
 	r.GET("/temporary-banned", func(c *gin.Context) {
 		reason := c.Query("reason")
 		until := c.Query("until")
 		c.HTML(http.StatusOK, "temporary-banned.html", gin.H{
 			"Reason": reason,
 			"Until":  until,
-		})
-	})
-
-	r.GET("/permanent-banned", func(c *gin.Context) {
-		reason := c.Query("reason")
-		c.HTML(http.StatusOK, "permanent-banned.html", gin.H{
-			"Reason": reason,
 		})
 	})
 
