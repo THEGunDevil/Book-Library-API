@@ -1,9 +1,7 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -67,26 +65,25 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		if user.IsBanned.Bool {
-			if user.IsPermanentBan.Bool {
-				c.Redirect(http.StatusFound, fmt.Sprintf(
-					"/permanent-banned?reason=%s",
-					url.QueryEscape(user.BanReason.String),
-				))
-				c.Abort()
-				return
-			}
+        if user.IsBanned.Bool {
+            if user.IsPermanentBan.Bool {
+                c.HTML(http.StatusOK, "permanent-banned.html", gin.H{
+                    "Reason": user.BanReason.String,
+                })
+                c.Abort()
+                return
+            }
 
-			if user.BanUntil.Valid && user.BanUntil.Time.After(time.Now()) {
-				c.Redirect(http.StatusFound, fmt.Sprintf(
-					"/temporary-banned?reason=%s&until=%s",
-					url.QueryEscape(user.BanReason.String),
-					user.BanUntil.Time.Format(time.RFC3339),
-				))
-				c.Abort()
-				return
-			}
-		}
+            if user.BanUntil.Valid && user.BanUntil.Time.After(time.Now()) {
+                c.HTML(http.StatusOK, "temporary-banned.html", gin.H{
+                    "Reason": user.BanReason.String,
+                    "Until":  user.BanUntil.Time.Format(time.RFC3339),
+                })
+                c.Abort()
+                return
+            }
+        }
+
 
 		role, _ := claims["role"].(string)
 		c.Set("userID", userUUID)

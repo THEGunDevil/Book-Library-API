@@ -55,25 +55,18 @@ func main() {
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
-	r.GET("/permanent-banned", func(c *gin.Context) {
-		reason := c.Query("reason")
-		c.HTML(http.StatusOK, "permanent-banned.html", gin.H{
-			"Reason": reason,
-		})
-	})
-
-	r.GET("/temporary-banned", func(c *gin.Context) {
-		reason := c.Query("reason")
-		until := c.Query("until")
-		c.HTML(http.StatusOK, "temporary-banned.html", gin.H{
-			"Reason": reason,
-			"Until":  until,
-		})
-	})
 
 	r.GET("/download/books", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DownloadBooksHandler)
 	r.GET("/download/users", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DownloadUsersHandler)
 	r.GET("/download/borrows", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DownloadBorrowsHandler)
+
+	frontend := r.Group("/")
+	frontend.Use(middleware.AuthMiddleware()) // banned users intercepted here
+	{
+		frontend.GET("/*any", func(c *gin.Context) {
+			c.File("./frontend/build/index.html")
+		})
+	}
 
 	// Auth routes (public)
 	authGroup := r.Group("/auth")
