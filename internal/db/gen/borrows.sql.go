@@ -276,6 +276,170 @@ func (q *Queries) ListBorrowPaginated(ctx context.Context, arg ListBorrowPaginat
 	return items, nil
 }
 
+const listBorrowPaginatedByBorrowedAt = `-- name: ListBorrowPaginatedByBorrowedAt :many
+SELECT b.id, b.user_id, b.book_id, b.borrowed_at, b.due_date, b.returned_at, bk.title AS book_title, CAST(CONCAT(u.first_name, ' ', u.last_name) AS TEXT) AS user_name
+FROM borrows b
+JOIN books bk ON b.book_id = bk.id
+JOIN users u on bk.user_id = u.id
+ORDER BY b.borrowed_at ASC
+LIMIT $1 OFFSET $2
+`
+
+type ListBorrowPaginatedByBorrowedAtParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+type ListBorrowPaginatedByBorrowedAtRow struct {
+	ID         pgtype.UUID      `json:"id"`
+	UserID     pgtype.UUID      `json:"user_id"`
+	BookID     pgtype.UUID      `json:"book_id"`
+	BorrowedAt pgtype.Timestamp `json:"borrowed_at"`
+	DueDate    pgtype.Timestamp `json:"due_date"`
+	ReturnedAt pgtype.Timestamp `json:"returned_at"`
+	BookTitle  string           `json:"book_title"`
+	UserName   string           `json:"user_name"`
+}
+
+func (q *Queries) ListBorrowPaginatedByBorrowedAt(ctx context.Context, arg ListBorrowPaginatedByBorrowedAtParams) ([]ListBorrowPaginatedByBorrowedAtRow, error) {
+	rows, err := q.db.Query(ctx, listBorrowPaginatedByBorrowedAt, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListBorrowPaginatedByBorrowedAtRow
+	for rows.Next() {
+		var i ListBorrowPaginatedByBorrowedAtRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.BookID,
+			&i.BorrowedAt,
+			&i.DueDate,
+			&i.ReturnedAt,
+			&i.BookTitle,
+			&i.UserName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listBorrowPaginatedByNotReturnedAt = `-- name: ListBorrowPaginatedByNotReturnedAt :many
+SELECT b.id, b.user_id, b.book_id, b.borrowed_at, b.due_date, b.returned_at, bk.title AS book_title, CAST(CONCAT(u.first_name, ' ', u.last_name) AS TEXT) AS user_name
+FROM borrows b
+JOIN books bk ON b.book_id = bk.id
+JOIN users u on bk.user_id = u.id
+WHERE returned_at IS NULL
+ORDER BY b.borrowed_at ASC
+LIMIT $1 OFFSET $2
+`
+
+type ListBorrowPaginatedByNotReturnedAtParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+type ListBorrowPaginatedByNotReturnedAtRow struct {
+	ID         pgtype.UUID      `json:"id"`
+	UserID     pgtype.UUID      `json:"user_id"`
+	BookID     pgtype.UUID      `json:"book_id"`
+	BorrowedAt pgtype.Timestamp `json:"borrowed_at"`
+	DueDate    pgtype.Timestamp `json:"due_date"`
+	ReturnedAt pgtype.Timestamp `json:"returned_at"`
+	BookTitle  string           `json:"book_title"`
+	UserName   string           `json:"user_name"`
+}
+
+func (q *Queries) ListBorrowPaginatedByNotReturnedAt(ctx context.Context, arg ListBorrowPaginatedByNotReturnedAtParams) ([]ListBorrowPaginatedByNotReturnedAtRow, error) {
+	rows, err := q.db.Query(ctx, listBorrowPaginatedByNotReturnedAt, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListBorrowPaginatedByNotReturnedAtRow
+	for rows.Next() {
+		var i ListBorrowPaginatedByNotReturnedAtRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.BookID,
+			&i.BorrowedAt,
+			&i.DueDate,
+			&i.ReturnedAt,
+			&i.BookTitle,
+			&i.UserName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listBorrowPaginatedByReturnedAt = `-- name: ListBorrowPaginatedByReturnedAt :many
+SELECT b.id, b.user_id, b.book_id, b.borrowed_at, b.due_date, b.returned_at, bk.title AS book_title, CAST(CONCAT(u.first_name, ' ', u.last_name) AS TEXT) AS user_name
+FROM borrows b
+JOIN books bk ON b.book_id = bk.id
+JOIN users u on bk.user_id = u.id
+WHERE returned_at IS NOT NULL
+ORDER BY b.borrowed_at ASC
+LIMIT $1 OFFSET $2
+`
+
+type ListBorrowPaginatedByReturnedAtParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+type ListBorrowPaginatedByReturnedAtRow struct {
+	ID         pgtype.UUID      `json:"id"`
+	UserID     pgtype.UUID      `json:"user_id"`
+	BookID     pgtype.UUID      `json:"book_id"`
+	BorrowedAt pgtype.Timestamp `json:"borrowed_at"`
+	DueDate    pgtype.Timestamp `json:"due_date"`
+	ReturnedAt pgtype.Timestamp `json:"returned_at"`
+	BookTitle  string           `json:"book_title"`
+	UserName   string           `json:"user_name"`
+}
+
+func (q *Queries) ListBorrowPaginatedByReturnedAt(ctx context.Context, arg ListBorrowPaginatedByReturnedAtParams) ([]ListBorrowPaginatedByReturnedAtRow, error) {
+	rows, err := q.db.Query(ctx, listBorrowPaginatedByReturnedAt, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListBorrowPaginatedByReturnedAtRow
+	for rows.Next() {
+		var i ListBorrowPaginatedByReturnedAtRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.BookID,
+			&i.BorrowedAt,
+			&i.DueDate,
+			&i.ReturnedAt,
+			&i.BookTitle,
+			&i.UserName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateBorrowReturnedAtByID = `-- name: UpdateBorrowReturnedAtByID :exec
 UPDATE borrows
 SET returned_at = NOW()

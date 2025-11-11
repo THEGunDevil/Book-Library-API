@@ -465,6 +465,85 @@ func (q *Queries) GetUserReservations(ctx context.Context, arg GetUserReservatio
 	return items, nil
 }
 
+const listReservationPaginated = `-- name: ListReservationPaginated :many
+SELECT 
+    r.id,
+    r.user_id,
+    r.book_id,
+    r.status,
+    r.created_at,
+    r.notified_at,
+    r.fulfilled_at,
+    r.cancelled_at,
+    CAST(CONCAT(u.first_name, ' ', u.last_name) AS TEXT) AS user_name,
+    u.email,
+    b.title AS book_title,
+    b.author AS book_author,
+    b.image_url AS book_image
+FROM reservations r
+JOIN users u ON r.user_id = u.id
+JOIN books b ON r.book_id = b.id
+WHERE r.status = Any($3)
+ORDER BY r.created_at ASC
+LIMIT $1 OFFSET $2
+`
+
+type ListReservationPaginatedParams struct {
+	Limit  int32  `json:"limit"`
+	Offset int32  `json:"offset"`
+	Status string `json:"status"`
+}
+
+type ListReservationPaginatedRow struct {
+	ID          pgtype.UUID        `json:"id"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	BookID      pgtype.UUID        `json:"book_id"`
+	Status      string             `json:"status"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	NotifiedAt  pgtype.Timestamptz `json:"notified_at"`
+	FulfilledAt pgtype.Timestamptz `json:"fulfilled_at"`
+	CancelledAt pgtype.Timestamptz `json:"cancelled_at"`
+	UserName    string             `json:"user_name"`
+	Email       string             `json:"email"`
+	BookTitle   string             `json:"book_title"`
+	BookAuthor  string             `json:"book_author"`
+	BookImage   string             `json:"book_image"`
+}
+
+func (q *Queries) ListReservationPaginated(ctx context.Context, arg ListReservationPaginatedParams) ([]ListReservationPaginatedRow, error) {
+	rows, err := q.db.Query(ctx, listReservationPaginated, arg.Limit, arg.Offset, arg.Status)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListReservationPaginatedRow
+	for rows.Next() {
+		var i ListReservationPaginatedRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.BookID,
+			&i.Status,
+			&i.CreatedAt,
+			&i.NotifiedAt,
+			&i.FulfilledAt,
+			&i.CancelledAt,
+			&i.UserName,
+			&i.Email,
+			&i.BookTitle,
+			&i.BookAuthor,
+			&i.BookImage,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateReservationStatus = `-- name: UpdateReservationStatus :one
 UPDATE reservations
 SET status = $2,

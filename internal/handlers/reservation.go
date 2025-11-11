@@ -216,70 +216,69 @@ func GetNextReservationHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 func UpdateReservationStatusHandler(c *gin.Context) {
-    // 1️⃣ Get reservation ID from URL
-    idStr := c.Param("id")
-    reservationID, err := uuid.Parse(idStr)
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reservation ID"})
-        return
-    }
+	// 1️⃣ Get reservation ID from URL
+	idStr := c.Param("id")
+	reservationID, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reservation ID"})
+		return
+	}
 
-    // 2️⃣ Bind JSON body for status
-    var req struct {
-        Status string `json:"status" binding:"required,oneof=pending notified fulfilled cancelled"`
-    }
-    if err := c.ShouldBindJSON(&req); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body or status"})
-        return
-    }
+	// 2️⃣ Bind JSON body for status
+	var req struct {
+		Status string `json:"status" binding:"required,oneof=pending notified fulfilled cancelled"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body or status"})
+		return
+	}
 
-    // 3️⃣ Update reservation status
-    updatedRes, err := db.Q.UpdateReservationStatus(
-        c.Request.Context(),
-        gen.UpdateReservationStatusParams{
-            ID:     pgtype.UUID{Bytes: reservationID, Valid: true},
-            Status: req.Status,
-        },
-    )
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update reservation status"})
-        return
-    }
+	// 3️⃣ Update reservation status
+	updatedRes, err := db.Q.UpdateReservationStatus(
+		c.Request.Context(),
+		gen.UpdateReservationStatusParams{
+			ID:     pgtype.UUID{Bytes: reservationID, Valid: true},
+			Status: req.Status,
+		},
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update reservation status"})
+		return
+	}
 
-    // 4️⃣ Fetch user & book info
-    user, err := db.Q.GetUserByID(c.Request.Context(), pgtype.UUID{Bytes: updatedRes.UserID.Bytes, Valid: true})
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user info"})
-        return
-    }
+	// 4️⃣ Fetch user & book info
+	user, err := db.Q.GetUserByID(c.Request.Context(), pgtype.UUID{Bytes: updatedRes.UserID.Bytes, Valid: true})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user info"})
+		return
+	}
 
-    book, err := db.Q.GetBookByID(c.Request.Context(), pgtype.UUID{Bytes: updatedRes.BookID.Bytes, Valid: true})
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch book info"})
-        return
-    }
+	book, err := db.Q.GetBookByID(c.Request.Context(), pgtype.UUID{Bytes: updatedRes.BookID.Bytes, Valid: true})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch book info"})
+		return
+	}
 
-    // 5️⃣ Map to full ReservationResponse
-    response := models.ReservationResponse{
-        ID:          updatedRes.ID.Bytes,
-        UserID:      updatedRes.UserID.Bytes,
-        BookID:      updatedRes.BookID.Bytes,
-        Status:      updatedRes.Status,
-        CreatedAt:   updatedRes.CreatedAt.Time,
-        NotifiedAt:  updatedRes.NotifiedAt.Time,
-        FulfilledAt: updatedRes.FulfilledAt.Time,
-        CancelledAt: updatedRes.CancelledAt.Time,
-        UserName:    user.FirstName+""+user.LastName,
-        UserEmail:   user.Email,
-        BookTitle:   book.Title,
-        BookAuthor:  book.Author,
-        BookImage:   book.ImageUrl,
-    }
+	// 5️⃣ Map to full ReservationResponse
+	response := models.ReservationResponse{
+		ID:          updatedRes.ID.Bytes,
+		UserID:      updatedRes.UserID.Bytes,
+		BookID:      updatedRes.BookID.Bytes,
+		Status:      updatedRes.Status,
+		CreatedAt:   updatedRes.CreatedAt.Time,
+		NotifiedAt:  updatedRes.NotifiedAt.Time,
+		FulfilledAt: updatedRes.FulfilledAt.Time,
+		CancelledAt: updatedRes.CancelledAt.Time,
+		UserName:    user.FirstName + "" + user.LastName,
+		UserEmail:   user.Email,
+		BookTitle:   book.Title,
+		BookAuthor:  book.Author,
+		BookImage:   book.ImageUrl,
+	}
 
-    // 6️⃣ Return response
-    c.JSON(http.StatusOK, response)
+	// 6️⃣ Return response
+	c.JSON(http.StatusOK, response)
 }
-
 
 func GetReservationsByBookIDAndUserIDHandler(c *gin.Context) {
 	bookIDStr := c.Param("id")      // from /reservations/book/:id
@@ -405,3 +404,4 @@ func GetReservationsByReservationID(c *gin.Context) {
 
 	c.JSON(http.StatusOK, res)
 }
+

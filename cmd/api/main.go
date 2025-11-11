@@ -1,6 +1,7 @@
 package main
 
 import (
+	"container/list"
 	"fmt"
 	"log"
 	"net/http"
@@ -134,7 +135,11 @@ func main() {
 	{
 		notificationGroup.GET("/get", handlers.GetUserNotificationByUserIDHandler)
 		notificationGroup.PATCH("/mark-read", handlers.MarkNotificationAsReadByUserID)
-
+	}
+	listGroup := r.Group("/list")
+	listGroup.Use(middleware.AdminOnly(), middleware.AuthMiddleware())
+	{
+		listGroup.GET("/data-paginated",handlers.ListDataByStatusHandler)
 	}
 	port := os.Getenv("PORT")
 	if port == "" {

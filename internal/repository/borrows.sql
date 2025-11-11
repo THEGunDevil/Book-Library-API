@@ -34,6 +34,32 @@ FROM borrows b
 JOIN books bk ON b.book_id = bk.id
 LIMIT $1 OFFSET $2;
 
+-- name: ListBorrowPaginatedByBorrowedAt :many
+SELECT b.id, b.user_id, b.book_id, b.borrowed_at, b.due_date, b.returned_at, bk.title AS book_title, CAST(CONCAT(u.first_name, ' ', u.last_name) AS TEXT) AS user_name
+FROM borrows b
+JOIN books bk ON b.book_id = bk.id
+JOIN users u on bk.user_id = u.id
+ORDER BY b.borrowed_at ASC
+LIMIT $1 OFFSET $2;
+
+-- name: ListBorrowPaginatedByReturnedAt :many
+SELECT b.id, b.user_id, b.book_id, b.borrowed_at, b.due_date, b.returned_at, bk.title AS book_title, CAST(CONCAT(u.first_name, ' ', u.last_name) AS TEXT) AS user_name
+FROM borrows b
+JOIN books bk ON b.book_id = bk.id
+JOIN users u on bk.user_id = u.id
+WHERE returned_at IS NOT NULL
+ORDER BY b.borrowed_at ASC
+LIMIT $1 OFFSET $2;
+
+-- name: ListBorrowPaginatedByNotReturnedAt :many
+SELECT b.id, b.user_id, b.book_id, b.borrowed_at, b.due_date, b.returned_at, bk.title AS book_title, CAST(CONCAT(u.first_name, ' ', u.last_name) AS TEXT) AS user_name
+FROM borrows b
+JOIN books bk ON b.book_id = bk.id
+JOIN users u on bk.user_id = u.id
+WHERE returned_at IS NULL
+ORDER BY b.borrowed_at ASC
+LIMIT $1 OFFSET $2;
+
 -- name: CountBorrows :one
 SELECT COUNT(*) FROM borrows;
 
