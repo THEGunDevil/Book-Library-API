@@ -36,18 +36,17 @@ func main() {
 	db.Connect(cfg)
 	defer db.Close()
 
-	r := gin.Default()
+	r := gin.New() // instead of gin.Default() if you want full control
 	r.Use(cors.New(cors.Config{
-		AllowOrigins: []string{
-			"https://himel-s-library.vercel.app",
-			"http://localhost:3000",
-		},
+		AllowOrigins:     []string{"https://himel-s-library.vercel.app", "http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
+	r.Use(gin.Logger())
+	r.Use(gin.Recovery())
 
 	// Health check
 	r.GET("/", func(c *gin.Context) {
