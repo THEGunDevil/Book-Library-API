@@ -60,14 +60,6 @@ func main() {
 	r.GET("/download/users", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DownloadUsersHandler)
 	r.GET("/download/borrows", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DownloadBorrowsHandler)
 
-	frontend := r.Group("/")
-	frontend.Use(middleware.AuthMiddleware()) // banned users intercepted here
-	{
-		frontend.GET("/*any", func(c *gin.Context) {
-			c.File("./frontend/build/index.html")
-		})
-	}
-
 	// Auth routes (public)
 	authGroup := r.Group("/auth")
 	{

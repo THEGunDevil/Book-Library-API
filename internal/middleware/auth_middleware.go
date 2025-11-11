@@ -1,11 +1,13 @@
 package middleware
 
 import (
+	"log"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/THEGunDevil/GoForBackend/internal/db"
+	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
 	"github.com/THEGunDevil/GoForBackend/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
@@ -65,30 +67,58 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-        if user.IsBanned.Bool {
-            if user.IsPermanentBan.Bool {
-                c.HTML(http.StatusOK, "permanent-banned.html", gin.H{
-                    "Reason": user.BanReason.String,
-                })
-                c.Abort()
-                return
-            }
+		// Check ban status
+		if user.IsBanned.Bool {
+			// Permanent ban
+			if user.IsPermanentBan.Bool {
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+					"error":  "your account has been permanently banned",
+					"reason": user.BanReason.String,
+				})
+				return
+			}
 
-            if user.BanUntil.Valid && user.BanUntil.Time.After(time.Now()) {
-                c.HTML(http.StatusOK, "temporary-banned.html", gin.H{
-                    "Reason": user.BanReason.String,
-                    "Until":  user.BanUntil.Time.Format(time.RFC3339),
-                })
-                c.Abort()
-                return
-            }
-        }
+			// Temporary ban - check if still active
+			if user.BanUntil.Valid && user.BanUntil.Time.After(time.Now()) {
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+					"error":  "your account is temporarily banned",
+					"until":  user.BanUntil.Time,
+					"reason": user.BanReason.String,
+				})
+				return
+			}
 
+			// Ban has expired - reset ban status
+			log.Printf("⏰ Ban expired for user %s, resetting ban status", userUUID)
+			params := gen.UpdateUserBanByUserIDParams{
+				ID:             pgtype.UUID{Bytes: userUUID, Valid: true},
+				IsBanned:       pgtype.Bool{Bool: false, Valid: true},
+				BanReason:      pgtype.Text{String: "", Valid: false},
+				BanUntil:       pgtype.Timestamp{Valid: false},
+				IsPermanentBan: pgtype.Bool{Bool: false, Valid: true},
+			}
+			
+			_, err := db.Q.UpdateUserBanByUserID(c.Request.Context(), params)
+			if err != nil {
+				log.Printf("❌ Failed to reset expired ban for user %s: %v", userUUID, err)
+				// Continue anyway - the ban has expired
+			} else {
+				log.Printf("✅ Ban reset successful for user %s", userUUID)
+			}
+			
+			// Update in-memory user object (optional, for consistency)
+			user.IsBanned.Bool = false
+			user.IsPermanentBan.Bool = false
+			user.BanUntil.Valid = false
+		}
 
+		// Set context values
 		role, _ := claims["role"].(string)
 		c.Set("userID", userUUID)
 		c.Set("role", role)
 		c.Set("token_version", int(tokenVersion))
+		
+		// Continue to next handler
 		c.Next()
 	}
 }

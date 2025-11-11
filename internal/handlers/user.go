@@ -271,7 +271,7 @@ func BanUserByIDHandler(c *gin.Context) {
 	}
 
 	// Update user ban
-	params := gen.UpdateUserBanByIDParams{
+	params := gen.UpdateUserBanByUserIDParams{
 		ID:             pgtype.UUID{Bytes: parsedID, Valid: true},
 		IsBanned:       pgtype.Bool{Bool: req.IsBanned, Valid: true},
 		BanReason:      pgtype.Text{String: req.BanReason, Valid: true},
@@ -279,7 +279,7 @@ func BanUserByIDHandler(c *gin.Context) {
 		IsPermanentBan: pgtype.Bool{Bool: req.IsPermanentBan, Valid: true},
 	}
 
-	updatedUser, err := db.Q.UpdateUserBanByID(c.Request.Context(), params)
+	updatedUser, err := db.Q.UpdateUserBanByUserID(c.Request.Context(), params)
 	if err != nil {
 		log.Printf("BanUser error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update user ban status"})

@@ -221,7 +221,7 @@ func (q *Queries) ListUsersPaginated(ctx context.Context, arg ListUsersPaginated
 	return items, nil
 }
 
-const updateUserBanByID = `-- name: UpdateUserBanByID :one
+const updateUserBanByUserID = `-- name: UpdateUserBanByUserID :one
 UPDATE users
 SET is_banned = COALESCE($1, is_banned),
     ban_reason = COALESCE($2, ban_reason),
@@ -231,7 +231,7 @@ WHERE id = $5
 RETURNING id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban
 `
 
-type UpdateUserBanByIDParams struct {
+type UpdateUserBanByUserIDParams struct {
 	IsBanned       pgtype.Bool      `json:"is_banned"`
 	BanReason      pgtype.Text      `json:"ban_reason"`
 	BanUntil       pgtype.Timestamp `json:"ban_until"`
@@ -239,8 +239,8 @@ type UpdateUserBanByIDParams struct {
 	ID             pgtype.UUID      `json:"id"`
 }
 
-func (q *Queries) UpdateUserBanByID(ctx context.Context, arg UpdateUserBanByIDParams) (User, error) {
-	row := q.db.QueryRow(ctx, updateUserBanByID,
+func (q *Queries) UpdateUserBanByUserID(ctx context.Context, arg UpdateUserBanByUserIDParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserBanByUserID,
 		arg.IsBanned,
 		arg.BanReason,
 		arg.BanUntil,

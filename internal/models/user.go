@@ -7,20 +7,20 @@ import (
 )
 
 type User struct {
-	ID uuid.UUID `json:"id"`
-	FirstName       string `json:"first_name"`
-	LastName        string `json:"last_name"`
-	Email           string `json:"email"`
-	PhoneNumber     string `json:"phone_number"`
-	Password        string `json:"password"`
-	ConfirmPassword string `json:"confirm_password"`
-	Bio             string `json:"bio"` // added
-	Role            string `json:"role"`
-	TokenVersion    int    `json:"token_version"` // added
-	IsBanned        bool   `json:"is_banned"`
-	BanReason       string `json:"ban_reason"`
-	BanUntil        string `json:"ban_until"`        // optional, RFC3339 format
-	IsPermanentBan  bool   `json:"is_permanent_ban"` // true = permanent ban
+	ID              uuid.UUID  `json:"id"`
+	FirstName       string     `json:"first_name"`
+	LastName        string     `json:"last_name"`
+	Email           string     `json:"email"`
+	PhoneNumber     string     `json:"phone_number"`
+	Password        string     `json:"password"`
+	ConfirmPassword string     `json:"confirm_password"`
+	Bio             string     `json:"bio"` // added
+	Role            string     `json:"role"`
+	TokenVersion    int        `json:"token_version"` // added
+	IsBanned        bool       `json:"is_banned"`
+	BanReason       string     `json:"ban_reason"`
+	BanUntil        *time.Time `json:"ban_until"`        // optional, RFC3339 format
+	IsPermanentBan  bool       `json:"is_permanent_ban"` // true = permanent ban
 
 }
 

@@ -24,7 +24,7 @@ WHERE id = sqlc.arg('id')
 RETURNING *;
 
 
--- name: UpdateUserBanByID :one
+-- name: UpdateUserBanByUserID :one
 UPDATE users
 SET is_banned = COALESCE(sqlc.narg('is_banned'), is_banned),
     ban_reason = COALESCE(sqlc.narg('ban_reason'), ban_reason),
