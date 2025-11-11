@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Account Temporarily Banned</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background-color: #f9fafb;
+      color: #1f2937;
+      text-align: center;
+      padding-top: 100px;
+    }
+    .card {
+      background: #fff;
+      display: inline-block;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      max-width: 450px;
+    }
+    h1 {
+      color: #dc2626;
+      margin-bottom: 16px;
+    }
+    p {
+      margin: 10px 0;
+      line-height: 1.5;
+    }
+    a {
+      display: inline-block;
+      margin-top: 20px;
+      text-decoration: none;
+      background-color: #2563eb;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 500;
+      transition: background-color 0.2s ease;
+    }
+    a:hover {
+      background-color: #1d4ed8;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🚫 Temporarily Banned</h1>
+    {{if .Reason}}
+      <p><strong>Reason:</strong> {{.Reason}}</p>
+    {{end}}
+    {{if .Until}}
+      <p><strong>Until:</strong> {{.Until}}</p>
+    {{end}}
+    <p>Please wait until your ban period expires, or contact support if you believe this is a mistake.</p>
+    <a href="/">Return Home</a>
+  </div>
+</body>
+</html>
+
