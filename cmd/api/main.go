@@ -38,7 +38,7 @@ func main() {
 
 	r := gin.New() // instead of gin.Default() if you want full control
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://himel-s-library.vercel.app", "http://localhost:3000"},
+		AllowOrigins:     []string{"https://himel-s-library.vercel.app", "http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
