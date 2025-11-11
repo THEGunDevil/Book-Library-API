@@ -37,8 +37,6 @@ func main() {
 	defer db.Close()
 
 	r := gin.Default()
-	r.LoadHTMLGlob("templates/*")
-
 	r.Use(cors.New(cors.Config{
 		AllowOrigins: []string{
 			"https://himel-s-library.vercel.app",
