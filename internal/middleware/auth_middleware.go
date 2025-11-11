@@ -94,7 +94,7 @@ func AuthMiddleware() gin.HandlerFunc {
 				ID:             pgtype.UUID{Bytes: userUUID, Valid: true},
 				IsBanned:       pgtype.Bool{Bool: false, Valid: true},
 				BanReason:      pgtype.Text{String: "", Valid: true}, // ✅ must be Valid:true
-				BanUntil:       pgtype.Timestamp{Valid: false},
+				BanUntil:       pgtype.Timestamp{Time: time.Time{},Valid: false},
 				IsPermanentBan: pgtype.Bool{Bool: false, Valid: true},
 			}
 
