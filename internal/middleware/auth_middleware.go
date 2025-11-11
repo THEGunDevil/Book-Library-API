@@ -93,11 +93,11 @@ func AuthMiddleware() gin.HandlerFunc {
 			params := gen.UpdateUserBanByUserIDParams{
 				ID:             pgtype.UUID{Bytes: userUUID, Valid: true},
 				IsBanned:       pgtype.Bool{Bool: false, Valid: true},
-				BanReason:      pgtype.Text{String: "", Valid: false},
+				BanReason:      pgtype.Text{String: "", Valid: true}, // ✅ must be Valid:true
 				BanUntil:       pgtype.Timestamp{Valid: false},
 				IsPermanentBan: pgtype.Bool{Bool: false, Valid: true},
 			}
-			
+
 			_, err := db.Q.UpdateUserBanByUserID(c.Request.Context(), params)
 			if err != nil {
 				log.Printf("❌ Failed to reset expired ban for user %s: %v", userUUID, err)
@@ -105,7 +105,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			} else {
 				log.Printf("✅ Ban reset successful for user %s", userUUID)
 			}
-			
+
 			// Update in-memory user object (optional, for consistency)
 			user.IsBanned.Bool = false
 			user.IsPermanentBan.Bool = false
@@ -117,7 +117,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		c.Set("userID", userUUID)
 		c.Set("role", role)
 		c.Set("token_version", int(tokenVersion))
-		
+
 		// Continue to next handler
 		c.Next()
 	}
