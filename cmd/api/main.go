@@ -74,19 +74,19 @@ func main() {
 		userGroup.GET("/user/profile/:id", handlers.GetProfileDataByIDHandler)
 		userGroup.PATCH("/user/:id", handlers.UpdateUserByIDHandler)
 		// only admin can update user info
-		userGroup.GET("", middleware.AdminOnly(), handlers.GetUsersHandler)
+		userGroup.GET("/", middleware.AdminOnly(), handlers.GetUsersHandler)
 		userGroup.PATCH("/user/ban/:id", middleware.AdminOnly(), handlers.BanUserByIDHandler)
 	}
 	bannedUserGroup := r.Group("/banned-users")
 	bannedUserGroup.Use(middleware.AuthMiddleware())
 	{
-		bannedUserGroup.GET("", middleware.AdminOnly(), handlers.GetUsersHandler)
+		bannedUserGroup.GET("/", middleware.AdminOnly(), handlers.GetUsersHandler)
 	}
 	// Book routes
 	bookGroup := r.Group("/books")
 	{
 		// Public
-		bookGroup.GET("", handlers.GetBooksHandler)
+		bookGroup.GET("/", handlers.GetBooksHandler)
 		bookGroup.GET("/:id", handlers.GetBookByIDHandler)
 		bookGroup.GET("/search", handlers.SearchBooksHandler)
 		bookGroup.GET("/genres", handlers.ListGenresHandler)
@@ -100,7 +100,7 @@ func main() {
 	reservationGroup := r.Group("/reservations")
 	reservationGroup.Use(middleware.AuthMiddleware())
 	{
-		reservationGroup.POST("", handlers.CreateReservationHandler)
+		reservationGroup.POST("/", handlers.CreateReservationHandler)
 		reservationGroup.GET("/book/:id", handlers.GetReservationsByBookIDHandler)
 		reservationGroup.GET("/book/:id/user", handlers.GetReservationsByBookIDAndUserIDHandler)
 		reservationGroup.GET("/reservation/:id", handlers.GetReservationsByReservationID)
@@ -113,7 +113,7 @@ func main() {
 	borrowGroup := r.Group("/borrows")
 	borrowGroup.Use(middleware.AuthMiddleware())
 	{
-		borrowGroup.GET("", middleware.AdminOnly(), handlers.GetAllBorrowsHandlers)
+		borrowGroup.GET("/", middleware.AdminOnly(), handlers.GetAllBorrowsHandlers)
 		borrowGroup.GET("/:id", handlers.GetBorrowsByIDHandler)
 		borrowGroup.POST("/borrow", handlers.BorrowBookHandler)
 		borrowGroup.PATCH("/borrow/:id/return", handlers.ReturnBookHandler)
@@ -145,7 +145,7 @@ func main() {
 		listGroup.GET("/data-paginated", handlers.ListDataByStatusHandler)
 	}
 	port := os.Getenv("PORT")
-	if port == "" {
+	if port == "/" {
 		port = "8080"
 	}
 	log.Printf("Server running on port %s", port)
