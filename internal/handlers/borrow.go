@@ -141,7 +141,7 @@ func GetAllBorrowsHandlers(c *gin.Context) {
 		"borrows":     response,
 	})
 }
-func GetBorrowsByIDHandler(c *gin.Context) {
+func GetBorrowsByUserIDHandler(c *gin.Context) {
 	idStr := c.Param("id")
 	parsedID, err := uuid.Parse(idStr)
 	if err != nil {
@@ -149,6 +149,41 @@ func GetBorrowsByIDHandler(c *gin.Context) {
 		return
 	}
 	borrows, err := db.Q.ListBorrowByUserID(
+		c.Request.Context(),
+		pgtype.UUID{Bytes: parsedID, Valid: true},
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "borrows not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong"})
+		}
+		return
+	}
+
+	var response []models.BorrowResponse
+	for _, b := range borrows {
+
+		response = append(response, models.BorrowResponse{
+			ID:         b.ID.Bytes,
+			UserID:     b.UserID.Bytes,
+			BookID:     b.BookID.Bytes,
+			BorrowedAt: b.BorrowedAt.Time,
+			DueDate:    b.DueDate.Time,
+			ReturnedAt: &b.ReturnedAt.Time,
+		})
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+func GetBorrowsByBookIDHandler(c *gin.Context) {
+	idStr := c.Param("id")
+	parsedID, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+	borrows, err := db.Q.ListBorrowByBookID(
 		c.Request.Context(),
 		pgtype.UUID{Bytes: parsedID, Valid: true},
 	)

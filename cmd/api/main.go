@@ -114,7 +114,8 @@ func main() {
 	borrowGroup.Use(middleware.AuthMiddleware())
 	{
 		borrowGroup.GET("/", middleware.AdminOnly(), handlers.GetAllBorrowsHandlers)
-		borrowGroup.GET("/:id", handlers.GetBorrowsByIDHandler)
+		borrowGroup.GET("/user/:id", handlers.GetBorrowsByUserIDHandler)
+		borrowGroup.GET("/book/:id", handlers.GetBorrowsByBookIDHandler)
 		borrowGroup.POST("/borrow", handlers.BorrowBookHandler)
 		borrowGroup.PATCH("/borrow/:id/return", handlers.ReturnBookHandler)
 	}
