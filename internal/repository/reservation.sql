@@ -143,7 +143,7 @@ SELECT COUNT(*) as count
 FROM reservations
 WHERE user_id = $1 AND book_id = $2;
 
--- name: ListReservationPaginated :many
+-- name: ListReservationPaginatedByStatuses :many
 SELECT 
     r.id,
     r.user_id,
@@ -153,14 +153,14 @@ SELECT
     r.notified_at,
     r.fulfilled_at,
     r.cancelled_at,
-    CAST(CONCAT(u.first_name, ' ', u.last_name) AS TEXT) AS user_name,
+    CONCAT(u.first_name, ' ', u.last_name) AS user_name,
     u.email,
     b.title AS book_title,
-    b.author AS book_author,
-    b.image_url AS book_image
+    b.author,
+    b.image_url
 FROM reservations r
 JOIN users u ON r.user_id = u.id
 JOIN books b ON r.book_id = b.id
-WHERE r.status = Any($3)
-ORDER BY r.created_at ASC
+WHERE r.status = ANY($3::text[])
+ORDER BY r.created_at DESC
 LIMIT $1 OFFSET $2;

@@ -4,11 +4,13 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/THEGunDevil/GoForBackend/internal/db"
 	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
 	"github.com/THEGunDevil/GoForBackend/internal/models"
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const (
@@ -17,6 +19,18 @@ const (
 	noReturnedStatus = "not_returned"
 )
 
+// Should look like this:
+type ListReservationPaginatedParams struct {
+	Limit  int32  `json:"limit"`
+	Offset int32  `json:"offset"`
+	Status string `json:"status"` // ← Should be string, not []string
+}
+func timestampToPtr(ts pgtype.Timestamptz) *time.Time {
+	if ts.Valid {
+		return &ts.Time
+	}
+	return nil
+}
 func ListDataByStatusHandler(c *gin.Context) {
 	status := c.Query("status")
 	role, exists := c.Get("role")
@@ -44,33 +58,45 @@ func ListDataByStatusHandler(c *gin.Context) {
 		// =====================
 		// Case: Reservations
 		// =====================
-		case "pending", "notified", "fulfilled", "cancelled":
+case "pending", "notified", "fulfilled", "cancelled":
+	params := gen.ListReservationPaginatedByStatusesParams{
+		Limit:   int32(limit),
+		Offset:  int32(offset),
+		Column3: []string{status},
+	}
+	
+	reservations, err := db.Q.ListReservationPaginatedByStatuses(c.Request.Context(), params)
+	if err != nil {
+		log.Printf("❌ Failed to fetch reservations: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch reservations"})
+		return
+	}
 
-			params := gen.ListReservationPaginatedParams{
-				Limit:  int32(limit),
-				Offset: int32(offset),
-				Status: string(status),
-			}
-			reservations, err := db.Q.ListReservationPaginated(c.Request.Context(), params)
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to fetch reservations"})
-				return
-			}
-			// map and respond
-			var reservationResp []models.ReservationResponse
-			for _, r := range reservations {
-				reservationResp = append(reservationResp, models.ReservationResponse{
-					ID:        r.ID.Bytes,
-					UserID:    r.UserID.Bytes,
-					BookID:    r.BookID.Bytes,
-					Status:    r.Status,
-					CreatedAt: r.CreatedAt.Time,
-					UserName:  r.UserName,
-					UserEmail: r.Email,
-					BookTitle: r.BookTitle,
-				})
-			}
-			c.JSON(http.StatusOK, reservationResp)
+	var reservationResp []models.ReservationListResponse  // ← Use new model
+	for _, r := range reservations {
+		reservationResp = append(reservationResp, models.ReservationListResponse{
+			ID:          r.ID.Bytes,
+			UserID:      r.UserID.Bytes,
+			BookID:      r.BookID.Bytes,
+			Status:      r.Status,
+			CreatedAt:   r.CreatedAt.Time,
+			NotifiedAt:  timestampToPtr(r.NotifiedAt),
+			FulfilledAt: timestampToPtr(r.FulfilledAt),
+			CancelledAt: timestampToPtr(r.CancelledAt),
+			UserName:    r.UserName,
+			UserEmail:   r.Email,
+			BookTitle:   r.BookTitle,
+			BookAuthor:  r.Author,
+			BookImage:   r.ImageUrl,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"reservations": reservationResp,
+		"page":         page,
+		"limit":        limit,
+		"count":        len(reservationResp),
+	})
 
 		// =====================
 		// Case: Borrowed Books

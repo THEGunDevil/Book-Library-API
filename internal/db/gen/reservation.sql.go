@@ -465,7 +465,7 @@ func (q *Queries) GetUserReservations(ctx context.Context, arg GetUserReservatio
 	return items, nil
 }
 
-const listReservationPaginated = `-- name: ListReservationPaginated :many
+const listReservationPaginatedByStatuses = `-- name: ListReservationPaginatedByStatuses :many
 SELECT 
     r.id,
     r.user_id,
@@ -475,26 +475,26 @@ SELECT
     r.notified_at,
     r.fulfilled_at,
     r.cancelled_at,
-    CAST(CONCAT(u.first_name, ' ', u.last_name) AS TEXT) AS user_name,
+    CONCAT(u.first_name, ' ', u.last_name) AS user_name,
     u.email,
     b.title AS book_title,
-    b.author AS book_author,
-    b.image_url AS book_image
+    b.author,
+    b.image_url
 FROM reservations r
 JOIN users u ON r.user_id = u.id
 JOIN books b ON r.book_id = b.id
-WHERE r.status = Any($3)
-ORDER BY r.created_at ASC
+WHERE r.status = ANY($3::text[])
+ORDER BY r.created_at DESC
 LIMIT $1 OFFSET $2
 `
 
-type ListReservationPaginatedParams struct {
-	Limit  int32  `json:"limit"`
-	Offset int32  `json:"offset"`
-	Status string `json:"status"`
+type ListReservationPaginatedByStatusesParams struct {
+	Limit   int32    `json:"limit"`
+	Offset  int32    `json:"offset"`
+	Column3 []string `json:"column_3"`
 }
 
-type ListReservationPaginatedRow struct {
+type ListReservationPaginatedByStatusesRow struct {
 	ID          pgtype.UUID        `json:"id"`
 	UserID      pgtype.UUID        `json:"user_id"`
 	BookID      pgtype.UUID        `json:"book_id"`
@@ -503,22 +503,22 @@ type ListReservationPaginatedRow struct {
 	NotifiedAt  pgtype.Timestamptz `json:"notified_at"`
 	FulfilledAt pgtype.Timestamptz `json:"fulfilled_at"`
 	CancelledAt pgtype.Timestamptz `json:"cancelled_at"`
-	UserName    string             `json:"user_name"`
+	UserName    interface{}        `json:"user_name"`
 	Email       string             `json:"email"`
 	BookTitle   string             `json:"book_title"`
-	BookAuthor  string             `json:"book_author"`
-	BookImage   string             `json:"book_image"`
+	Author      string             `json:"author"`
+	ImageUrl    string             `json:"image_url"`
 }
 
-func (q *Queries) ListReservationPaginated(ctx context.Context, arg ListReservationPaginatedParams) ([]ListReservationPaginatedRow, error) {
-	rows, err := q.db.Query(ctx, listReservationPaginated, arg.Limit, arg.Offset, arg.Status)
+func (q *Queries) ListReservationPaginatedByStatuses(ctx context.Context, arg ListReservationPaginatedByStatusesParams) ([]ListReservationPaginatedByStatusesRow, error) {
+	rows, err := q.db.Query(ctx, listReservationPaginatedByStatuses, arg.Limit, arg.Offset, arg.Column3)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListReservationPaginatedRow
+	var items []ListReservationPaginatedByStatusesRow
 	for rows.Next() {
-		var i ListReservationPaginatedRow
+		var i ListReservationPaginatedByStatusesRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
@@ -531,8 +531,8 @@ func (q *Queries) ListReservationPaginated(ctx context.Context, arg ListReservat
 			&i.UserName,
 			&i.Email,
 			&i.BookTitle,
-			&i.BookAuthor,
-			&i.BookImage,
+			&i.Author,
+			&i.ImageUrl,
 		); err != nil {
 			return nil, err
 		}
