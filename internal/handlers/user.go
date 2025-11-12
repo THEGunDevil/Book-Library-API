@@ -108,63 +108,67 @@ func GetUsersHandler(c *gin.Context) {
 }
 
 // GetUserByIDHandler fetches user by ID (including banned ones)
+// GetUserByIDHandler fetches user by ID (including banned ones)
 func GetUserByIDHandler(c *gin.Context) {
-	userIDVal, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "userID not found in context"})
-		return
-	}
+    // 1️⃣ Determine which user to fetch
+    userIDVal, exists := c.Get("userID")
+    if !exists {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "userID not found in context"})
+        return
+    }
 
-	userID, ok := userIDVal.(uuid.UUID)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid userID type"})
-		return
-	}
+    userUUID, ok := userIDVal.(uuid.UUID)
+    if !ok {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid userID type"})
+        return
+    }
 
-	user, err := db.Q.GetUserByID(c.Request.Context(), pgtype.UUID{Bytes: userID, Valid: true})
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
-		return
-	}
+    // Optional: check if the middleware set banned_user flag
+    // bannedUserFlag, _ := c.Get("banned_user")
 
-	// Count borrows
-	activeBorrowsCount, err := db.Q.CountActiveBorrowsByUserID(
-		c.Request.Context(),
-		pgtype.UUID{Bytes: user.ID.Bytes, Valid: true},
-	)
-	if err != nil {
-		log.Printf("Failed to count active borrows for user %v: %v", user.ID, err)
-		activeBorrowsCount = 0
-	}
+    // 2️⃣ Fetch user from DB
+    user, err := db.Q.GetUserByID(c.Request.Context(), pgtype.UUID{Bytes: userUUID, Valid: true})
+    if err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+        return
+    }
 
-	allBorrowsCount, err := db.Q.CountActiveBorrowsByUserID( // <- fixed query name
-		c.Request.Context(),
-		pgtype.UUID{Bytes: user.ID.Bytes, Valid: true},
-	)
-	if err != nil {
-		log.Printf("Failed to count all borrows for user %v: %v", user.ID, err)
-		allBorrowsCount = 0
-	}
+    // 3️⃣ Count borrows
+    activeBorrowsCount, err := db.Q.CountActiveBorrowsByUserID(c.Request.Context(), pgtype.UUID{Bytes: user.ID.Bytes, Valid: true})
+    if err != nil {
+        log.Printf("Failed to count active borrows for user %v: %v", user.ID, err)
+        activeBorrowsCount = 0
+    }
 
-	resp := models.UserResponse{
-		ID:                 user.ID.Bytes,
-		FirstName:          user.FirstName,
-		LastName:           user.LastName,
-		Bio:                user.Bio,
-		Email:              user.Email,
-		PhoneNumber:        user.PhoneNumber,
-		Role:               user.Role.String,
-		IsBanned:           user.IsBanned.Bool,
-		IsPermanentBan:     user.IsPermanentBan.Bool,
-		BanReason:          user.BanReason.String,
-		BanUntil:           &user.BanUntil.Time,
-		AllBorrowsCount:    int(allBorrowsCount),
-		ActiveBorrowsCount: int(activeBorrowsCount),
-		CreatedAt:          user.CreatedAt.Time,
-	}
+    allBorrowsCount, err := db.Q.CountBorrowedBooksByUserID(c.Request.Context(), pgtype.UUID{Bytes: user.ID.Bytes, Valid: true})
+    if err != nil {
+        log.Printf("Failed to count all borrows for user %v: %v", user.ID, err)
+        allBorrowsCount = 0
+    }
 
-	c.JSON(http.StatusOK, resp)
+    // 4️⃣ Build response
+    resp := models.UserResponse{
+        ID:                 user.ID.Bytes,
+        FirstName:          user.FirstName,
+        LastName:           user.LastName,
+        Bio:                user.Bio,
+        Email:              user.Email,
+        PhoneNumber:        user.PhoneNumber,
+        Role:               user.Role.String,
+        IsBanned:           user.IsBanned.Bool,
+        IsPermanentBan:     user.IsPermanentBan.Bool,
+        BanReason:          user.BanReason.String,
+        BanUntil:           &user.BanUntil.Time,
+        AllBorrowsCount:    int(allBorrowsCount),
+        ActiveBorrowsCount: int(activeBorrowsCount),
+        CreatedAt:          user.CreatedAt.Time,
+        // BannedUser:         bannedUserFlag != nil && bannedUserFlag.(bool),
+    }
+
+    log.Printf("👤 Returning user data for user %v (banned: %v)", user.ID, user.IsBanned.Bool)
+    c.JSON(http.StatusOK, resp)
 }
+
 
 // UpdateUserByIDHandler updates user by ID
 func UpdateUserByIDHandler(c *gin.Context) {

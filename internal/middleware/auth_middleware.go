@@ -1,13 +1,14 @@
 package middleware
 
 import (
+	// "log"
 	"log"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/THEGunDevil/GoForBackend/internal/db"
-	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
+	// gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
 	"github.com/THEGunDevil/GoForBackend/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
@@ -17,88 +18,125 @@ import (
 
 // AuthMiddleware validates JWT tokens and sets user context
 func AuthMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "authorization header missing"})
-			return
-		}
+    return func(c *gin.Context) {
+        log.Println("⏳ AuthMiddleware start")
 
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header format"})
-			return
-		}
+        authHeader := c.GetHeader("Authorization")
+        if authHeader == "" {
+            log.Println("❌ Authorization header missing")
+            c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "authorization header missing"})
+            return
+        }
 
-		tokenString := parts[1]
-		token, err := service.VerifyToken(tokenString, false)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
-			return
-		}
+        parts := strings.SplitN(authHeader, " ", 2)
+        if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+            log.Println("❌ Invalid authorization header format:", authHeader)
+            c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header format"})
+            return
+        }
 
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok || !token.Valid {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token claims"})
-			return
-		}
+        tokenString := parts[1]
+        token, err := service.VerifyToken(tokenString, false)
+        if err != nil {
+            log.Println("❌ Invalid or expired token:", err)
+            c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
+            return
+        }
 
-		subStr, ok := claims["sub"].(string)
-		if !ok {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing sub claim"})
-			return
-		}
+        claims, ok := token.Claims.(jwt.MapClaims)
+        if !ok || !token.Valid {
+            log.Println("❌ Invalid token claims")
+            c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token claims"})
+            return
+        }
 
-		userUUID, err := uuid.Parse(subStr)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid user ID"})
-			return
-		}
+        subStr, ok := claims["sub"].(string)
+        if !ok {
+            log.Println("❌ Missing sub claim")
+            c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing sub claim"})
+            return
+        }
 
-		user, err := db.Q.GetUserByID(c.Request.Context(), pgtype.UUID{Bytes: userUUID, Valid: true})
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
-			return
-		}
+        userUUID, err := uuid.Parse(subStr)
+        if err != nil {
+            log.Println("❌ Invalid user ID:", subStr)
+            c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid user ID"})
+            return
+        }
 
-		tokenVersion, _ := claims["token_version"].(float64)
-		if int32(tokenVersion) != user.TokenVersion {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token has been revoked"})
-			return
-		}
+        user, err := db.Q.GetUserByID(c.Request.Context(), pgtype.UUID{Bytes: userUUID, Valid: true})
+        if err != nil {
+            log.Println("❌ User not found:", userUUID)
+            c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
+            return
+        }
 
-		// If temporary ban expired, reset automatically
-		if user.IsBanned.Bool && user.BanUntil.Valid && user.BanUntil.Time.Before(time.Now()) {
-			log.Printf("⏰ Ban expired for user %s, resetting ban status", userUUID)
+        log.Printf("✅ User found: %s, role: %s, banned: %v", userUUID, user.Role.String, user.IsBanned.Bool)
 
-			params := gen.UpdateUserBanByUserIDParams{
-				ID:             pgtype.UUID{Bytes: userUUID, Valid: true},
-				IsBanned:       pgtype.Bool{Bool: false, Valid: true},
-				BanReason:      pgtype.Text{String: "", Valid: true},
-				BanUntil:       pgtype.Timestamp{Valid: false},
-				IsPermanentBan: pgtype.Bool{Bool: false, Valid: true},
-			}
+        // Token version validation
+        tokenVersion, _ := claims["token_version"].(float64)
+        if int32(tokenVersion) != user.TokenVersion {
+            log.Printf("❌ Token revoked. Token version: %d, User version: %d", int(tokenVersion), user.TokenVersion)
+            c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token has been revoked"})
+            return
+        }
 
-			if _, err := db.Q.UpdateUserBanByUserID(c.Request.Context(), params); err != nil {
-				log.Printf("❌ Failed to reset expired ban for user %s: %v", userUUID, err)
-			} else {
-				user.IsBanned.Bool = false
-				user.IsPermanentBan.Bool = false
-				user.BanUntil.Valid = false
-				log.Printf("✅ Ban reset successful for user %s", userUUID)
-			}
-		}
+        // Check banned status
+        if user.IsBanned.Bool {
+            log.Printf("⚠️ User is banned. Permanent: %v, Temporary until: %v", user.IsPermanentBan.Bool, user.BanUntil.Time)
 
-		// ✅ Set context for all routes — even banned users
-		role, _ := claims["role"].(string)
-		c.Set("userID", userUUID)
-		c.Set("role", role)
-		c.Set("user", user)
-		c.Set("token_version", int(tokenVersion))
+            // Temporarily banned?
+            if user.BanUntil.Valid && user.BanUntil.Time.After(time.Now()) {
+                if strings.HasPrefix(c.FullPath(), "/users/user/") {
+                    log.Println("✅ Temporarily banned user accessing allowed route:", c.FullPath())
+                    c.Set("userID", userUUID)
+                    c.Set("role", user.Role.String)
+                    c.Set("token_version", int(tokenVersion))
+                    c.Set("banned_user", true)
+                    c.Next()
+                    return
+                }
 
-		c.Next()
-	}
+                log.Println("❌ Temporarily banned user blocked from route:", c.FullPath())
+                c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+                    "error":  "your account is temporarily banned",
+                    "until":  user.BanUntil.Time,
+                    "reason": user.BanReason.String,
+                })
+                return
+            }
+
+            // Permanently banned?
+            if user.IsPermanentBan.Bool {
+                if strings.HasPrefix(c.FullPath(), "/users/user/") {
+                    log.Println("✅ Permanently banned user accessing allowed route:", c.FullPath())
+                    c.Set("userID", userUUID)
+                    c.Set("role", user.Role.String)
+                    c.Set("token_version", int(tokenVersion))
+                    c.Set("banned_user", true)
+                    c.Next()
+                    return
+                }
+
+                log.Println("❌ Permanently banned user blocked from route:", c.FullPath())
+                c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+                    "error":  "your account has been permanently banned",
+                    "reason": user.BanReason.String,
+                })
+                return
+            }
+        }
+
+        // Default (non-banned user)
+        log.Println("✅ Auth passed for non-banned user:", userUUID)
+        c.Set("userID", userUUID)
+        c.Set("role", user.Role.String)
+        c.Set("token_version", int(tokenVersion))
+        c.Next()
+    }
 }
+
+
 
 // AdminOnly ensures the request is from an admin
 func AdminOnly() gin.HandlerFunc {
