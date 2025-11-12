@@ -116,7 +116,7 @@ func main() {
 		borrowGroup.GET("/", middleware.AdminOnly(), handlers.GetAllBorrowsHandlers)
 		borrowGroup.GET("/user/:id", handlers.GetBorrowsByUserIDHandler)
 		borrowGroup.GET("/book/:id", handlers.GetBorrowsByBookIDHandler)
-		borrowGroup.GET("borrow/book/:id", handlers.GetBorrowByBookAndUserIDHandler)		
+		borrowGroup.GET("borrow/book/:id", handlers.GetBorrowByBookAndUserIDHandler)
 		borrowGroup.POST("/borrow", handlers.BorrowBookHandler)
 		borrowGroup.PATCH("/borrow/:id/return", handlers.ReturnBookHandler)
 	}
@@ -142,7 +142,7 @@ func main() {
 		notificationGroup.PATCH("/mark-read", handlers.MarkNotificationAsReadByUserID)
 	}
 	listGroup := r.Group("/list")
-	listGroup.Use(middleware.AdminOnly(), middleware.AuthMiddleware())
+	listGroup.Use(middleware.AuthMiddleware(), middleware.AdminOnly()) // ← Auth MUST come before Admin
 	{
 		listGroup.GET("/data-paginated", handlers.ListDataByStatusHandler)
 	}
