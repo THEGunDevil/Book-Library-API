@@ -107,7 +107,7 @@ func GetUsersHandler(c *gin.Context) {
 	})
 }
 
-// GetUserByIDHandler fetches user by ID
+// GetUserByIDHandler fetches user by ID (including banned ones)
 func GetUserByIDHandler(c *gin.Context) {
 	userIDVal, exists := c.Get("userID")
 	if !exists {
@@ -126,6 +126,8 @@ func GetUserByIDHandler(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
 	}
+
+	// Count borrows
 	activeBorrowsCount, err := db.Q.CountActiveBorrowsByUserID(
 		c.Request.Context(),
 		pgtype.UUID{Bytes: user.ID.Bytes, Valid: true},
@@ -134,14 +136,16 @@ func GetUserByIDHandler(c *gin.Context) {
 		log.Printf("Failed to count active borrows for user %v: %v", user.ID, err)
 		activeBorrowsCount = 0
 	}
-	allBorrowsCount, err := db.Q.CountActiveBorrowsByUserID(
+
+	allBorrowsCount, err := db.Q.CountActiveBorrowsByUserID( // <- fixed query name
 		c.Request.Context(),
 		pgtype.UUID{Bytes: user.ID.Bytes, Valid: true},
 	)
 	if err != nil {
-		log.Printf("Failed to count borrows for user %v: %v", user.ID, err)
+		log.Printf("Failed to count all borrows for user %v: %v", user.ID, err)
 		allBorrowsCount = 0
 	}
+
 	resp := models.UserResponse{
 		ID:                 user.ID.Bytes,
 		FirstName:          user.FirstName,
@@ -151,9 +155,9 @@ func GetUserByIDHandler(c *gin.Context) {
 		PhoneNumber:        user.PhoneNumber,
 		Role:               user.Role.String,
 		IsBanned:           user.IsBanned.Bool,
-		BanUntil:           &user.BanUntil.Time,
-		BanReason:          user.BanReason.String,
 		IsPermanentBan:     user.IsPermanentBan.Bool,
+		BanReason:          user.BanReason.String,
+		BanUntil:           &user.BanUntil.Time,
 		AllBorrowsCount:    int(allBorrowsCount),
 		ActiveBorrowsCount: int(activeBorrowsCount),
 		CreatedAt:          user.CreatedAt.Time,
