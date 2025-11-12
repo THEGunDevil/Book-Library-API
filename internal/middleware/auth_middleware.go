@@ -85,43 +85,41 @@ func AuthMiddleware() gin.HandlerFunc {
 		log.Println("✅ Token version validated")
 
 		// Handle banned users
-		// Handle banned users
-if user.IsBanned.Bool {
-    log.Println("⚠️ User is banned")
+		if user.IsBanned.Bool {
+			log.Println("⚠️ User is banned")
 
-    // Routes allowed for banned users
-    allowedPaths := []string{
-        "/users/user",       // fetch ban info
-        "/contact/send",     // contact support
-    }
+			// Routes allowed for banned users
+			allowedPaths := []string{
+				"/users/user",   // fetch ban info
+				"/contact/send", // contact support
+			}
 
-    // Check if request path is allowed
-    for _, path := range allowedPaths {
-        if strings.HasPrefix(c.FullPath(), path) {
-            log.Printf("✅ Banned user accessing allowed route %s\n", path)
-            c.Set("banned_user", true)
-            c.Set("userID", userUUID)
-            c.Set("role", user.Role.String)
-            c.Set("isBanned", user.IsBanned.Bool)
-            c.Set("isPermanentBan", user.IsPermanentBan.Bool)
-            c.Set("banReason", user.BanReason.String)
-            c.Set("banUntil", user.BanUntil.Time)
-            c.Next()
-            return
-        }
-    }
+			// Check if request path is allowed
+			for _, path := range allowedPaths {
+				if strings.HasPrefix(c.FullPath(), path) {
+					log.Printf("✅ Banned user accessing allowed route %s\n", path)
+					c.Set("banned_user", true)
+					c.Set("userID", userUUID)
+					c.Set("role", user.Role.String)
+					c.Set("isBanned", user.IsBanned.Bool)
+					c.Set("isPermanentBan", user.IsPermanentBan.Bool)
+					c.Set("banReason", user.BanReason.String)
+					c.Set("banUntil", user.BanUntil.Time)
+					c.Next()
+					return
+				}
+			}
 
-    // Block all other routes
-    log.Printf("❌ Banned user tried to access: %s\n", c.FullPath())
-    c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-        "error":            "your account is banned",
-        "reason":           user.BanReason.String,
-        "is_permanent_ban": user.IsPermanentBan.Bool,
-        "ban_until":        user.BanUntil.Time,
-    })
-    return
-}
-
+			// Block all other routes
+			log.Printf("❌ Banned user tried to access: %s\n", c.FullPath())
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+				"error":            "your account is banned",
+				"reason":           user.BanReason.String,
+				"is_permanent_ban": user.IsPermanentBan.Bool,
+				"ban_until":        user.BanUntil.Time,
+			})
+			return
+		}
 
 		// Set context for downstream handlers
 		c.Set("userID", userUUID)
