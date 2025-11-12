@@ -225,15 +225,9 @@ func GetBorrowByBookAndUserIDHandler(c *gin.Context) {
 	}
 
 	// userIDVal is interface{}, convert to string first
-	userIDStr, ok := userIDVal.(string)
+	userID, ok := userIDVal.(uuid.UUID)
 	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "userID is not a string"})
-		return
-	}
-
-	userID, err := uuid.Parse(userIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
