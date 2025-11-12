@@ -107,10 +107,8 @@ func GetUsersHandler(c *gin.Context) {
 	})
 }
 
-// GetUserByIDHandler fetches user by ID (including banned ones)
-// GetUserByIDHandler fetches user by ID (including banned ones)
+
 func GetUserByIDHandler(c *gin.Context) {
-    // 1️⃣ Determine which user to fetch
     userIDVal, exists := c.Get("userID")
     if !exists {
         c.JSON(http.StatusUnauthorized, gin.H{"error": "userID not found in context"})
