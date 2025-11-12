@@ -68,7 +68,7 @@ func main() {
 
 	// User routes (protected)
 	userGroup := r.Group("/users")
-	// userGroup.Use(middleware.AuthMiddleware())
+	userGroup.Use(middleware.AuthMiddleware())
 	{
 		userGroup.GET("/user/:id", handlers.GetUserByIDHandler)
 		userGroup.GET("/user/profile/:id", handlers.GetProfileDataByIDHandler)
