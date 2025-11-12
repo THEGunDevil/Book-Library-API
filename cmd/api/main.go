@@ -68,7 +68,7 @@ func main() {
 
 	// User routes (protected)
 	userGroup := r.Group("/users")
-	userGroup.Use(middleware.AuthMiddleware())
+	// userGroup.Use(middleware.AuthMiddleware())
 	{
 		userGroup.GET("/user/:id", handlers.GetUserByIDHandler)
 		userGroup.GET("/user/profile/:id", handlers.GetProfileDataByIDHandler)
@@ -77,7 +77,11 @@ func main() {
 		userGroup.GET("", middleware.AdminOnly(), handlers.GetUsersHandler)
 		userGroup.PATCH("/user/ban/:id", middleware.AdminOnly(), handlers.BanUserByIDHandler)
 	}
-
+	bannedUserGroup := r.Group("/banned-users")
+	bannedUserGroup.Use(middleware.AuthMiddleware())
+	{
+		bannedUserGroup.GET("", middleware.AdminOnly(), handlers.GetUsersHandler)
+	}
 	// Book routes
 	bookGroup := r.Group("/books")
 	{
@@ -138,7 +142,7 @@ func main() {
 	listGroup := r.Group("/list")
 	listGroup.Use(middleware.AdminOnly(), middleware.AuthMiddleware())
 	{
-		listGroup.GET("/data-paginated",handlers.ListDataByStatusHandler)
+		listGroup.GET("/data-paginated", handlers.ListDataByStatusHandler)
 	}
 	port := os.Getenv("PORT")
 	if port == "" {
