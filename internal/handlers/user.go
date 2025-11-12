@@ -162,7 +162,6 @@ func GetUserByIDHandler(c *gin.Context) {
         AllBorrowsCount:    int(allBorrowsCount),
         ActiveBorrowsCount: int(activeBorrowsCount),
         CreatedAt:          user.CreatedAt.Time,
-        // BannedUser:         bannedUserFlag != nil && bannedUserFlag.(bool),
     }
 
     log.Printf("👤 Returning user data for user %v (banned: %v)", user.ID, user.IsBanned.Bool)
