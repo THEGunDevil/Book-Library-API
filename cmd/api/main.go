@@ -116,6 +116,7 @@ func main() {
 		borrowGroup.GET("/", middleware.AdminOnly(), handlers.GetAllBorrowsHandlers)
 		borrowGroup.GET("/user/:id", handlers.GetBorrowsByUserIDHandler)
 		borrowGroup.GET("/book/:id", handlers.GetBorrowsByBookIDHandler)
+		borrowGroup.GET("borrow/book/:id", handlers.GetBorrowByBookAndUserIDHandler)		
 		borrowGroup.POST("/borrow", handlers.BorrowBookHandler)
 		borrowGroup.PATCH("/borrow/:id/return", handlers.ReturnBookHandler)
 	}

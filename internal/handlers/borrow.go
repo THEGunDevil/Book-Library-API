@@ -211,3 +211,59 @@ func GetBorrowsByBookIDHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, response)
 }
+func GetBorrowByBookAndUserIDHandler(c *gin.Context) {
+	idStr := c.Param("id")
+	parsedID, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book ID"})
+		return
+	}
+	userIDVal, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "userID not found in context"})
+		return
+	}
+
+	// userIDVal is interface{}, convert to string first
+	userIDStr, ok := userIDVal.(string)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "userID is not a string"})
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	params := gen.FilterBorrowByUserAndBookIDParams{
+		UserID: pgtype.UUID{Bytes: userID, Valid: true},
+		BookID: pgtype.UUID{Bytes: parsedID, Valid: true},
+	}
+	b, err := db.Q.FilterBorrowByUserAndBookID(
+		c.Request.Context(),
+		params,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "borrows not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong"})
+		}
+		return
+	}
+
+	var response []models.BorrowResponse
+		response = append(response, models.BorrowResponse{
+			ID:         b.ID.Bytes,
+			UserID:     b.UserID.Bytes,
+			BookID:     b.BookID.Bytes,
+			BorrowedAt: b.BorrowedAt.Time,
+			DueDate:    b.DueDate.Time,
+			ReturnedAt: &b.ReturnedAt.Time,
+		})
+	
+
+	c.JSON(http.StatusOK, response)
+}
