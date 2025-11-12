@@ -86,7 +86,7 @@ func main() {
 	bookGroup := r.Group("/books")
 	{
 		// Public
-		bookGroup.GET("/", handlers.GetBooksHandler)
+		bookGroup.GET("", handlers.GetBooksHandler)
 		bookGroup.GET("/:id", handlers.GetBookByIDHandler)
 		bookGroup.GET("/search", handlers.SearchBooksHandler)
 		bookGroup.GET("/genres", handlers.ListGenresHandler)
@@ -100,7 +100,7 @@ func main() {
 	reservationGroup := r.Group("/reservations")
 	reservationGroup.Use(middleware.AuthMiddleware())
 	{
-		reservationGroup.POST("/", handlers.CreateReservationHandler)
+		reservationGroup.POST("", handlers.CreateReservationHandler)
 		reservationGroup.GET("/book/:id", handlers.GetReservationsByBookIDHandler)
 		reservationGroup.GET("/book/:id/user", handlers.GetReservationsByBookIDAndUserIDHandler)
 		reservationGroup.GET("/reservation/:id", handlers.GetReservationsByReservationID)
@@ -113,7 +113,7 @@ func main() {
 	borrowGroup := r.Group("/borrows")
 	borrowGroup.Use(middleware.AuthMiddleware())
 	{
-		borrowGroup.GET("/", middleware.AdminOnly(), handlers.GetAllBorrowsHandlers)
+		borrowGroup.GET("", middleware.AdminOnly(), handlers.GetAllBorrowsHandlers)
 		borrowGroup.GET("/:id", handlers.GetBorrowsByIDHandler)
 		borrowGroup.POST("/borrow", handlers.BorrowBookHandler)
 		borrowGroup.PATCH("/borrow/:id/return", handlers.ReturnBookHandler)
