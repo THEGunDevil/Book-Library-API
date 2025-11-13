@@ -37,17 +37,17 @@ func ListDataByStatusHandler(c *gin.Context) {
 	status := strings.ToLower(strings.TrimSpace(c.Query("status"))) // ✅ normalize
 	log.Printf("📥 Received status: '%s'", status)                   // ✅ debug log
 
-	role, exists := c.Get("role")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
-		return
-	}
+	// role, exists := c.Get("role")
+	// if !exists {
+	// 	c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+	// 	return
+	// }
 
-	roleStr, ok := role.(string)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid role type"})
-		return
-	}
+	// roleStr, ok := role.(string)
+	// if !ok {
+	// 	c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid role type"})
+	// 	return
+	// }
 	// Pagination
 	pageQuery := c.DefaultQuery("page", "1")
 	limitQuery := c.DefaultQuery("limit", "20")
@@ -62,7 +62,7 @@ func ListDataByStatusHandler(c *gin.Context) {
 	}
 	offset := (page - 1) * limit
 
-	if roleStr == "admin" {
+	// if roleStr == "admin" {
 		switch status {
 		// =====================
 		// Case: Reservations
@@ -207,7 +207,7 @@ func ListDataByStatusHandler(c *gin.Context) {
 		default:
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid status"})
 		}
-	} else {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
-	}
+	// } else {
+	// 	c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+	// }
 }
