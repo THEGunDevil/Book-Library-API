@@ -318,7 +318,7 @@ SELECT
     b.due_date, 
     b.returned_at, 
     bk.title AS book_title, 
-    CONCAT(u.first_name, ' ', u.last_name) AS user_name
+CONCAT(u.first_name, ' ', u.last_name)::TEXT AS user_name
 FROM borrows b
 JOIN books bk ON b.book_id = bk.id
 JOIN users u ON b.user_id = u.id  -- ← Changed from bk.user_id to b.user_id
@@ -339,7 +339,7 @@ type ListBorrowPaginatedByBorrowedAtRow struct {
 	DueDate    pgtype.Timestamp `json:"due_date"`
 	ReturnedAt pgtype.Timestamp `json:"returned_at"`
 	BookTitle  string           `json:"book_title"`
-	UserName   interface{}      `json:"user_name"`
+	UserName   string           `json:"user_name"`
 }
 
 func (q *Queries) ListBorrowPaginatedByBorrowedAt(ctx context.Context, arg ListBorrowPaginatedByBorrowedAtParams) ([]ListBorrowPaginatedByBorrowedAtRow, error) {
@@ -380,7 +380,7 @@ SELECT
     b.due_date, 
     b.returned_at, 
     bk.title AS book_title, 
-    CONCAT(u.first_name, ' ', u.last_name) AS user_name
+CONCAT(u.first_name, ' ', u.last_name)::TEXT AS user_name
 FROM borrows b
 JOIN books bk ON b.book_id = bk.id
 JOIN users u ON b.user_id = u.id  -- ← Changed from bk.user_id to b.user_id
@@ -402,7 +402,7 @@ type ListBorrowPaginatedByNotReturnedAtRow struct {
 	DueDate    pgtype.Timestamp `json:"due_date"`
 	ReturnedAt pgtype.Timestamp `json:"returned_at"`
 	BookTitle  string           `json:"book_title"`
-	UserName   interface{}      `json:"user_name"`
+	UserName   string           `json:"user_name"`
 }
 
 func (q *Queries) ListBorrowPaginatedByNotReturnedAt(ctx context.Context, arg ListBorrowPaginatedByNotReturnedAtParams) ([]ListBorrowPaginatedByNotReturnedAtRow, error) {
@@ -443,7 +443,7 @@ SELECT
     b.due_date, 
     b.returned_at, 
     bk.title AS book_title, 
-    CONCAT(u.first_name, ' ', u.last_name) AS user_name
+CONCAT(u.first_name, ' ', u.last_name)::TEXT AS user_name
 FROM borrows b
 JOIN books bk ON b.book_id = bk.id
 JOIN users u ON b.user_id = u.id  -- ← Changed from bk.user_id to b.user_id
@@ -465,7 +465,7 @@ type ListBorrowPaginatedByReturnedAtRow struct {
 	DueDate    pgtype.Timestamp `json:"due_date"`
 	ReturnedAt pgtype.Timestamp `json:"returned_at"`
 	BookTitle  string           `json:"book_title"`
-	UserName   interface{}      `json:"user_name"`
+	UserName   string           `json:"user_name"`
 }
 
 func (q *Queries) ListBorrowPaginatedByReturnedAt(ctx context.Context, arg ListBorrowPaginatedByReturnedAtParams) ([]ListBorrowPaginatedByReturnedAtRow, error) {

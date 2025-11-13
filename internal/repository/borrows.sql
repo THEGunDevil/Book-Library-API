@@ -43,7 +43,7 @@ SELECT
     b.due_date, 
     b.returned_at, 
     bk.title AS book_title, 
-    CONCAT(u.first_name, ' ', u.last_name) AS user_name
+CONCAT(u.first_name, ' ', u.last_name)::TEXT AS user_name
 FROM borrows b
 JOIN books bk ON b.book_id = bk.id
 JOIN users u ON b.user_id = u.id  -- ← Changed from bk.user_id to b.user_id
@@ -59,7 +59,7 @@ SELECT
     b.due_date, 
     b.returned_at, 
     bk.title AS book_title, 
-    CONCAT(u.first_name, ' ', u.last_name) AS user_name
+CONCAT(u.first_name, ' ', u.last_name)::TEXT AS user_name
 FROM borrows b
 JOIN books bk ON b.book_id = bk.id
 JOIN users u ON b.user_id = u.id  -- ← Changed from bk.user_id to b.user_id
@@ -76,13 +76,14 @@ SELECT
     b.due_date, 
     b.returned_at, 
     bk.title AS book_title, 
-    CONCAT(u.first_name, ' ', u.last_name) AS user_name
+CONCAT(u.first_name, ' ', u.last_name)::TEXT AS user_name
 FROM borrows b
 JOIN books bk ON b.book_id = bk.id
 JOIN users u ON b.user_id = u.id  -- ← Changed from bk.user_id to b.user_id
 WHERE b.returned_at IS NULL
 ORDER BY b.borrowed_at DESC
 LIMIT $1 OFFSET $2;
+
 -- name: CountAllBorrows :one
 SELECT COUNT(*) FROM borrows;
 
