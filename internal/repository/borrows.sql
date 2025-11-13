@@ -60,8 +60,17 @@ WHERE returned_at IS NULL
 ORDER BY b.borrowed_at ASC
 LIMIT $1 OFFSET $2;
 
--- name: CountBorrows :one
+-- name: CountAllBorrows :one
 SELECT COUNT(*) FROM borrows;
+
+-- name: CountBorrowedAt :one
+SELECT COUNT(*) FROM borrows WHERE borrowed_at IS NOT NULL;
+
+-- name: CountReturnedAt :one
+SELECT COUNT(*) FROM borrows WHERE returned_at IS NOT NULL;
+
+-- name: CountNotReturnedAt :one
+SELECT COUNT(*) FROM borrows WHERE returned_at IS NULL;
 
 -- name: CountBorrowedBooksByUserID :one
 SELECT COUNT(*)

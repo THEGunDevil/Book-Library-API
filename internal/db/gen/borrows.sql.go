@@ -25,6 +25,28 @@ func (q *Queries) CountActiveBorrowsByUserID(ctx context.Context, userID pgtype.
 	return count, err
 }
 
+const countAllBorrows = `-- name: CountAllBorrows :one
+SELECT COUNT(*) FROM borrows
+`
+
+func (q *Queries) CountAllBorrows(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countAllBorrows)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countBorrowedAt = `-- name: CountBorrowedAt :one
+SELECT COUNT(*) FROM borrows WHERE borrowed_at IS NOT NULL
+`
+
+func (q *Queries) CountBorrowedAt(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countBorrowedAt)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countBorrowedBooksByUserID = `-- name: CountBorrowedBooksByUserID :one
 SELECT COUNT(*)
 FROM borrows
@@ -38,12 +60,23 @@ func (q *Queries) CountBorrowedBooksByUserID(ctx context.Context, userID pgtype.
 	return count, err
 }
 
-const countBorrows = `-- name: CountBorrows :one
-SELECT COUNT(*) FROM borrows
+const countNotReturnedAt = `-- name: CountNotReturnedAt :one
+SELECT COUNT(*) FROM borrows WHERE returned_at IS NULL
 `
 
-func (q *Queries) CountBorrows(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, countBorrows)
+func (q *Queries) CountNotReturnedAt(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countNotReturnedAt)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countReturnedAt = `-- name: CountReturnedAt :one
+SELECT COUNT(*) FROM borrows WHERE returned_at IS NOT NULL
+`
+
+func (q *Queries) CountReturnedAt(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countReturnedAt)
 	var count int64
 	err := row.Scan(&count)
 	return count, err

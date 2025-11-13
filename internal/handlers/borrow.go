@@ -97,7 +97,7 @@ func GetAllBorrowsHandlers(c *gin.Context) {
 	}
 
 	// 2️⃣ Total count
-	totalCount, err := db.Q.CountBorrows(c.Request.Context())
+	totalCount, err := db.Q.CountAllBorrows(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

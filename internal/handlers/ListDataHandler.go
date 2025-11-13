@@ -113,8 +113,8 @@ func ListDataByStatusHandler(c *gin.Context) {
 		case borrowedStatus:
 			// Example: use current date to filter borrowed books
 			params := gen.ListBorrowPaginatedByBorrowedAtParams{
-				Limit:      int32(limit),
-				Offset:     int32(offset),
+				Limit:  int32(limit),
+				Offset: int32(offset),
 			}
 
 			borrows, err := db.Q.ListBorrowPaginatedByBorrowedAt(c.Request.Context(), params)
@@ -136,11 +136,16 @@ func ListDataByStatusHandler(c *gin.Context) {
 					BookTitle:  b.BookTitle,
 				})
 			}
-			c.JSON(http.StatusOK, borrowResp)
+			c.JSON(http.StatusOK, gin.H{
+				"reservations": borrowResp,
+				"page":         page,
+				"limit":        limit,
+				"count":        len(borrowResp),
+			})
 		case returnedStatus:
 			params := gen.ListBorrowPaginatedByReturnedAtParams{
-				Limit:      int32(limit),
-				Offset:     int32(offset),
+				Limit:  int32(limit),
+				Offset: int32(offset),
 			}
 
 			borrows, err := db.Q.ListBorrowPaginatedByReturnedAt(c.Request.Context(), params)
@@ -162,7 +167,12 @@ func ListDataByStatusHandler(c *gin.Context) {
 					BookTitle:  b.BookTitle,
 				})
 			}
-			c.JSON(http.StatusOK, borrowResp)
+			c.JSON(http.StatusOK, gin.H{
+				"reservations": borrowResp,
+				"page":         page,
+				"limit":        limit,
+				"count":        len(borrowResp),
+			})
 		case noReturnedStatus:
 			params := gen.ListBorrowPaginatedByNotReturnedAtParams{
 				Limit:  int32(limit),
@@ -188,7 +198,12 @@ func ListDataByStatusHandler(c *gin.Context) {
 					BookTitle:  b.BookTitle,
 				})
 			}
-			c.JSON(http.StatusOK, borrowResp)
+			c.JSON(http.StatusOK, gin.H{
+				"reservations": borrowResp,
+				"page":         page,
+				"limit":        limit,
+				"count":        len(borrowResp),
+			})
 		default:
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid status"})
 		}
