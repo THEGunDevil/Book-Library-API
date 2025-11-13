@@ -310,11 +310,19 @@ func (q *Queries) ListBorrowPaginated(ctx context.Context, arg ListBorrowPaginat
 }
 
 const listBorrowPaginatedByBorrowedAt = `-- name: ListBorrowPaginatedByBorrowedAt :many
-SELECT b.id, b.user_id, b.book_id, b.borrowed_at, b.due_date, b.returned_at, bk.title AS book_title, CAST(CONCAT(u.first_name, ' ', u.last_name) AS TEXT) AS user_name
+SELECT 
+    b.id, 
+    b.user_id, 
+    b.book_id, 
+    b.borrowed_at, 
+    b.due_date, 
+    b.returned_at, 
+    bk.title AS book_title, 
+    CONCAT(u.first_name, ' ', u.last_name) AS user_name
 FROM borrows b
 JOIN books bk ON b.book_id = bk.id
-JOIN users u on bk.user_id = u.id
-ORDER BY b.borrowed_at ASC
+JOIN users u ON b.user_id = u.id  -- ← Changed from bk.user_id to b.user_id
+ORDER BY b.borrowed_at DESC
 LIMIT $1 OFFSET $2
 `
 
@@ -331,7 +339,7 @@ type ListBorrowPaginatedByBorrowedAtRow struct {
 	DueDate    pgtype.Timestamp `json:"due_date"`
 	ReturnedAt pgtype.Timestamp `json:"returned_at"`
 	BookTitle  string           `json:"book_title"`
-	UserName   string           `json:"user_name"`
+	UserName   interface{}      `json:"user_name"`
 }
 
 func (q *Queries) ListBorrowPaginatedByBorrowedAt(ctx context.Context, arg ListBorrowPaginatedByBorrowedAtParams) ([]ListBorrowPaginatedByBorrowedAtRow, error) {
@@ -364,12 +372,20 @@ func (q *Queries) ListBorrowPaginatedByBorrowedAt(ctx context.Context, arg ListB
 }
 
 const listBorrowPaginatedByNotReturnedAt = `-- name: ListBorrowPaginatedByNotReturnedAt :many
-SELECT b.id, b.user_id, b.book_id, b.borrowed_at, b.due_date, b.returned_at, bk.title AS book_title, CAST(CONCAT(u.first_name, ' ', u.last_name) AS TEXT) AS user_name
+SELECT 
+    b.id, 
+    b.user_id, 
+    b.book_id, 
+    b.borrowed_at, 
+    b.due_date, 
+    b.returned_at, 
+    bk.title AS book_title, 
+    CONCAT(u.first_name, ' ', u.last_name) AS user_name
 FROM borrows b
 JOIN books bk ON b.book_id = bk.id
-JOIN users u on bk.user_id = u.id
-WHERE returned_at IS NULL
-ORDER BY b.borrowed_at ASC
+JOIN users u ON b.user_id = u.id  -- ← Changed from bk.user_id to b.user_id
+WHERE b.returned_at IS NULL
+ORDER BY b.borrowed_at DESC
 LIMIT $1 OFFSET $2
 `
 
@@ -386,7 +402,7 @@ type ListBorrowPaginatedByNotReturnedAtRow struct {
 	DueDate    pgtype.Timestamp `json:"due_date"`
 	ReturnedAt pgtype.Timestamp `json:"returned_at"`
 	BookTitle  string           `json:"book_title"`
-	UserName   string           `json:"user_name"`
+	UserName   interface{}      `json:"user_name"`
 }
 
 func (q *Queries) ListBorrowPaginatedByNotReturnedAt(ctx context.Context, arg ListBorrowPaginatedByNotReturnedAtParams) ([]ListBorrowPaginatedByNotReturnedAtRow, error) {
@@ -419,12 +435,20 @@ func (q *Queries) ListBorrowPaginatedByNotReturnedAt(ctx context.Context, arg Li
 }
 
 const listBorrowPaginatedByReturnedAt = `-- name: ListBorrowPaginatedByReturnedAt :many
-SELECT b.id, b.user_id, b.book_id, b.borrowed_at, b.due_date, b.returned_at, bk.title AS book_title, CAST(CONCAT(u.first_name, ' ', u.last_name) AS TEXT) AS user_name
+SELECT 
+    b.id, 
+    b.user_id, 
+    b.book_id, 
+    b.borrowed_at, 
+    b.due_date, 
+    b.returned_at, 
+    bk.title AS book_title, 
+    CONCAT(u.first_name, ' ', u.last_name) AS user_name
 FROM borrows b
 JOIN books bk ON b.book_id = bk.id
-JOIN users u on bk.user_id = u.id
-WHERE returned_at IS NOT NULL
-ORDER BY b.borrowed_at ASC
+JOIN users u ON b.user_id = u.id  -- ← Changed from bk.user_id to b.user_id
+WHERE b.returned_at IS NOT NULL
+ORDER BY b.returned_at DESC
 LIMIT $1 OFFSET $2
 `
 
@@ -441,7 +465,7 @@ type ListBorrowPaginatedByReturnedAtRow struct {
 	DueDate    pgtype.Timestamp `json:"due_date"`
 	ReturnedAt pgtype.Timestamp `json:"returned_at"`
 	BookTitle  string           `json:"book_title"`
-	UserName   string           `json:"user_name"`
+	UserName   interface{}      `json:"user_name"`
 }
 
 func (q *Queries) ListBorrowPaginatedByReturnedAt(ctx context.Context, arg ListBorrowPaginatedByReturnedAtParams) ([]ListBorrowPaginatedByReturnedAtRow, error) {

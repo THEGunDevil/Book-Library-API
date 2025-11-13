@@ -35,31 +35,54 @@ JOIN books bk ON b.book_id = bk.id
 LIMIT $1 OFFSET $2;
 
 -- name: ListBorrowPaginatedByBorrowedAt :many
-SELECT b.id, b.user_id, b.book_id, b.borrowed_at, b.due_date, b.returned_at, bk.title AS book_title, CAST(CONCAT(u.first_name, ' ', u.last_name) AS TEXT) AS user_name
+SELECT 
+    b.id, 
+    b.user_id, 
+    b.book_id, 
+    b.borrowed_at, 
+    b.due_date, 
+    b.returned_at, 
+    bk.title AS book_title, 
+    CONCAT(u.first_name, ' ', u.last_name) AS user_name
 FROM borrows b
 JOIN books bk ON b.book_id = bk.id
-JOIN users u on bk.user_id = u.id
-ORDER BY b.borrowed_at ASC
+JOIN users u ON b.user_id = u.id  -- ← Changed from bk.user_id to b.user_id
+ORDER BY b.borrowed_at DESC
 LIMIT $1 OFFSET $2;
 
 -- name: ListBorrowPaginatedByReturnedAt :many
-SELECT b.id, b.user_id, b.book_id, b.borrowed_at, b.due_date, b.returned_at, bk.title AS book_title, CAST(CONCAT(u.first_name, ' ', u.last_name) AS TEXT) AS user_name
+SELECT 
+    b.id, 
+    b.user_id, 
+    b.book_id, 
+    b.borrowed_at, 
+    b.due_date, 
+    b.returned_at, 
+    bk.title AS book_title, 
+    CONCAT(u.first_name, ' ', u.last_name) AS user_name
 FROM borrows b
 JOIN books bk ON b.book_id = bk.id
-JOIN users u on bk.user_id = u.id
-WHERE returned_at IS NOT NULL
-ORDER BY b.borrowed_at ASC
+JOIN users u ON b.user_id = u.id  -- ← Changed from bk.user_id to b.user_id
+WHERE b.returned_at IS NOT NULL
+ORDER BY b.returned_at DESC
 LIMIT $1 OFFSET $2;
 
 -- name: ListBorrowPaginatedByNotReturnedAt :many
-SELECT b.id, b.user_id, b.book_id, b.borrowed_at, b.due_date, b.returned_at, bk.title AS book_title, CAST(CONCAT(u.first_name, ' ', u.last_name) AS TEXT) AS user_name
+SELECT 
+    b.id, 
+    b.user_id, 
+    b.book_id, 
+    b.borrowed_at, 
+    b.due_date, 
+    b.returned_at, 
+    bk.title AS book_title, 
+    CONCAT(u.first_name, ' ', u.last_name) AS user_name
 FROM borrows b
 JOIN books bk ON b.book_id = bk.id
-JOIN users u on bk.user_id = u.id
-WHERE returned_at IS NULL
-ORDER BY b.borrowed_at ASC
+JOIN users u ON b.user_id = u.id  -- ← Changed from bk.user_id to b.user_id
+WHERE b.returned_at IS NULL
+ORDER BY b.borrowed_at DESC
 LIMIT $1 OFFSET $2;
-
 -- name: CountAllBorrows :one
 SELECT COUNT(*) FROM borrows;
 
