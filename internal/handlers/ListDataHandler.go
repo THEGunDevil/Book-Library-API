@@ -129,7 +129,7 @@ func ListDataByStatusHandler(c *gin.Context) {
 				})
 			}
 			c.JSON(http.StatusOK, gin.H{
-				"reservations": borrowResp,
+				"borrows": borrowResp,
 				"page":         page,
 				"limit":        limit,
 				"count":        len(borrowResp),
@@ -160,7 +160,7 @@ func ListDataByStatusHandler(c *gin.Context) {
 				})
 			}
 			c.JSON(http.StatusOK, gin.H{
-				"reservations": borrowResp,
+				"borrows": borrowResp,
 				"page":         page,
 				"limit":        limit,
 				"count":        len(borrowResp),
@@ -191,7 +191,7 @@ func ListDataByStatusHandler(c *gin.Context) {
 				})
 			}
 			c.JSON(http.StatusOK, gin.H{
-				"reservations": borrowResp,
+				"borrows": borrowResp,
 				"page":         page,
 				"limit":        limit,
 				"count":        len(borrowResp),
