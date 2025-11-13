@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/THEGunDevil/GoForBackend/internal/db"
@@ -14,9 +15,9 @@ import (
 )
 
 const (
-	borrowedStatus   = "borrowed_at"
-	returnedStatus   = "returned_at"
-	noReturnedStatus = "not_returned"
+	borrowedStatus   = "Borrowed At"
+	returnedStatus   = "Returned At"
+	noReturnedStatus = "Not Returned"
 )
 
 // Should look like this:
@@ -25,6 +26,7 @@ type ListReservationPaginatedParams struct {
 	Offset int32  `json:"offset"`
 	Status string `json:"status"` // ← Should be string, not []string
 }
+
 func timestampToPtr(ts pgtype.Timestamptz) *time.Time {
 	if ts.Valid {
 		return &ts.Time
@@ -32,13 +34,20 @@ func timestampToPtr(ts pgtype.Timestamptz) *time.Time {
 	return nil
 }
 func ListDataByStatusHandler(c *gin.Context) {
-	status := c.Query("status")
+	status := strings.ToLower(strings.TrimSpace(c.Query("status"))) // ✅ normalize
+	log.Printf("📥 Received status: '%s'", status)                   // ✅ debug log
+
 	role, exists := c.Get("role")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
 
+	roleStr, ok := role.(string)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid role type"})
+		return
+	}
 	// Pagination
 	pageQuery := c.DefaultQuery("page", "1")
 	limitQuery := c.DefaultQuery("limit", "20")
@@ -53,50 +62,50 @@ func ListDataByStatusHandler(c *gin.Context) {
 	}
 	offset := (page - 1) * limit
 
-	if role == "admin" {
+	if roleStr == "admin" {
 		switch status {
 		// =====================
 		// Case: Reservations
 		// =====================
-case "pending", "notified", "fulfilled", "cancelled":
-	params := gen.ListReservationPaginatedByStatusesParams{
-		Limit:   int32(limit),
-		Offset:  int32(offset),
-		Column3: []string{status},
-	}
-	
-	reservations, err := db.Q.ListReservationPaginatedByStatuses(c.Request.Context(), params)
-	if err != nil {
-		log.Printf("❌ Failed to fetch reservations: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch reservations"})
-		return
-	}
+		case "pending", "notified", "fulfilled", "cancelled":
+			params := gen.ListReservationPaginatedByStatusesParams{
+				Limit:   int32(limit),
+				Offset:  int32(offset),
+				Column3: []string{status},
+			}
 
-	var reservationResp []models.ReservationListResponse  // ← Use new model
-	for _, r := range reservations {
-		reservationResp = append(reservationResp, models.ReservationListResponse{
-			ID:          r.ID.Bytes,
-			UserID:      r.UserID.Bytes,
-			BookID:      r.BookID.Bytes,
-			Status:      r.Status,
-			CreatedAt:   r.CreatedAt.Time,
-			NotifiedAt:  timestampToPtr(r.NotifiedAt),
-			FulfilledAt: timestampToPtr(r.FulfilledAt),
-			CancelledAt: timestampToPtr(r.CancelledAt),
-			UserName:    r.UserName,
-			UserEmail:   r.Email,
-			BookTitle:   r.BookTitle,
-			BookAuthor:  r.Author,
-			BookImage:   r.ImageUrl,
-		})
-	}
+			reservations, err := db.Q.ListReservationPaginatedByStatuses(c.Request.Context(), params)
+			if err != nil {
+				log.Printf("❌ Failed to fetch reservations: %v", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch reservations"})
+				return
+			}
 
-	c.JSON(http.StatusOK, gin.H{
-		"reservations": reservationResp,
-		"page":         page,
-		"limit":        limit,
-		"count":        len(reservationResp),
-	})
+			var reservationResp []models.ReservationListResponse // ← Use new model
+			for _, r := range reservations {
+				reservationResp = append(reservationResp, models.ReservationListResponse{
+					ID:          r.ID.Bytes,
+					UserID:      r.UserID.Bytes,
+					BookID:      r.BookID.Bytes,
+					Status:      r.Status,
+					CreatedAt:   r.CreatedAt.Time,
+					NotifiedAt:  timestampToPtr(r.NotifiedAt),
+					FulfilledAt: timestampToPtr(r.FulfilledAt),
+					CancelledAt: timestampToPtr(r.CancelledAt),
+					UserName:    r.UserName,
+					UserEmail:   r.Email,
+					BookTitle:   r.BookTitle,
+					BookAuthor:  r.Author,
+					BookImage:   r.ImageUrl,
+				})
+			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"reservations": reservationResp,
+				"page":         page,
+				"limit":        limit,
+				"count":        len(reservationResp),
+			})
 
 		// =====================
 		// Case: Borrowed Books
@@ -104,8 +113,8 @@ case "pending", "notified", "fulfilled", "cancelled":
 		case borrowedStatus:
 			// Example: use current date to filter borrowed books
 			params := gen.ListBorrowPaginatedByBorrowedAtParams{
-				Limit:  int32(limit),
-				Offset: int32(offset),
+				Limit:      int32(limit),
+				Offset:     int32(offset),
 			}
 
 			borrows, err := db.Q.ListBorrowPaginatedByBorrowedAt(c.Request.Context(), params)
@@ -130,8 +139,8 @@ case "pending", "notified", "fulfilled", "cancelled":
 			c.JSON(http.StatusOK, borrowResp)
 		case returnedStatus:
 			params := gen.ListBorrowPaginatedByReturnedAtParams{
-				Limit:  int32(limit),
-				Offset: int32(offset),
+				Limit:      int32(limit),
+				Offset:     int32(offset),
 			}
 
 			borrows, err := db.Q.ListBorrowPaginatedByReturnedAt(c.Request.Context(), params)
