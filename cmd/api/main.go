@@ -75,6 +75,7 @@ func main() {
 		userGroup.PATCH("/user/:id", handlers.UpdateUserByIDHandler)
 		// only admin can update user info
 		userGroup.GET("/", middleware.AdminOnly(), handlers.GetUsersHandler)
+		userGroup.GET("user/email", middleware.AdminOnly(), handlers.GetUserByEmailHandler)
 		userGroup.PATCH("/user/ban/:id", middleware.AdminOnly(), handlers.BanUserByIDHandler)
 	}
 	bannedUserGroup := r.Group("/banned-users")

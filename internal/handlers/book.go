@@ -407,7 +407,7 @@ func SearchBooksPaginatedHandler(c *gin.Context) {
 	}
 
 	// Call your generated SQLC function
-	sqlRows, err := db.Q.SearchBooksWithPagination(context.Background(), params)
+	sqlRows, err := db.Q.SearchBooksWithPagination(c.Request.Context(), params)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch books"})
 		return
