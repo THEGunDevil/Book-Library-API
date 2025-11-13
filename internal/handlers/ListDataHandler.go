@@ -13,14 +13,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 )
-
-const (
-	borrowedStatus   = "borrowed_at"
-	returnedStatus   = "returned_at"
-	noReturnedStatus = "not_returned_at"
-)
-
-// Should look like this:
 type ListReservationPaginatedParams struct {
 	Limit  int32  `json:"limit"`
 	Offset int32  `json:"offset"`
@@ -110,7 +102,7 @@ func ListDataByStatusHandler(c *gin.Context) {
 		// =====================
 		// Case: Borrowed Books
 		// =====================
-		case borrowedStatus:
+		case "borrowed_at":
 			// Example: use current date to filter borrowed books
 			params := gen.ListBorrowPaginatedByBorrowedAtParams{
 				Limit:  int32(limit),
@@ -142,7 +134,7 @@ func ListDataByStatusHandler(c *gin.Context) {
 				"limit":        limit,
 				"count":        len(borrowResp),
 			})
-		case returnedStatus:
+		case "returned_at":
 			params := gen.ListBorrowPaginatedByReturnedAtParams{
 				Limit:  int32(limit),
 				Offset: int32(offset),
@@ -173,7 +165,7 @@ func ListDataByStatusHandler(c *gin.Context) {
 				"limit":        limit,
 				"count":        len(borrowResp),
 			})
-		case noReturnedStatus:
+		case "not_returned":
 			params := gen.ListBorrowPaginatedByNotReturnedAtParams{
 				Limit:  int32(limit),
 				Offset: int32(offset),
