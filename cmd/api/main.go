@@ -88,7 +88,7 @@ func main() {
 		// Public
 		bookGroup.GET("/", handlers.GetBooksHandler)
 		bookGroup.GET("/:id", handlers.GetBookByIDHandler)
-		bookGroup.GET("/search", handlers.SearchBooksHandler)
+		bookGroup.GET("/search", handlers.SearchBooksPaginatedHandler)
 		bookGroup.GET("/genres", handlers.ListGenresHandler)
 		bookGroup.GET("/genre/:genre", handlers.ListBooksByGenreHandler)
 		// Admin-only

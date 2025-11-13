@@ -73,6 +73,28 @@ WHERE
     ($1::text IS NULL OR genre ILIKE '%' || $1 || '%')
     AND ($2::text IS NULL OR title ILIKE '%' || $2 || '%' OR author ILIKE '%' || $2 || '%')
 ORDER BY title;
+-- name: SearchBooksWithPagination :many
+SELECT
+    id,
+    title,
+    author,
+    genre,
+    published_year,
+    isbn,
+    available_copies,
+    total_copies,
+    description,
+    image_url,
+    created_at,
+    updated_at
+FROM books
+WHERE
+    ($1::text IS NULL OR genre ILIKE '%' || $1 || '%')
+    AND ($2::text IS NULL OR title ILIKE '%' || $2 || '%' OR author ILIKE '%' || $2 || '%')
+ORDER BY title
+LIMIT $3
+OFFSET $4;
+
 
 -- name: ListGenres :many
 SELECT DISTINCT genre

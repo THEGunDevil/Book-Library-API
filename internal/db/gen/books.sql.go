@@ -333,6 +333,89 @@ func (q *Queries) SearchBooks(ctx context.Context, arg SearchBooksParams) ([]Sea
 	return items, nil
 }
 
+const searchBooksWithPagination = `-- name: SearchBooksWithPagination :many
+SELECT
+    id,
+    title,
+    author,
+    genre,
+    published_year,
+    isbn,
+    available_copies,
+    total_copies,
+    description,
+    image_url,
+    created_at,
+    updated_at
+FROM books
+WHERE
+    ($1::text IS NULL OR genre ILIKE '%' || $1 || '%')
+    AND ($2::text IS NULL OR title ILIKE '%' || $2 || '%' OR author ILIKE '%' || $2 || '%')
+ORDER BY title
+LIMIT $3
+OFFSET $4
+`
+
+type SearchBooksWithPaginationParams struct {
+	Column1 string `json:"column_1"`
+	Column2 string `json:"column_2"`
+	Limit   int32  `json:"limit"`
+	Offset  int32  `json:"offset"`
+}
+
+type SearchBooksWithPaginationRow struct {
+	ID              pgtype.UUID      `json:"id"`
+	Title           string           `json:"title"`
+	Author          string           `json:"author"`
+	Genre           string           `json:"genre"`
+	PublishedYear   pgtype.Int4      `json:"published_year"`
+	Isbn            pgtype.Text      `json:"isbn"`
+	AvailableCopies pgtype.Int4      `json:"available_copies"`
+	TotalCopies     int32            `json:"total_copies"`
+	Description     string           `json:"description"`
+	ImageUrl        string           `json:"image_url"`
+	CreatedAt       pgtype.Timestamp `json:"created_at"`
+	UpdatedAt       pgtype.Timestamp `json:"updated_at"`
+}
+
+func (q *Queries) SearchBooksWithPagination(ctx context.Context, arg SearchBooksWithPaginationParams) ([]SearchBooksWithPaginationRow, error) {
+	rows, err := q.db.Query(ctx, searchBooksWithPagination,
+		arg.Column1,
+		arg.Column2,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchBooksWithPaginationRow
+	for rows.Next() {
+		var i SearchBooksWithPaginationRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Author,
+			&i.Genre,
+			&i.PublishedYear,
+			&i.Isbn,
+			&i.AvailableCopies,
+			&i.TotalCopies,
+			&i.Description,
+			&i.ImageUrl,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateBookByID = `-- name: UpdateBookByID :one
 UPDATE books
 SET

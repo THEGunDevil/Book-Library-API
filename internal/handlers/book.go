@@ -375,27 +375,48 @@ func UpdateBookByIDHandler(c *gin.Context) {
 
 // SearchBooksHandler searches books by title/author/genre
 
-func SearchBooksHandler(c *gin.Context) {
+func SearchBooksPaginatedHandler(c *gin.Context) {
+	// Default pagination
+	page := 1
+	limit := 10
+
+	// Read query params
+	if p := c.Query("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = parsed
+		}
+	}
+	if l := c.Query("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	offset := (page - 1) * limit
+
+	// Filters
 	query := strings.TrimSpace(c.Query("query"))
 	genre := strings.TrimSpace(c.Query("genre"))
 
-	// Use empty string if not provided
-	searchParam := query
-	genreParam := genre
+	// Prepare params for SQLC query
+	params := gen.SearchBooksWithPaginationParams{
+		Column1: fmt.Sprintf("%%%s%%", query), // for LIKE '%query%'
+		Column2: fmt.Sprintf("%%%s%%", genre),
+		Limit:   int32(limit),
+		Offset:  int32(offset),
+	}
 
-	// Call SQLC-generated query
-	books, err := db.Q.SearchBooks(c.Request.Context(), gen.SearchBooksParams{
-		Column1: genreParam,
-		Column2: searchParam,
-	})
+	// Call your generated SQLC function
+	sqlRows, err := db.Q.SearchBooksWithPagination(context.Background(), params)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch books"})
 		return
 	}
 
-	// Map to response model
+	// Map SQLC rows to response type
 	var response []models.BookResponse
-	for _, book := range books {
+
+	for _, book := range sqlRows {
 		response = append(response, models.BookResponse{
 			ID:              book.ID.Bytes,
 			Title:           book.Title,
@@ -412,7 +433,13 @@ func SearchBooksHandler(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, response)
+	// Send response
+	c.JSON(http.StatusOK, gin.H{
+		"page":  page,
+		"limit": limit,
+		"count": len(response),
+		"data":  response,
+	})
 }
 
 func ListGenresHandler(c *gin.Context) {
