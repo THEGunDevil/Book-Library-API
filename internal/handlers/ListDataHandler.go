@@ -15,9 +15,9 @@ import (
 )
 
 const (
-	borrowedStatus   = "Borrowed At"
-	returnedStatus   = "Returned At"
-	noReturnedStatus = "Not Returned"
+	borrowedStatus   = "borrowed_at"
+	returnedStatus   = "returned_at"
+	noReturnedStatus = "not_returned_at"
 )
 
 // Should look like this:
