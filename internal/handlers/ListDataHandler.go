@@ -198,14 +198,17 @@ func ListDataByStatusHandler(c *gin.Context) {
 			"count":   len(borrowResp),
 		})
 	case "user_name", "book_title":
-		query := strings.TrimSpace(c.Query("query"))
-		if query == "" {
-			query = "all" // treat empty query as "all"
+		searchTerm := strings.TrimSpace(c.Query("query"))
+		column := strings.TrimSpace(c.Query("column")) // Column1
+
+		if searchTerm == "" || (column != "user_name" && column != "book_title") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid search or option"})
+			return
 		}
 
 		params := gen.SearchBorrowsWithPaginationParams{
 			Column1: status, // this should match "user_name" or "book_title"
-			Column2: query,
+			Column2: pgtype.Text{String: searchTerm, Valid: true},
 			Limit:   int32(limit),
 			Offset:  int32(offset),
 		}

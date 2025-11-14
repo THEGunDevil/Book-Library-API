@@ -121,14 +121,11 @@ FROM borrows b
 JOIN books bk ON b.book_id = bk.id
 JOIN users u ON b.user_id = u.id
 WHERE 
-    ($1 = '' OR $1 = 'all' OR
-      ($2 = 'user_name' AND LOWER(u.first_name || ' ' || u.last_name) LIKE LOWER('%' || $1 || '%')) OR
-      ($2 = 'book_title' AND LOWER(bk.title) LIKE LOWER('%' || $1 || '%'))
-    )
-    AND ($3 IS NULL OR b.status = $3) -- filter by status if given
+    ($1 = 'user_name' AND LOWER(u.first_name || ' ' || u.last_name) LIKE LOWER('%' || $2 || '%'))
+    OR ($1 = 'book_title' AND LOWER(bk.title) LIKE LOWER('%' || $2 || '%'))
 ORDER BY b.borrowed_at DESC
-LIMIT $4
-OFFSET $5;
+LIMIT $3
+OFFSET $4;
 
 
 -- name: CountSearchBorrows :one
