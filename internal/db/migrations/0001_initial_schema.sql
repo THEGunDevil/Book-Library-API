@@ -86,6 +86,7 @@ CREATE TABLE reservations (
     notified_at TIMESTAMPTZ,
     fulfilled_at TIMESTAMPTZ,
     cancelled_at TIMESTAMPTZ,
+    picked_up BOOLEAN NOT NULL DEFAULT FALSE,
     CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
     CONSTRAINT fk_book FOREIGN KEY (book_id) REFERENCES books (id) ON DELETE CASCADE
 );

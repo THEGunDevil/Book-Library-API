@@ -40,9 +40,20 @@ type CreateReservationParams struct {
 	BookID pgtype.UUID `json:"book_id"`
 }
 
-func (q *Queries) CreateReservation(ctx context.Context, arg CreateReservationParams) (Reservation, error) {
+type CreateReservationRow struct {
+	ID          pgtype.UUID        `json:"id"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	BookID      pgtype.UUID        `json:"book_id"`
+	Status      string             `json:"status"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	NotifiedAt  pgtype.Timestamptz `json:"notified_at"`
+	FulfilledAt pgtype.Timestamptz `json:"fulfilled_at"`
+	CancelledAt pgtype.Timestamptz `json:"cancelled_at"`
+}
+
+func (q *Queries) CreateReservation(ctx context.Context, arg CreateReservationParams) (CreateReservationRow, error) {
 	row := q.db.QueryRow(ctx, createReservation, arg.UserID, arg.BookID)
-	var i Reservation
+	var i CreateReservationRow
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
@@ -274,7 +285,8 @@ SELECT
     r.created_at,
     r.notified_at,
     r.fulfilled_at,
-    r.cancelled_at,    
+    r.cancelled_at,
+    r.picked_up,    
     CONCAT(u.first_name, ' ', u.last_name) as user_name,
     u.email,
     b.title,
@@ -300,6 +312,7 @@ type GetReservationsByBookIDAndUserIDRow struct {
 	NotifiedAt  pgtype.Timestamptz `json:"notified_at"`
 	FulfilledAt pgtype.Timestamptz `json:"fulfilled_at"`
 	CancelledAt pgtype.Timestamptz `json:"cancelled_at"`
+	PickedUp    bool               `json:"picked_up"`
 	UserName    interface{}        `json:"user_name"`
 	Email       string             `json:"email"`
 	Title       string             `json:"title"`
@@ -319,6 +332,7 @@ func (q *Queries) GetReservationsByBookIDAndUserID(ctx context.Context, arg GetR
 		&i.NotifiedAt,
 		&i.FulfilledAt,
 		&i.CancelledAt,
+		&i.PickedUp,
 		&i.UserName,
 		&i.Email,
 		&i.Title,
@@ -549,9 +563,10 @@ UPDATE reservations
 SET status = $2,
     notified_at = CASE WHEN $2 = 'notified' AND notified_at IS NULL THEN now() ELSE notified_at END,
     fulfilled_at = CASE WHEN $2 = 'fulfilled' AND fulfilled_at IS NULL THEN now() ELSE fulfilled_at END,
-    cancelled_at = CASE WHEN $2 = 'cancelled' AND cancelled_at IS NULL THEN now() ELSE cancelled_at END
+    cancelled_at = CASE WHEN $2 = 'cancelled' AND cancelled_at IS NULL THEN now() ELSE cancelled_at END,
+    picked_up = CASE WHEN $2 = 'picked_up' THEN TRUE ELSE picked_up END
 WHERE id = $1
-RETURNING id, user_id, book_id, status, created_at, notified_at, fulfilled_at, cancelled_at
+RETURNING id, user_id, book_id, status, created_at, notified_at, fulfilled_at, cancelled_at, picked_up
 `
 
 type UpdateReservationStatusParams struct {
@@ -571,6 +586,7 @@ func (q *Queries) UpdateReservationStatus(ctx context.Context, arg UpdateReserva
 		&i.NotifiedAt,
 		&i.FulfilledAt,
 		&i.CancelledAt,
+		&i.PickedUp,
 	)
 	return i, err
 }

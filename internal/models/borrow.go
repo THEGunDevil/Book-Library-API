@@ -22,4 +22,5 @@ type BorrowResponse struct {
 	BorrowedAt time.Time  `json:"borrowed_at"`
 	DueDate    time.Time  `json:"due_date"`
 	ReturnedAt *time.Time `json:"returned_at"`
+	
 }

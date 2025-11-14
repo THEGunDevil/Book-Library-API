@@ -55,6 +55,7 @@ type Reservation struct {
 	NotifiedAt  pgtype.Timestamptz `json:"notified_at"`
 	FulfilledAt pgtype.Timestamptz `json:"fulfilled_at"`
 	CancelledAt pgtype.Timestamptz `json:"cancelled_at"`
+	PickedUp    bool               `json:"picked_up"`
 }
 
 type Review struct {
