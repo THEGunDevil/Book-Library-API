@@ -79,7 +79,7 @@ SELECT
 CONCAT(u.first_name, ' ', u.last_name)::TEXT AS user_name
 FROM borrows b
 JOIN books bk ON b.book_id = bk.id
-JOIN users u ON b.user_id = u.id  -- ← Changed from bk.user_id to b.user_id
+JOIN users u ON b.user_id = u.id
 WHERE b.returned_at IS NULL
 ORDER BY b.borrowed_at DESC
 LIMIT $1 OFFSET $2;
@@ -107,4 +107,40 @@ FROM borrows
 WHERE user_id = $1
 AND returned_at IS NULL;
 
+-- name: SearchBorrowsWithPagination :many
+SELECT 
+    b.id, 
+    b.user_id, 
+    b.book_id, 
+    b.borrowed_at, 
+    b.due_date, 
+    b.returned_at, 
+    bk.title AS book_title,
+    CAST((u.first_name || ' ' || u.last_name) AS user_name)
+FROM borrows b
+JOIN books bk ON b.book_id = bk.id
+JOIN users u ON b.user_id = u.id
+WHERE 
+    CASE 
+        WHEN $1 = '' OR $1 = 'all' THEN TRUE
+        ELSE 
+            LOWER(user_name) LIKE LOWER('%' || $1 || '%')
+            OR LOWER(book_title) LIKE LOWER('%' || $1 || '%')
+    END
+ORDER BY b.borrowed_at DESC
+LIMIT $2
+OFFSET $3;
 
+-- name: CountSearchBorrows :one
+-- name: CountSearchBorrows :one
+SELECT COUNT(*)
+FROM borrows b
+JOIN books bk ON b.book_id = bk.id
+JOIN users u ON b.user_id = u.id
+WHERE 
+    CASE 
+        WHEN $1 = '' OR $1 = 'all' THEN TRUE
+        ELSE 
+            LOWER(u.first_name || ' ' || u.last_name) LIKE LOWER('%' || $1 || '%')
+            OR LOWER(bk.title) LIKE LOWER('%' || $1 || '%')
+    END;

@@ -82,6 +82,27 @@ func (q *Queries) CountReturnedAt(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countSearchBorrows = `-- name: CountSearchBorrows :one
+SELECT COUNT(*)
+FROM borrows b
+JOIN books bk ON b.book_id = bk.id
+JOIN users u ON b.user_id = u.id
+WHERE 
+    CASE 
+        WHEN $1 = '' OR $1 = 'all' THEN TRUE
+        ELSE 
+            LOWER(u.first_name || ' ' || u.last_name) LIKE LOWER('%' || $1 || '%')
+            OR LOWER(bk.title) LIKE LOWER('%' || $1 || '%')
+    END
+`
+
+func (q *Queries) CountSearchBorrows(ctx context.Context, dollar_1 interface{}) (int64, error) {
+	row := q.db.QueryRow(ctx, countSearchBorrows, dollar_1)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createBorrow = `-- name: CreateBorrow :one
 INSERT INTO borrows (user_id,book_id,due_date,returned_at) VALUES ($1,$2,$3,$4)
 RETURNING id, user_id, book_id, borrowed_at, due_date, returned_at
@@ -383,7 +404,7 @@ SELECT
 CONCAT(u.first_name, ' ', u.last_name)::TEXT AS user_name
 FROM borrows b
 JOIN books bk ON b.book_id = bk.id
-JOIN users u ON b.user_id = u.id  -- ← Changed from bk.user_id to b.user_id
+JOIN users u ON b.user_id = u.id
 WHERE b.returned_at IS NULL
 ORDER BY b.borrowed_at DESC
 LIMIT $1 OFFSET $2
@@ -486,6 +507,77 @@ func (q *Queries) ListBorrowPaginatedByReturnedAt(ctx context.Context, arg ListB
 			&i.ReturnedAt,
 			&i.BookTitle,
 			&i.UserName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchBorrowsWithPagination = `-- name: SearchBorrowsWithPagination :many
+SELECT 
+    b.id, 
+    b.user_id, 
+    b.book_id, 
+    b.borrowed_at, 
+    b.due_date, 
+    b.returned_at, 
+    bk.title AS book_title,
+    CAST((u.first_name || ' ' || u.last_name) AS user_name)
+FROM borrows b
+JOIN books bk ON b.book_id = bk.id
+JOIN users u ON b.user_id = u.id
+WHERE 
+    CASE 
+        WHEN $1 = '' OR $1 = 'all' THEN TRUE
+        ELSE 
+            LOWER(user_name) LIKE LOWER('%' || $1 || '%')
+            OR LOWER(book_title) LIKE LOWER('%' || $1 || '%')
+    END
+ORDER BY b.borrowed_at DESC
+LIMIT $2
+OFFSET $3
+`
+
+type SearchBorrowsWithPaginationParams struct {
+	Column1 interface{} `json:"column_1"`
+	Limit   int32       `json:"limit"`
+	Offset  int32       `json:"offset"`
+}
+
+type SearchBorrowsWithPaginationRow struct {
+	ID         pgtype.UUID      `json:"id"`
+	UserID     pgtype.UUID      `json:"user_id"`
+	BookID     pgtype.UUID      `json:"book_id"`
+	BorrowedAt pgtype.Timestamp `json:"borrowed_at"`
+	DueDate    pgtype.Timestamp `json:"due_date"`
+	ReturnedAt pgtype.Timestamp `json:"returned_at"`
+	BookTitle  string           `json:"book_title"`
+	Column8    interface{}      `json:"column_8"`
+}
+
+func (q *Queries) SearchBorrowsWithPagination(ctx context.Context, arg SearchBorrowsWithPaginationParams) ([]SearchBorrowsWithPaginationRow, error) {
+	rows, err := q.db.Query(ctx, searchBorrowsWithPagination, arg.Column1, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchBorrowsWithPaginationRow
+	for rows.Next() {
+		var i SearchBorrowsWithPaginationRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.BookID,
+			&i.BorrowedAt,
+			&i.DueDate,
+			&i.ReturnedAt,
+			&i.BookTitle,
+			&i.Column8,
 		); err != nil {
 			return nil, err
 		}
