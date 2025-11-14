@@ -198,17 +198,23 @@ func ListDataByStatusHandler(c *gin.Context) {
 			"count":   len(borrowResp),
 		})
 	case "user_name", "book_title":
-		searchTerm := strings.TrimSpace(c.Query("query"))
-		column := strings.TrimSpace(c.Query("column")) // Column1
+		query := strings.TrimSpace(c.Query("query"))   // get search term
+		option := strings.TrimSpace(c.Query("option")) // search option: "user_name" or "book_title"
 
-		if searchTerm == "" || (column != "user_name" && column != "book_title") {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid search or option"})
+		if query == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Query cannot be empty"})
+			return
+		}
+
+		// Make sure Column1 is valid
+		if option != "user_name" && option != "book_title" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid search option"})
 			return
 		}
 
 		params := gen.SearchBorrowsWithPaginationParams{
-			Column1: status, // this should match "user_name" or "book_title"
-			Column2: pgtype.Text{String: searchTerm, Valid: true},
+			Column1: option,                                  // must be "user_name" or "book_title"
+			Column2: pgtype.Text{String: query, Valid: true}, // wrap search term properly
 			Limit:   int32(limit),
 			Offset:  int32(offset),
 		}
@@ -216,17 +222,12 @@ func ListDataByStatusHandler(c *gin.Context) {
 		borrows, err := db.Q.SearchBorrowsWithPagination(c.Request.Context(), params)
 		if err != nil {
 			log.Print("failed to fetch borrowed data", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch borrowed data"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch borrowed data"})
 			return
 		}
 
 		var borrowResp []models.BorrowResponse
 		for _, b := range borrows {
-			var returnedAt *time.Time
-			if b.ReturnedAt.Valid {
-				returnedAt = &b.ReturnedAt.Time
-			}
-
 			borrowResp = append(borrowResp, models.BorrowResponse{
 				ID:         b.ID.Bytes,
 				UserID:     b.UserID.Bytes,
@@ -234,7 +235,7 @@ func ListDataByStatusHandler(c *gin.Context) {
 				BookID:     b.BookID.Bytes,
 				BorrowedAt: b.BorrowedAt.Time,
 				DueDate:    b.DueDate.Time,
-				ReturnedAt: returnedAt,
+				ReturnedAt: &b.ReturnedAt.Time,
 				BookTitle:  b.BookTitle,
 			})
 		}
