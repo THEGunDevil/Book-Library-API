@@ -72,7 +72,9 @@ FROM books
 WHERE
     ($1::text IS NULL OR genre ILIKE '%' || $1 || '%')
     AND ($2::text IS NULL OR title ILIKE '%' || $2 || '%' OR author ILIKE '%' || $2 || '%')
-ORDER BY title;
+ORDER BY title
+LIMIT $3
+OFFSET $4;
 -- name: SearchBooksWithPagination :many
 SELECT
     id,
@@ -89,13 +91,31 @@ SELECT
     updated_at
 FROM books
 WHERE
-    ($1::text IS NULL OR genre ILIKE '%' || $1 || '%')
-    AND ($2::text IS NULL OR title ILIKE '%' || $2 || '%' OR author ILIKE '%' || $2 || '%')
+    (CASE 
+        WHEN $1 = '' OR $1 = 'all' THEN TRUE
+        ELSE genre ILIKE '%' || $1 || '%'
+    END)
+    AND (
+        title ILIKE '%' || $2 || '%' 
+        OR author ILIKE '%' || $2 || '%'
+        OR description ILIKE '%' || $2 || '%'
+    )
 ORDER BY title
 LIMIT $3
 OFFSET $4;
-
-
+-- name: CountSearchBooks :one
+SELECT COUNT(*)
+FROM books
+WHERE
+    (CASE 
+        WHEN $1 = '' OR $1 = 'all' THEN TRUE
+        ELSE genre ILIKE '%' || $1 || '%'
+    END)
+    AND (
+        title ILIKE '%' || $2 || '%' 
+        OR author ILIKE '%' || $2 || '%'
+        OR description ILIKE '%' || $2 || '%'
+    );
 -- name: ListGenres :many
 SELECT DISTINCT genre
 FROM books

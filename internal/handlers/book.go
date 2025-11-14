@@ -375,76 +375,93 @@ func UpdateBookByIDHandler(c *gin.Context) {
 
 // SearchBooksHandler searches books by title/author/genre
 func SearchBooksPaginatedHandler(c *gin.Context) {
-    page := 1
-    limit := 10
+	// Pagination
+	page := 1
+	limit := 10
 
-    if p := c.Query("page"); p != "" {
-        if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
-            page = parsed
-        }
-    }
-    if l := c.Query("limit"); l != "" {
-        if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
-            limit = parsed
-        }
-    }
+	if p := c.Query("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = parsed
+		}
+	}
 
-    offset := (page - 1) * limit
+	if l := c.Query("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
 
-    // Read filters
-    rawGenre := strings.TrimSpace(c.Query("genre"))
-    rawQuery := strings.TrimSpace(c.Query("query"))
+	offset := (page - 1) * limit
 
-    // Convert empty → wildcard match
-    genreParam := "%%"
-    queryParam := "%%"
+	// Get query params (always present, but can be empty)
+	query := strings.TrimSpace(c.Query("query"))
+	genre := strings.TrimSpace(c.Query("genre"))
 
-    if rawGenre != "" {
-        genreParam = "%" + rawGenre + "%"
-    }
-    if rawQuery != "" {
-        queryParam = "%" + rawQuery + "%"
-    }
+	// Default to "all" if genre is empty
+	if genre == "" {
+		genre = "all"
+	}
 
-    params := gen.SearchBooksWithPaginationParams{
-        Column1: genreParam,
-        Column2: queryParam,
-        Limit:   int32(limit),
-        Offset:  int32(offset),
-    }
+	// Default to empty string if query is empty (will match all)
+	if query == "" {
+		query = ""
+	}
 
-    sqlRows, err := db.Q.SearchBooksWithPagination(c.Request.Context(), params)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch books"})
-        return
-    }
+	log.Printf("🔍 Search: query='%s', genre='%s', page=%d", query, genre, page)
 
-    var response []models.BookResponse
+	// SQLC params - pass strings directly
+	params := gen.SearchBooksWithPaginationParams{
+		Column1: genre, // genre (can be "all")
+		Column2: pgtype.Text{String: query,Valid: true}, // search query (can be empty)
+		Limit:   int32(limit),
+		Offset:  int32(offset),
+	}
 
-    for _, book := range sqlRows {
-        response = append(response, models.BookResponse{
-            ID:              book.ID.Bytes,
-            Title:           book.Title,
-            Author:          book.Author,
-            Genre:           book.Genre,
-            PublishedYear:   book.PublishedYear.Int32,
-            Isbn:            book.Isbn.String,
-            AvailableCopies: book.AvailableCopies.Int32,
-            TotalCopies:     book.TotalCopies,
-            Description:     book.Description,
-            ImageURL:        book.ImageUrl,
-            CreatedAt:       book.CreatedAt.Time,
-            UpdatedAt:       book.UpdatedAt.Time,
-        })
-    }
+	// Execute query
+	rows, err := db.Q.SearchBooksWithPagination(c.Request.Context(), params)
+	if err != nil {
+		log.Printf("❌ Search error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch books"})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{
-        "page":  page,
-        "limit": limit,
-        "count": len(response),
-        "data":  response,
-    })
+	// Count total for pagination (optional but useful)
+	totalCount, _ := db.Q.CountSearchBooks(c.Request.Context(), gen.CountSearchBooksParams{
+		Column1: genre,
+		Column2: pgtype.Text{String: query,Valid: true}, // search query (can be empty)
+	})
+
+	// Map response
+	var result []models.BookResponse
+	for _, book := range rows {
+		result = append(result, models.BookResponse{
+			ID:              book.ID.Bytes,
+			Title:           book.Title,
+			Author:          book.Author,
+			Genre:           book.Genre,
+			PublishedYear:   book.PublishedYear.Int32,
+			Isbn:            book.Isbn.String,
+			AvailableCopies: book.AvailableCopies.Int32,
+			TotalCopies:     book.TotalCopies,
+			Description:     book.Description,
+			ImageURL:        book.ImageUrl,
+			CreatedAt:       book.CreatedAt.Time,
+			UpdatedAt:       book.UpdatedAt.Time,
+		})
+	}
+
+	totalPages := int(math.Ceil(float64(totalCount) / float64(limit)))
+
+	c.JSON(http.StatusOK, gin.H{
+		"page":        page,
+		"limit":       limit,
+		"count":       len(result),
+		"total_count": totalCount,
+		"total_pages": totalPages,
+		"books":       result,
+	})
 }
+
 
 
 

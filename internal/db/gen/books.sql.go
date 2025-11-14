@@ -22,6 +22,33 @@ func (q *Queries) CountBooks(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countSearchBooks = `-- name: CountSearchBooks :one
+SELECT COUNT(*)
+FROM books
+WHERE
+    (CASE 
+        WHEN $1 = '' OR $1 = 'all' THEN TRUE
+        ELSE genre ILIKE '%' || $1 || '%'
+    END)
+    AND (
+        title ILIKE '%' || $2 || '%' 
+        OR author ILIKE '%' || $2 || '%'
+        OR description ILIKE '%' || $2 || '%'
+    )
+`
+
+type CountSearchBooksParams struct {
+	Column1 interface{} `json:"column_1"`
+	Column2 pgtype.Text `json:"column_2"`
+}
+
+func (q *Queries) CountSearchBooks(ctx context.Context, arg CountSearchBooksParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countSearchBooks, arg.Column1, arg.Column2)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createBook = `-- name: CreateBook :one
 INSERT INTO books (title, author, published_year, isbn, total_copies, available_copies, image_url, genre, description)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -278,11 +305,15 @@ WHERE
     ($1::text IS NULL OR genre ILIKE '%' || $1 || '%')
     AND ($2::text IS NULL OR title ILIKE '%' || $2 || '%' OR author ILIKE '%' || $2 || '%')
 ORDER BY title
+LIMIT $3
+OFFSET $4
 `
 
 type SearchBooksParams struct {
 	Column1 string `json:"column_1"`
 	Column2 string `json:"column_2"`
+	Limit   int32  `json:"limit"`
+	Offset  int32  `json:"offset"`
 }
 
 type SearchBooksRow struct {
@@ -301,7 +332,12 @@ type SearchBooksRow struct {
 }
 
 func (q *Queries) SearchBooks(ctx context.Context, arg SearchBooksParams) ([]SearchBooksRow, error) {
-	rows, err := q.db.Query(ctx, searchBooks, arg.Column1, arg.Column2)
+	rows, err := q.db.Query(ctx, searchBooks,
+		arg.Column1,
+		arg.Column2,
+		arg.Limit,
+		arg.Offset,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -349,18 +385,25 @@ SELECT
     updated_at
 FROM books
 WHERE
-    ($1::text IS NULL OR genre ILIKE '%' || $1 || '%')
-    AND ($2::text IS NULL OR title ILIKE '%' || $2 || '%' OR author ILIKE '%' || $2 || '%')
+    (CASE 
+        WHEN $1 = '' OR $1 = 'all' THEN TRUE
+        ELSE genre ILIKE '%' || $1 || '%'
+    END)
+    AND (
+        title ILIKE '%' || $2 || '%' 
+        OR author ILIKE '%' || $2 || '%'
+        OR description ILIKE '%' || $2 || '%'
+    )
 ORDER BY title
 LIMIT $3
 OFFSET $4
 `
 
 type SearchBooksWithPaginationParams struct {
-	Column1 string `json:"column_1"`
-	Column2 string `json:"column_2"`
-	Limit   int32  `json:"limit"`
-	Offset  int32  `json:"offset"`
+	Column1 interface{} `json:"column_1"`
+	Column2 pgtype.Text `json:"column_2"`
+	Limit   int32       `json:"limit"`
+	Offset  int32       `json:"offset"`
 }
 
 type SearchBooksWithPaginationRow struct {
