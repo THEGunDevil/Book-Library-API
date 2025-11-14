@@ -527,24 +527,23 @@ SELECT
     b.due_date, 
     b.returned_at, 
     bk.title AS book_title,
-    CAST((u.first_name || ' ' || u.last_name) AS user_name)
+    (u.first_name || ' ' || u.last_name) AS user_name
 FROM borrows b
 JOIN books bk ON b.book_id = bk.id
 JOIN users u ON b.user_id = u.id
 WHERE 
-    CASE 
-        WHEN $1 = '' OR $1 = 'all' THEN TRUE
-        ELSE 
-            LOWER(user_name) LIKE LOWER('%' || $1 || '%')
-            OR LOWER(book_title) LIKE LOWER('%' || $1 || '%')
-    END
+    ($1 = 'all' OR $1 = '' 
+      OR ($2 = 'user_name' AND LOWER(u.first_name || ' ' || u.last_name) LIKE LOWER('%' || $1 || '%'))
+      OR ($2 = 'book_title' AND LOWER(bk.title) LIKE LOWER('%' || $1 || '%'))
+    )
 ORDER BY b.borrowed_at DESC
-LIMIT $2
-OFFSET $3
+LIMIT $3
+OFFSET $4
 `
 
 type SearchBorrowsWithPaginationParams struct {
 	Column1 interface{} `json:"column_1"`
+	Column2 interface{} `json:"column_2"`
 	Limit   int32       `json:"limit"`
 	Offset  int32       `json:"offset"`
 }
@@ -557,11 +556,16 @@ type SearchBorrowsWithPaginationRow struct {
 	DueDate    pgtype.Timestamp `json:"due_date"`
 	ReturnedAt pgtype.Timestamp `json:"returned_at"`
 	BookTitle  string           `json:"book_title"`
-	Column8    interface{}      `json:"column_8"`
+	UserName   interface{}      `json:"user_name"`
 }
 
 func (q *Queries) SearchBorrowsWithPagination(ctx context.Context, arg SearchBorrowsWithPaginationParams) ([]SearchBorrowsWithPaginationRow, error) {
-	rows, err := q.db.Query(ctx, searchBorrowsWithPagination, arg.Column1, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, searchBorrowsWithPagination,
+		arg.Column1,
+		arg.Column2,
+		arg.Limit,
+		arg.Offset,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -577,7 +581,7 @@ func (q *Queries) SearchBorrowsWithPagination(ctx context.Context, arg SearchBor
 			&i.DueDate,
 			&i.ReturnedAt,
 			&i.BookTitle,
-			&i.Column8,
+			&i.UserName,
 		); err != nil {
 			return nil, err
 		}

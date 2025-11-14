@@ -116,22 +116,20 @@ SELECT
     b.due_date, 
     b.returned_at, 
     bk.title AS book_title,
-    CAST((u.first_name || ' ' || u.last_name) AS user_name)
+    (u.first_name || ' ' || u.last_name) AS user_name
 FROM borrows b
 JOIN books bk ON b.book_id = bk.id
 JOIN users u ON b.user_id = u.id
 WHERE 
-    CASE 
-        WHEN $1 = '' OR $1 = 'all' THEN TRUE
-        ELSE 
-            LOWER(user_name) LIKE LOWER('%' || $1 || '%')
-            OR LOWER(book_title) LIKE LOWER('%' || $1 || '%')
-    END
+    ($1 = 'all' OR $1 = '' 
+      OR ($2 = 'user_name' AND LOWER(u.first_name || ' ' || u.last_name) LIKE LOWER('%' || $1 || '%'))
+      OR ($2 = 'book_title' AND LOWER(bk.title) LIKE LOWER('%' || $1 || '%'))
+    )
 ORDER BY b.borrowed_at DESC
-LIMIT $2
-OFFSET $3;
+LIMIT $3
+OFFSET $4;
 
--- name: CountSearchBorrows :one
+
 -- name: CountSearchBorrows :one
 SELECT COUNT(*)
 FROM borrows b

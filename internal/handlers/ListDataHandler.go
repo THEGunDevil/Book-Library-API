@@ -198,8 +198,15 @@ func ListDataByStatusHandler(c *gin.Context) {
 			"count":   len(borrowResp),
 		})
 	case "user_name", "book_title":
+		query := strings.TrimSpace(c.Query("query")) // <-- get search term
+		if query == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Query cannot be empty"})
+			return
+		}
+
 		params := gen.SearchBorrowsWithPaginationParams{
-			Column1: []string{status},
+			Column1: status, // column to search
+			Column2: query,            // pass search term
 			Limit:   int32(limit),
 			Offset:  int32(offset),
 		}
@@ -210,12 +217,13 @@ func ListDataByStatusHandler(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "failed to fetch borrowed data"})
 			return
 		}
+
 		var borrowResp []models.BorrowResponse
 		for _, b := range borrows {
 			borrowResp = append(borrowResp, models.BorrowResponse{
 				ID:         b.ID.Bytes,
 				UserID:     b.UserID.Bytes,
-				UserName:   b.Column8.(string),
+				UserName:   b.UserName.(string),
 				BookID:     b.BookID.Bytes,
 				BorrowedAt: b.BorrowedAt.Time,
 				DueDate:    b.DueDate.Time,
