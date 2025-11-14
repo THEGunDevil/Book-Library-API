@@ -532,18 +532,20 @@ FROM borrows b
 JOIN books bk ON b.book_id = bk.id
 JOIN users u ON b.user_id = u.id
 WHERE 
-    ($1 = 'all' OR $1 = '' 
-      OR ($2 = 'user_name' AND LOWER(u.first_name || ' ' || u.last_name) LIKE LOWER('%' || $1 || '%'))
-      OR ($2 = 'book_title' AND LOWER(bk.title) LIKE LOWER('%' || $1 || '%'))
+    ($1 = '' OR $1 = 'all' OR
+      ($2 = 'user_name' AND LOWER(u.first_name || ' ' || u.last_name) LIKE LOWER('%' || $1 || '%')) OR
+      ($2 = 'book_title' AND LOWER(bk.title) LIKE LOWER('%' || $1 || '%'))
     )
+    AND ($3 IS NULL OR b.status = $3) -- filter by status if given
 ORDER BY b.borrowed_at DESC
-LIMIT $3
-OFFSET $4
+LIMIT $4
+OFFSET $5
 `
 
 type SearchBorrowsWithPaginationParams struct {
 	Column1 interface{} `json:"column_1"`
 	Column2 interface{} `json:"column_2"`
+	Column3 interface{} `json:"column_3"`
 	Limit   int32       `json:"limit"`
 	Offset  int32       `json:"offset"`
 }
@@ -563,6 +565,7 @@ func (q *Queries) SearchBorrowsWithPagination(ctx context.Context, arg SearchBor
 	rows, err := q.db.Query(ctx, searchBorrowsWithPagination,
 		arg.Column1,
 		arg.Column2,
+		arg.Column3,
 		arg.Limit,
 		arg.Offset,
 	)
