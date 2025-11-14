@@ -136,7 +136,11 @@ func (q *Queries) CreateBorrow(ctx context.Context, arg CreateBorrowParams) (Bor
 }
 
 const filterBorrowByUserAndBookID = `-- name: FilterBorrowByUserAndBookID :one
-SELECT id, user_id, book_id, borrowed_at, due_date, returned_at FROM borrows WHERE user_id = $1 AND book_id = $2 AND returned_at IS NULL
+SELECT borrows.id, user_id, book_id, borrowed_at, due_date, returned_at, b.id, title, author, description, genre, published_year, isbn, total_copies, available_copies, b.created_at, b.updated_at, image_url, u.id, first_name, last_name, bio, phone_number, email, password_hash, role, u.created_at, u.updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban,b.title AS book_title,  CONCAT(u.first_name, ' ', u.last_name) AS user_name
+FROM borrows
+JOIN books b ON b.id = brs.book_id
+JOIN users u ON b.user_id = u.id
+WHERE user_id = $1 AND book_id = $2 AND returned_at IS NULL
 `
 
 type FilterBorrowByUserAndBookIDParams struct {
@@ -144,9 +148,47 @@ type FilterBorrowByUserAndBookIDParams struct {
 	BookID pgtype.UUID `json:"book_id"`
 }
 
-func (q *Queries) FilterBorrowByUserAndBookID(ctx context.Context, arg FilterBorrowByUserAndBookIDParams) (Borrow, error) {
+type FilterBorrowByUserAndBookIDRow struct {
+	ID              pgtype.UUID      `json:"id"`
+	UserID          pgtype.UUID      `json:"user_id"`
+	BookID          pgtype.UUID      `json:"book_id"`
+	BorrowedAt      pgtype.Timestamp `json:"borrowed_at"`
+	DueDate         pgtype.Timestamp `json:"due_date"`
+	ReturnedAt      pgtype.Timestamp `json:"returned_at"`
+	ID_2            pgtype.UUID      `json:"id_2"`
+	Title           string           `json:"title"`
+	Author          string           `json:"author"`
+	Description     string           `json:"description"`
+	Genre           string           `json:"genre"`
+	PublishedYear   pgtype.Int4      `json:"published_year"`
+	Isbn            pgtype.Text      `json:"isbn"`
+	TotalCopies     int32            `json:"total_copies"`
+	AvailableCopies pgtype.Int4      `json:"available_copies"`
+	CreatedAt       pgtype.Timestamp `json:"created_at"`
+	UpdatedAt       pgtype.Timestamp `json:"updated_at"`
+	ImageUrl        string           `json:"image_url"`
+	ID_3            pgtype.UUID      `json:"id_3"`
+	FirstName       string           `json:"first_name"`
+	LastName        string           `json:"last_name"`
+	Bio             string           `json:"bio"`
+	PhoneNumber     string           `json:"phone_number"`
+	Email           string           `json:"email"`
+	PasswordHash    string           `json:"password_hash"`
+	Role            pgtype.Text      `json:"role"`
+	CreatedAt_2     pgtype.Timestamp `json:"created_at_2"`
+	UpdatedAt_2     pgtype.Timestamp `json:"updated_at_2"`
+	TokenVersion    int32            `json:"token_version"`
+	IsBanned        pgtype.Bool      `json:"is_banned"`
+	BanReason       pgtype.Text      `json:"ban_reason"`
+	BanUntil        pgtype.Timestamp `json:"ban_until"`
+	IsPermanentBan  pgtype.Bool      `json:"is_permanent_ban"`
+	BookTitle       string           `json:"book_title"`
+	UserName        interface{}      `json:"user_name"`
+}
+
+func (q *Queries) FilterBorrowByUserAndBookID(ctx context.Context, arg FilterBorrowByUserAndBookIDParams) (FilterBorrowByUserAndBookIDRow, error) {
 	row := q.db.QueryRow(ctx, filterBorrowByUserAndBookID, arg.UserID, arg.BookID)
-	var i Borrow
+	var i FilterBorrowByUserAndBookIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
@@ -154,6 +196,35 @@ func (q *Queries) FilterBorrowByUserAndBookID(ctx context.Context, arg FilterBor
 		&i.BorrowedAt,
 		&i.DueDate,
 		&i.ReturnedAt,
+		&i.ID_2,
+		&i.Title,
+		&i.Author,
+		&i.Description,
+		&i.Genre,
+		&i.PublishedYear,
+		&i.Isbn,
+		&i.TotalCopies,
+		&i.AvailableCopies,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ImageUrl,
+		&i.ID_3,
+		&i.FirstName,
+		&i.LastName,
+		&i.Bio,
+		&i.PhoneNumber,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Role,
+		&i.CreatedAt_2,
+		&i.UpdatedAt_2,
+		&i.TokenVersion,
+		&i.IsBanned,
+		&i.BanReason,
+		&i.BanUntil,
+		&i.IsPermanentBan,
+		&i.BookTitle,
+		&i.UserName,
 	)
 	return i, err
 }

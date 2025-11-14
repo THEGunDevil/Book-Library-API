@@ -258,6 +258,8 @@ func GetBorrowByBookAndUserIDHandler(c *gin.Context) {
 	response = append(response, models.BorrowResponse{
 		ID:         b.ID.Bytes,
 		UserID:     b.UserID.Bytes,
+		UserName:   b.UserName.(string),
+		BookTitle:  b.Title,
 		BookID:     b.BookID.Bytes,
 		BorrowedAt: b.BorrowedAt.Time,
 		DueDate:    b.DueDate.Time,
