@@ -374,73 +374,79 @@ func UpdateBookByIDHandler(c *gin.Context) {
 }
 
 // SearchBooksHandler searches books by title/author/genre
-
 func SearchBooksPaginatedHandler(c *gin.Context) {
-	// Default pagination
-	page := 1
-	limit := 10
+    page := 1
+    limit := 10
 
-	// Read query params
-	if p := c.Query("page"); p != "" {
-		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
-			page = parsed
-		}
-	}
-	if l := c.Query("limit"); l != "" {
-		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
-			limit = parsed
-		}
-	}
+    if p := c.Query("page"); p != "" {
+        if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+            page = parsed
+        }
+    }
+    if l := c.Query("limit"); l != "" {
+        if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+            limit = parsed
+        }
+    }
 
-	offset := (page - 1) * limit
+    offset := (page - 1) * limit
 
-	// Filters
-	query := strings.TrimSpace(c.Query("query"))
-	genre := strings.TrimSpace(c.Query("genre"))
+    // Read filters
+    rawGenre := strings.TrimSpace(c.Query("genre"))
+    rawQuery := strings.TrimSpace(c.Query("query"))
 
-	// Prepare params for SQLC query
-	params := gen.SearchBooksWithPaginationParams{
-		Column1: fmt.Sprintf("%%%s%%", query), // for LIKE '%query%'
-		Column2: fmt.Sprintf("%%%s%%", genre),
-		Limit:   int32(limit),
-		Offset:  int32(offset),
-	}
+    // Convert empty → wildcard match
+    genreParam := "%%"
+    queryParam := "%%"
 
-	// Call your generated SQLC function
-	sqlRows, err := db.Q.SearchBooksWithPagination(c.Request.Context(), params)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch books"})
-		return
-	}
+    if rawGenre != "" {
+        genreParam = "%" + rawGenre + "%"
+    }
+    if rawQuery != "" {
+        queryParam = "%" + rawQuery + "%"
+    }
 
-	// Map SQLC rows to response type
-	var response []models.BookResponse
+    params := gen.SearchBooksWithPaginationParams{
+        Column1: genreParam,
+        Column2: queryParam,
+        Limit:   int32(limit),
+        Offset:  int32(offset),
+    }
 
-	for _, book := range sqlRows {
-		response = append(response, models.BookResponse{
-			ID:              book.ID.Bytes,
-			Title:           book.Title,
-			Author:          book.Author,
-			PublishedYear:   book.PublishedYear.Int32,
-			Isbn:            book.Isbn.String,
-			AvailableCopies: book.AvailableCopies.Int32,
-			TotalCopies:     book.TotalCopies,
-			Genre:           book.Genre,
-			Description:     book.Description,
-			CreatedAt:       book.CreatedAt.Time,
-			UpdatedAt:       book.UpdatedAt.Time,
-			ImageURL:        book.ImageUrl,
-		})
-	}
+    sqlRows, err := db.Q.SearchBooksWithPagination(c.Request.Context(), params)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch books"})
+        return
+    }
 
-	// Send response
-	c.JSON(http.StatusOK, gin.H{
-		"page":  page,
-		"limit": limit,
-		"count": len(response),
-		"data":  response,
-	})
+    var response []models.BookResponse
+
+    for _, book := range sqlRows {
+        response = append(response, models.BookResponse{
+            ID:              book.ID.Bytes,
+            Title:           book.Title,
+            Author:          book.Author,
+            Genre:           book.Genre,
+            PublishedYear:   book.PublishedYear.Int32,
+            Isbn:            book.Isbn.String,
+            AvailableCopies: book.AvailableCopies.Int32,
+            TotalCopies:     book.TotalCopies,
+            Description:     book.Description,
+            ImageURL:        book.ImageUrl,
+            CreatedAt:       book.CreatedAt.Time,
+            UpdatedAt:       book.UpdatedAt.Time,
+        })
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "page":  page,
+        "limit": limit,
+        "count": len(response),
+        "data":  response,
+    })
 }
+
+
 
 func ListGenresHandler(c *gin.Context) {
 	genres, err := db.Q.ListGenres(c.Request.Context())
