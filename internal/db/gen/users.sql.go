@@ -22,6 +22,23 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countUsersByEmail = `-- name: CountUsersByEmail :one
+SELECT COUNT(*)
+FROM users
+WHERE
+    (CASE 
+        WHEN $1 = '' THEN TRUE
+        ELSE email ILIKE '%' || $1 || '%'
+    END)
+`
+
+func (q *Queries) CountUsersByEmail(ctx context.Context, dollar_1 interface{}) (int64, error) {
+	row := q.db.QueryRow(ctx, countUsersByEmail, dollar_1)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (first_name, last_name, email, password_hash, phone_number, token_version)
 VALUES ($1, $2, $3, $4, $5, $6)
@@ -210,6 +227,70 @@ func (q *Queries) ListUsersPaginated(ctx context.Context, arg ListUsersPaginated
 			&i.BanReason,
 			&i.BanUntil,
 			&i.IsPermanentBan,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchUsersByEmailWithPagination = `-- name: SearchUsersByEmailWithPagination :many
+SELECT
+    id,
+    first_name,
+    last_name,
+    email,
+    role,
+    created_at,
+    updated_at
+FROM users
+WHERE
+    (CASE 
+        WHEN $1 = '' THEN TRUE
+        ELSE email ILIKE '%' || $1 || '%'
+    END)
+ORDER BY email
+LIMIT $2
+OFFSET $3
+`
+
+type SearchUsersByEmailWithPaginationParams struct {
+	Column1 interface{} `json:"column_1"`
+	Limit   int32       `json:"limit"`
+	Offset  int32       `json:"offset"`
+}
+
+type SearchUsersByEmailWithPaginationRow struct {
+	ID        pgtype.UUID      `json:"id"`
+	FirstName string           `json:"first_name"`
+	LastName  string           `json:"last_name"`
+	Email     string           `json:"email"`
+	Role      pgtype.Text      `json:"role"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+	UpdatedAt pgtype.Timestamp `json:"updated_at"`
+}
+
+func (q *Queries) SearchUsersByEmailWithPagination(ctx context.Context, arg SearchUsersByEmailWithPaginationParams) ([]SearchUsersByEmailWithPaginationRow, error) {
+	rows, err := q.db.Query(ctx, searchUsersByEmailWithPagination, arg.Column1, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchUsersByEmailWithPaginationRow
+	for rows.Next() {
+		var i SearchUsersByEmailWithPaginationRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.FirstName,
+			&i.LastName,
+			&i.Email,
+			&i.Role,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}

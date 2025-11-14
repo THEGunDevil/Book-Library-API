@@ -45,3 +45,29 @@ LIMIT $1 OFFSET $2;
 -- name: CountUsers :one
 SELECT COUNT(*) FROM users;
 
+-- name: SearchUsersByEmailWithPagination :many
+SELECT
+    id,
+    first_name,
+    last_name,
+    email,
+    role,
+    created_at,
+    updated_at
+FROM users
+WHERE
+    (CASE 
+        WHEN $1 = '' THEN TRUE
+        ELSE email ILIKE '%' || $1 || '%'
+    END)
+ORDER BY email
+LIMIT $2
+OFFSET $3;
+-- name: CountUsersByEmail :one
+SELECT COUNT(*)
+FROM users
+WHERE
+    (CASE 
+        WHEN $1 = '' THEN TRUE
+        ELSE email ILIKE '%' || $1 || '%'
+    END);
