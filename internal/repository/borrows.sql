@@ -17,11 +17,12 @@ WHERE book_id = $1
 ORDER BY due_date DESC;
 
 -- name: FilterBorrowByUserAndBookID :one
-SELECT *,b.title AS book_title,  CONCAT(u.first_name, ' ', u.last_name) AS user_name
-FROM borrows
+SELECT brs.*, b.title AS book_title, CONCAT(u.first_name, ' ', u.last_name) AS user_name
+FROM borrows brs
 JOIN books b ON b.id = brs.book_id
-JOIN users u ON b.user_id = u.id
-WHERE user_id = $1 AND book_id = $2 AND returned_at IS NULL;
+JOIN users u ON u.id = brs.user_id
+WHERE brs.user_id = $1 AND brs.book_id = $2 AND brs.returned_at IS NULL;
+
 
 -- name: CreateBorrow :one
 INSERT INTO borrows (user_id,book_id,due_date,returned_at) VALUES ($1,$2,$3,$4)
