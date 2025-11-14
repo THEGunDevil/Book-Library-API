@@ -128,15 +128,11 @@ LIMIT $3
 OFFSET $4;
 
 
--- name: CountSearchBorrows :one
+-- name: CountSearchBorrowsByColumn :one
 SELECT COUNT(*)
 FROM borrows b
 JOIN books bk ON b.book_id = bk.id
 JOIN users u ON b.user_id = u.id
 WHERE 
-    CASE 
-        WHEN $1 = '' OR $1 = 'all' THEN TRUE
-        ELSE 
-            LOWER(u.first_name || ' ' || u.last_name) LIKE LOWER('%' || $1 || '%')
-            OR LOWER(bk.title) LIKE LOWER('%' || $1 || '%')
-    END;
+    ($1 = 'user_name' AND LOWER(u.first_name || ' ' || u.last_name) LIKE LOWER('%' || $2 || '%'))
+    OR ($1 = 'book_title' AND LOWER(bk.title) LIKE LOWER('%' || $2 || '%'));

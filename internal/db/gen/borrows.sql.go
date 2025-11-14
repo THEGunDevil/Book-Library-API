@@ -82,22 +82,23 @@ func (q *Queries) CountReturnedAt(ctx context.Context) (int64, error) {
 	return count, err
 }
 
-const countSearchBorrows = `-- name: CountSearchBorrows :one
+const countSearchBorrowsByColumn = `-- name: CountSearchBorrowsByColumn :one
 SELECT COUNT(*)
 FROM borrows b
 JOIN books bk ON b.book_id = bk.id
 JOIN users u ON b.user_id = u.id
 WHERE 
-    CASE 
-        WHEN $1 = '' OR $1 = 'all' THEN TRUE
-        ELSE 
-            LOWER(u.first_name || ' ' || u.last_name) LIKE LOWER('%' || $1 || '%')
-            OR LOWER(bk.title) LIKE LOWER('%' || $1 || '%')
-    END
+    ($1 = 'user_name' AND LOWER(u.first_name || ' ' || u.last_name) LIKE LOWER('%' || $2 || '%'))
+    OR ($1 = 'book_title' AND LOWER(bk.title) LIKE LOWER('%' || $2 || '%'))
 `
 
-func (q *Queries) CountSearchBorrows(ctx context.Context, dollar_1 interface{}) (int64, error) {
-	row := q.db.QueryRow(ctx, countSearchBorrows, dollar_1)
+type CountSearchBorrowsByColumnParams struct {
+	Column1 interface{} `json:"column_1"`
+	Column2 pgtype.Text `json:"column_2"`
+}
+
+func (q *Queries) CountSearchBorrowsByColumn(ctx context.Context, arg CountSearchBorrowsByColumnParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countSearchBorrowsByColumn, arg.Column1, arg.Column2)
 	var count int64
 	err := row.Scan(&count)
 	return count, err

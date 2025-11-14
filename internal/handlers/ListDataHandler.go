@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"log"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -198,20 +199,29 @@ func ListDataByStatusHandler(c *gin.Context) {
 			"count":   len(borrowResp),
 		})
 	case "user_name", "book_title":
-		query := strings.TrimSpace(c.Query("query"))   // get search term
-		option := strings.TrimSpace(c.Query("option")) // search option: "user_name" or "book_title"
+		query := strings.TrimSpace(c.Query("query")) // get search term
 
 		if query == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Query cannot be empty"})
 			return
 		}
 
-		// Make sure Column1 is valid
-		if option != "user_name" && option != "book_title" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid search option"})
+		option := status // ← Use status as the option (column); remove c.Query("option") and validation
+
+		// Fetch total count for pagination
+		countParams := gen.CountSearchBorrowsByColumnParams{
+			Column1: option,
+			Column2: pgtype.Text{String: query, Valid: true},
+		}
+		totalCount, err := db.Q.CountSearchBorrowsByColumn(c.Request.Context(), countParams)
+		if err != nil {
+			log.Printf("failed to count borrowed data: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count borrowed data"})
 			return
 		}
+		totalPages := int(math.Ceil(float64(totalCount) / float64(limit)))
 
+		// Fetch paginated results
 		params := gen.SearchBorrowsWithPaginationParams{
 			Column1: option,                                  // must be "user_name" or "book_title"
 			Column2: pgtype.Text{String: query, Valid: true}, // wrap search term properly
@@ -241,10 +251,11 @@ func ListDataByStatusHandler(c *gin.Context) {
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"borrows": borrowResp,
-			"page":    page,
-			"limit":   limit,
-			"count":   len(borrowResp),
+			"borrows":     borrowResp,
+			"page":        page,
+			"limit":       limit,
+			"count":       len(borrowResp),
+			"total_pages": totalPages, // ← Add this
 		})
 
 	default:
