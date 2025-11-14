@@ -259,7 +259,7 @@ func GetBorrowByBookAndUserIDHandler(c *gin.Context) {
 		ID:         b.ID.Bytes,
 		UserID:     b.UserID.Bytes,
 		UserName:   b.UserName.(string),
-		BookTitle:  b.Title,
+		BookTitle:  b.BookTitle,
 		BookID:     b.BookID.Bytes,
 		BorrowedAt: b.BorrowedAt.Time,
 		DueDate:    b.DueDate.Time,
