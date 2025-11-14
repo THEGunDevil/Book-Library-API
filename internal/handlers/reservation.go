@@ -269,6 +269,7 @@ func UpdateReservationStatusHandler(c *gin.Context) {
 		NotifiedAt:  updatedRes.NotifiedAt.Time,
 		FulfilledAt: updatedRes.FulfilledAt.Time,
 		CancelledAt: updatedRes.CancelledAt.Time,
+		PickedUp:    updatedRes.PickedUp,
 		UserName:    user.FirstName + "" + user.LastName,
 		UserEmail:   user.Email,
 		BookTitle:   book.Title,
@@ -404,4 +405,3 @@ func GetReservationsByReservationID(c *gin.Context) {
 
 	c.JSON(http.StatusOK, res)
 }
-
