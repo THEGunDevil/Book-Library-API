@@ -28,17 +28,20 @@ func CreateBookHandler(c *gin.Context) {
 	var req models.CreateBookRequest
 
 	// Try binding JSON first
-	if err := c.ShouldBindJSON(&req); err != nil {
-		log.Printf("[DEBUG] JSON bind failed: %v", err)
+	contentType := c.ContentType()
 
-		// Fallback to form-data / multipart
-		if err := c.ShouldBind(&req); err != nil {
-			log.Printf("[DEBUG] Form-data bind failed: %v", err)
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
-			return
-		}
+	var err error
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		// Bind form-data (image upload)
+		err = c.ShouldBind(&req)
+	} else {
+		// Bind JSON
+		err = c.ShouldBindJSON(&req)
 	}
-
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	// VALIDATION
 	if len(req.Title) == 0 || len(req.Title) > 255 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "title must be 1-255 characters"})
