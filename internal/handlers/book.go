@@ -39,7 +39,7 @@ func CreateBookHandler(c *gin.Context) {
 		}
 	}
 
-	// Validate string lengths
+	// VALIDATION
 	if len(req.Title) == 0 || len(req.Title) > 255 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "title must be 1-255 characters"})
 		return
@@ -56,8 +56,8 @@ func CreateBookHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "description must be 1-255 characters"})
 		return
 	}
-	currentYear := time.Now().Year()
 
+	currentYear := time.Now().Year()
 	if req.PublishedYear < 1800 || req.PublishedYear > currentYear {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": fmt.Sprintf("published_year must be between 1800 and %d", currentYear),
@@ -65,7 +65,7 @@ func CreateBookHandler(c *gin.Context) {
 		return
 	}
 
-	// Handle file upload if provided
+	// Handle image upload
 	var imageURL string
 	if req.Image != nil {
 		f, err := req.Image.Open()
@@ -82,13 +82,54 @@ func CreateBookHandler(c *gin.Context) {
 		}
 	}
 
-	// Call the service to add book
+	// CREATE BOOK IN DB
 	bookResp, err := service.AddBook(req, imageURL)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
+	// === SEND NOTIFICATIONS TO ALL USERS ===
+	go func(book models.BookResponse) {
+		ctx := context.Background()
+
+		// Fetch all user IDs (EXAMPLE QUERY)
+		users, err := db.Q.GetAllUser(ctx)
+		if err != nil {
+			log.Printf("❌ Failed to fetch users for new arrival notification: %v", err)
+			return
+		}
+
+		var wg sync.WaitGroup
+		for _, u := range users {
+			wg.Add(1)
+
+			go func(userID uuid.UUID) {
+				defer wg.Done()
+
+				err := service.NotificationService(ctx, models.SendNotificationRequest{
+					UserID:            userID,
+					ObjectID:          &book.ID,
+					ObjectTitle:       book.Title,
+					Type:              "NEW_ARRIVAL",
+					NotificationTitle: "A new book has arrived!",
+					Message: fmt.Sprintf(
+						"A new book titled '%s' is now available in the library. Check it out!",
+						book.Title,
+					),
+				})
+
+				if err != nil {
+					log.Printf("❌ Failed to notify user %s: %v", userID, err)
+				}
+			}(u.ID.Bytes)
+		}
+
+		wg.Wait()
+		log.Println("📢 New Arrival notifications sent to all users.")
+	}(bookResp)
+
+	// FINAL RESPONSE
 	c.JSON(http.StatusCreated, bookResp)
 }
 
