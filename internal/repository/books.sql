@@ -16,8 +16,8 @@ WHERE genre = $1;
 SELECT COUNT(*) FROM books;
 
 -- name: CreateBook :one
-INSERT INTO books (title, author, published_year, isbn, total_copies, available_copies, image_url, genre, description)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+INSERT INTO books (title, author, published_year, isbn, total_copies, image_url, genre, description)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING *;
 
 -- name: UpdateBookByID :one

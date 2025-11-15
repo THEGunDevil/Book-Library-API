@@ -20,10 +20,6 @@ func AddBook(req models.CreateBookRequest, imageURL string) (models.BookResponse
 			Valid:  len(req.Isbn) > 0,
 		},
 		TotalCopies: int32(req.TotalCopies),
-		AvailableCopies: pgtype.Int4{
-			Int32: int32(req.TotalCopies),
-			Valid: true,
-		},
 		ImageUrl:    imageURL,
 		Genre:       req.Genre,
 		Description: req.Description,

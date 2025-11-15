@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"time"
 	// "encoding/json"
 	"errors"
 	"fmt"
@@ -53,6 +54,14 @@ func CreateBookHandler(c *gin.Context) {
 	}
 	if len(req.Description) == 0 || len(req.Description) > 255 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "description must be 1-255 characters"})
+		return
+	}
+	currentYear := time.Now().Year()
+
+	if req.PublishedYear < 1800 || req.PublishedYear > currentYear {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("published_year must be between 1800 and %d", currentYear),
+		})
 		return
 	}
 
@@ -411,8 +420,8 @@ func SearchBooksPaginatedHandler(c *gin.Context) {
 
 	// SQLC params - pass strings directly
 	params := gen.SearchBooksWithPaginationParams{
-		Column1: genre, // genre (can be "all")
-		Column2: pgtype.Text{String: query,Valid: true}, // search query (can be empty)
+		Column1: genre,                                   // genre (can be "all")
+		Column2: pgtype.Text{String: query, Valid: true}, // search query (can be empty)
 		Limit:   int32(limit),
 		Offset:  int32(offset),
 	}
@@ -428,7 +437,7 @@ func SearchBooksPaginatedHandler(c *gin.Context) {
 	// Count total for pagination (optional but useful)
 	totalCount, _ := db.Q.CountSearchBooks(c.Request.Context(), gen.CountSearchBooksParams{
 		Column1: genre,
-		Column2: pgtype.Text{String: query,Valid: true}, // search query (can be empty)
+		Column2: pgtype.Text{String: query, Valid: true}, // search query (can be empty)
 	})
 
 	// Map response
@@ -461,9 +470,6 @@ func SearchBooksPaginatedHandler(c *gin.Context) {
 		"books":       result,
 	})
 }
-
-
-
 
 func ListGenresHandler(c *gin.Context) {
 	genres, err := db.Q.ListGenres(c.Request.Context())

@@ -50,21 +50,20 @@ func (q *Queries) CountSearchBooks(ctx context.Context, arg CountSearchBooksPara
 }
 
 const createBook = `-- name: CreateBook :one
-INSERT INTO books (title, author, published_year, isbn, total_copies, available_copies, image_url, genre, description)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+INSERT INTO books (title, author, published_year, isbn, total_copies, image_url, genre, description)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING id, title, author, description, genre, published_year, isbn, total_copies, available_copies, created_at, updated_at, image_url
 `
 
 type CreateBookParams struct {
-	Title           string      `json:"title"`
-	Author          string      `json:"author"`
-	PublishedYear   pgtype.Int4 `json:"published_year"`
-	Isbn            pgtype.Text `json:"isbn"`
-	TotalCopies     int32       `json:"total_copies"`
-	AvailableCopies pgtype.Int4 `json:"available_copies"`
-	ImageUrl        string      `json:"image_url"`
-	Genre           string      `json:"genre"`
-	Description     string      `json:"description"`
+	Title         string      `json:"title"`
+	Author        string      `json:"author"`
+	PublishedYear pgtype.Int4 `json:"published_year"`
+	Isbn          pgtype.Text `json:"isbn"`
+	TotalCopies   int32       `json:"total_copies"`
+	ImageUrl      string      `json:"image_url"`
+	Genre         string      `json:"genre"`
+	Description   string      `json:"description"`
 }
 
 func (q *Queries) CreateBook(ctx context.Context, arg CreateBookParams) (Book, error) {
@@ -74,7 +73,6 @@ func (q *Queries) CreateBook(ctx context.Context, arg CreateBookParams) (Book, e
 		arg.PublishedYear,
 		arg.Isbn,
 		arg.TotalCopies,
-		arg.AvailableCopies,
 		arg.ImageUrl,
 		arg.Genre,
 		arg.Description,
