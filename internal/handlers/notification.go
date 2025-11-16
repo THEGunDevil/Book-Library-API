@@ -34,13 +34,6 @@ func GetUserNotificationByUserIDHandler(c *gin.Context) {
 
 	var response []models.Notification
 	for _, n := range notifications {
-		// var metadata map[string]any
-		// if n.Metadata != nil {
-		// 	if err := json.Unmarshal(n.Metadata, &metadata); err != nil {
-		// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to unmarshal metadata"})
-		// 		return
-		// 	}
-		// }
 
 		var objectID *uuid.UUID
 		if n.ObjectID.Valid {

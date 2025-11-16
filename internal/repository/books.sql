@@ -4,6 +4,13 @@ FROM books
 ORDER BY created_at DESC
 LIMIT $1 OFFSET $2;
 
+-- ListBooksPaginatedFiltered.sql
+SELECT *
+FROM books
+WHERE ($1 = '' OR title ILIKE '%' || $1 || '%')       -- search query
+  AND ($2 = 'all' OR genre = $2)                     -- genre filter
+ORDER BY created_at DESC
+LIMIT $3 OFFSET $4;
 
 -- name: GetBookByID :one
 SELECT * FROM books

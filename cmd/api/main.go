@@ -53,7 +53,7 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	r.GET("/download/books", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DownloadBooksHandler)
+	r.GET("/download/books", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DownloadSearchBooksHandler)
 	r.GET("/download/users", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DownloadUsersHandler)
 	r.GET("/download/borrows", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DownloadBorrowsHandler)
 
