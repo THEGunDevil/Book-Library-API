@@ -139,8 +139,8 @@ func main() {
 	notificationGroup := r.Group("/notifications")
 	notificationGroup.Use(middleware.AuthMiddleware())
 	{
-		notificationGroup.GET("/get", handlers.GetUserNotificationByUserIDHandler)
-		notificationGroup.PATCH("/mark-read", handlers.MarkNotificationAsReadByUserID)
+		notificationGroup.GET("/get", handlers.GetUserNotificationsByUserIDHandler)
+		notificationGroup.PATCH("/mark-read", handlers.MarkAllNotificationsAsReadHandler)
 	}
 	listGroup := r.Group("/list")
 	listGroup.Use(middleware.AuthMiddleware(), middleware.AdminOnly()) // ← Auth MUST come before Admin

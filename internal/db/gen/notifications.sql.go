@@ -11,54 +11,47 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createNotification = `-- name: CreateNotification :one
-INSERT INTO notifications (
-    user_id,
-    user_name,
+const createEvent = `-- name: CreateEvent :one
+INSERT INTO events (
     object_id,
     object_title,
     type,
-    notification_title,
+    title,
     message,
-    -- metadata,
-    is_read,
+    metadata,
     created_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, false, NOW()
-) RETURNING id, user_id, user_name, object_id, object_title, type, notification_title, message, is_read, metadata, created_at
+    $1, $2, $3, $4, $5, $6, NOW()
+)
+RETURNING id, object_id, object_title, type, title, message, metadata, created_at
 `
 
-type CreateNotificationParams struct {
-	UserID            pgtype.UUID `json:"user_id"`
-	UserName          pgtype.Text `json:"user_name"`
-	ObjectID          pgtype.UUID `json:"object_id"`
-	ObjectTitle       pgtype.Text `json:"object_title"`
-	Type              string      `json:"type"`
-	NotificationTitle string      `json:"notification_title"`
-	Message           string      `json:"message"`
+type CreateEventParams struct {
+	ObjectID    pgtype.UUID `json:"object_id"`
+	ObjectTitle pgtype.Text `json:"object_title"`
+	Type        string      `json:"type"`
+	Title       string      `json:"title"`
+	Message     string      `json:"message"`
+	Metadata    []byte      `json:"metadata"`
 }
 
-func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotificationParams) (Notification, error) {
-	row := q.db.QueryRow(ctx, createNotification,
-		arg.UserID,
-		arg.UserName,
+func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Event, error) {
+	row := q.db.QueryRow(ctx, createEvent,
 		arg.ObjectID,
 		arg.ObjectTitle,
 		arg.Type,
-		arg.NotificationTitle,
+		arg.Title,
 		arg.Message,
+		arg.Metadata,
 	)
-	var i Notification
+	var i Event
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
-		&i.UserName,
 		&i.ObjectID,
 		&i.ObjectTitle,
 		&i.Type,
-		&i.NotificationTitle,
+		&i.Title,
 		&i.Message,
-		&i.IsRead,
 		&i.Metadata,
 		&i.CreatedAt,
 	)
@@ -66,33 +59,64 @@ func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotification
 }
 
 const getUserNotificationsByUserID = `-- name: GetUserNotificationsByUserID :many
-SELECT id, user_id, user_name, object_id, object_title, type, notification_title, message, is_read, metadata, created_at
-FROM notifications
-WHERE user_id = $1
-ORDER BY created_at DESC
+SELECT
+    e.id AS event_id,
+    e.object_id,
+    e.object_title,
+    e.type,
+    e.title AS notification_title,
+    e.message,
+    e.metadata,
+    e.created_at,
+    COALESCE(uns.is_read, false) AS is_read,
+    uns.read_at
+FROM events e
+LEFT JOIN user_notification_status uns
+    ON e.id = uns.event_id
+    AND uns.user_id = $1
+ORDER BY e.created_at DESC
+LIMIT $2 OFFSET $3
 `
 
-func (q *Queries) GetUserNotificationsByUserID(ctx context.Context, userID pgtype.UUID) ([]Notification, error) {
-	rows, err := q.db.Query(ctx, getUserNotificationsByUserID, userID)
+type GetUserNotificationsByUserIDParams struct {
+	UserID pgtype.UUID `json:"user_id"`
+	Limit  int32       `json:"limit"`
+	Offset int32       `json:"offset"`
+}
+
+type GetUserNotificationsByUserIDRow struct {
+	EventID           pgtype.UUID      `json:"event_id"`
+	ObjectID          pgtype.UUID      `json:"object_id"`
+	ObjectTitle       pgtype.Text      `json:"object_title"`
+	Type              string           `json:"type"`
+	NotificationTitle string           `json:"notification_title"`
+	Message           string           `json:"message"`
+	Metadata          []byte           `json:"metadata"`
+	CreatedAt         pgtype.Timestamp `json:"created_at"`
+	IsRead            bool             `json:"is_read"`
+	ReadAt            pgtype.Timestamp `json:"read_at"`
+}
+
+func (q *Queries) GetUserNotificationsByUserID(ctx context.Context, arg GetUserNotificationsByUserIDParams) ([]GetUserNotificationsByUserIDRow, error) {
+	rows, err := q.db.Query(ctx, getUserNotificationsByUserID, arg.UserID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Notification
+	var items []GetUserNotificationsByUserIDRow
 	for rows.Next() {
-		var i Notification
+		var i GetUserNotificationsByUserIDRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.UserID,
-			&i.UserName,
+			&i.EventID,
 			&i.ObjectID,
 			&i.ObjectTitle,
 			&i.Type,
 			&i.NotificationTitle,
 			&i.Message,
-			&i.IsRead,
 			&i.Metadata,
 			&i.CreatedAt,
+			&i.IsRead,
+			&i.ReadAt,
 		); err != nil {
 			return nil, err
 		}
@@ -104,13 +128,47 @@ func (q *Queries) GetUserNotificationsByUserID(ctx context.Context, userID pgtyp
 	return items, nil
 }
 
-const markNotificationAsReadByUserID = `-- name: MarkNotificationAsReadByUserID :exec
-UPDATE notifications
-SET is_read = true
-WHERE user_id = $1 AND is_read = false
+const selectUnreadEventsForUser = `-- name: SelectUnreadEventsForUser :many
+SELECT e.id
+FROM events e
+LEFT JOIN user_notification_status uns
+  ON e.id = uns.event_id AND uns.user_id = $1
+WHERE COALESCE(uns.is_read, false) = false
 `
 
-func (q *Queries) MarkNotificationAsReadByUserID(ctx context.Context, userID pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, markNotificationAsReadByUserID, userID)
+func (q *Queries) SelectUnreadEventsForUser(ctx context.Context, userID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, selectUnreadEventsForUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []pgtype.UUID
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const upsertUserNotificationStatus = `-- name: UpsertUserNotificationStatus :exec
+INSERT INTO user_notification_status (user_id, event_id, is_read, read_at, created_at)
+VALUES ($1, $2, true, NOW(), NOW())
+ON CONFLICT (user_id, event_id)
+DO UPDATE SET is_read = true, read_at = NOW()
+`
+
+type UpsertUserNotificationStatusParams struct {
+	UserID  pgtype.UUID `json:"user_id"`
+	EventID pgtype.UUID `json:"event_id"`
+}
+
+func (q *Queries) UpsertUserNotificationStatus(ctx context.Context, arg UpsertUserNotificationStatusParams) error {
+	_, err := q.db.Exec(ctx, upsertUserNotificationStatus, arg.UserID, arg.EventID)
 	return err
 }

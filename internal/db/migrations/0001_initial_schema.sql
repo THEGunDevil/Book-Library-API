@@ -91,18 +91,25 @@ CREATE TABLE reservations (
     CONSTRAINT fk_book FOREIGN KEY (book_id) REFERENCES books (id) ON DELETE CASCADE
 );
 
-CREATE TABLE notifications (
+CREATE TABLE events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    object_id UUID,                 -- e.g., book ID
+    object_title TEXT,
+    type TEXT NOT NULL,             -- e.g., 'new_book', 'reservation'
+    title TEXT NOT NULL,            -- short title
+    message TEXT NOT NULL,          -- full notification text
+    metadata JSONB,                 -- extra info if needed
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE user_notification_status (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL,
-    user_name TEXT,
-    object_id UUID,
-    object_title TEXT,
-    type TEXT NOT NULL,
-    notification_title TEXT NOT NULL,
-    message TEXT NOT NULL,
+    event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
     is_read BOOLEAN DEFAULT false,
-    metadata JSONB,
-    created_at TIMESTAMP DEFAULT NOW()
+    read_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(user_id, event_id)       -- one row per user per event
 );
 
 -- A user can only have one reservation per book (any status)

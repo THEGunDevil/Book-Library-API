@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	// "encoding/json"
 	"fmt"
 	"log"
 
@@ -13,7 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// ✅ Converts uuid.UUID → pgtype.UUID
+// Converts uuid.UUID → pgtype.UUID
 func UUIDToPGType(u uuid.UUID) pgtype.UUID {
 	return pgtype.UUID{
 		Bytes: u,
@@ -21,7 +20,7 @@ func UUIDToPGType(u uuid.UUID) pgtype.UUID {
 	}
 }
 
-// ✅ Converts string → pgtype.Text
+// Converts string → pgtype.Text
 func StringToPGText(s string) pgtype.Text {
 	return pgtype.Text{
 		String: s,
@@ -29,35 +28,12 @@ func StringToPGText(s string) pgtype.Text {
 	}
 }
 
-// ✅ NotificationService handles creating notifications
+// NotificationService handles creating event-based notifications
 func NotificationService(ctx context.Context, req models.SendNotificationRequest) error {
-	log.Printf("🔔 [DEBUG] NotificationService called for UserID=%v | Type=%s | Title=%s",
-		req.UserID, req.Type, req.NotificationTitle)
+	log.Printf("🔔 [DEBUG] NotificationService called for Type=%s | Title=%s",
+		req.Type, req.NotificationTitle)
 
-	// Validate user ID
-	if req.UserID == uuid.Nil {
-		return fmt.Errorf("invalid UserID")
-	}
-
-	// Fetch user info
-	u, err := db.Q.GetUserByID(ctx, UUIDToPGType(req.UserID))
-	if err != nil {
-		log.Printf("❌ [DEBUG] GetUserByID failed for UserID=%v: %v", req.UserID, err)
-		return fmt.Errorf("invalid user ID: %w", err)
-	}
-
-	userName := fmt.Sprintf("%s %s", u.FirstName, u.LastName)
-	log.Printf("👤 [DEBUG] Found user: %s", userName)
-
-	// // ✅ Marshal metadata safely
-	// var meta json.RawMessage
-	// if len(req.Metadata) > 0 {
-	// 	meta = req.Metadata
-	// } else {
-	// 	meta = json.RawMessage(`{}`)
-	// }
-
-	// ✅ Handle ObjectID safely (*uuid.UUID → *[16]byte)
+	// Validate optional ObjectID
 	var pgObjectID pgtype.UUID
 	if req.ObjectID != nil {
 		pgObjectID = UUIDToPGType(*req.ObjectID)
@@ -65,27 +41,38 @@ func NotificationService(ctx context.Context, req models.SendNotificationRequest
 		pgObjectID = pgtype.UUID{Valid: false} // NULL in DB
 	}
 
-	// ✅ Prepare params for sqlc CreateNotification
-	arg := gen.CreateNotificationParams{
-		UserID:            UUIDToPGType(req.UserID),
-		UserName:          StringToPGText(userName),
-		ObjectID:          pgObjectID,
-		ObjectTitle:       StringToPGText(req.ObjectTitle),
-		Type:              req.Type,
-		NotificationTitle: req.NotificationTitle,
-		Message:           req.Message,
-		// Column8:           meta, // ✅ correct type
+	// Prepare params for CreateEvent
+	eventArg := gen.CreateEventParams{
+		ObjectID:    pgObjectID,
+		ObjectTitle: StringToPGText(req.ObjectTitle),
+		Type:        req.Type,
+		Title:       req.NotificationTitle,
+		Message:     req.Message,
+		Metadata:    req.Metadata, // optional JSONB
 	}
 
-	log.Printf("📦 [DEBUG] Inserting notification into DB: %+v", arg)
-
-	// ✅ Create notification
-	notification, err := db.Q.CreateNotification(ctx, arg)
+	// Insert event into events table
+	event, err := db.Q.CreateEvent(ctx, eventArg)
 	if err != nil {
-		log.Printf("❌ [DEBUG] Failed to create notification: %v", err)
-		return fmt.Errorf("failed to create notification: %w", err)
+		log.Printf("❌ [DEBUG] Failed to create event: %v", err)
+		return fmt.Errorf("failed to create event: %w", err)
+	}
+	log.Printf("✅ [DEBUG] Event created successfully: ID=%v", event.ID)
+
+	// Optional: create initial unread status for a specific user (if sending to one user)
+	if req.UserID != uuid.Nil {
+		statusArg := gen.UpsertUserNotificationStatusParams{
+			UserID:  UUIDToPGType(req.UserID),
+			EventID: event.ID,
+		}
+		err := db.Q.UpsertUserNotificationStatus(ctx, statusArg)
+		if err != nil {
+			log.Printf("❌ Failed to insert user notification status: %v", err)
+			return fmt.Errorf("failed to create user notification status: %w", err)
+		}
+		log.Printf("✅ User notification status created for UserID=%v", req.UserID)
+
 	}
 
-	log.Printf("✅ [DEBUG] Notification created successfully: ID=%v | UserID=%v", notification.ID, req.UserID)
 	return nil
 }

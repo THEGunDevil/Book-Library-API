@@ -4,13 +4,15 @@ import (
 	"net/http"
 
 	"github.com/THEGunDevil/GoForBackend/internal/db"
+	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
 	"github.com/THEGunDevil/GoForBackend/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func GetUserNotificationByUserIDHandler(c *gin.Context) {
+// GetUserNotificationsByUserIDHandler fetches notifications for a user with optional pagination
+func GetUserNotificationsByUserIDHandler(c *gin.Context) {
 	userIDVal, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "userID not found in context"})
@@ -23,18 +25,27 @@ func GetUserNotificationByUserIDHandler(c *gin.Context) {
 		return
 	}
 
+	// Pagination parameters (optional, can parse from query params)
+	limit := int32(50)
+	offset := int32(0)
+
+	params := gen.GetUserNotificationsByUserIDParams{
+		UserID: pgtype.UUID{Bytes: userID, Valid: true},
+		Limit:  limit,
+		Offset: offset,
+	}
+
 	notifications, err := db.Q.GetUserNotificationsByUserID(
 		c.Request.Context(),
-		pgtype.UUID{Bytes: userID, Valid: true},
+		params,
 	)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch notifications"})
 		return
 	}
 
 	var response []models.Notification
 	for _, n := range notifications {
-
 		var objectID *uuid.UUID
 		if n.ObjectID.Valid {
 			id := n.ObjectID.Bytes
@@ -45,47 +56,60 @@ func GetUserNotificationByUserIDHandler(c *gin.Context) {
 		}
 
 		response = append(response, models.Notification{
-			ID:                n.ID.Bytes,
-			UserID:            n.UserID.Bytes,
-			UserName:          n.UserName.String,
+			ID:                n.EventID.Bytes, // Event ID
+			UserID:            userID,
+			UserName:          "", // user-agnostic
 			ObjectID:          objectID,
 			ObjectTitle:       n.ObjectTitle.String,
 			Type:              n.Type,
 			NotificationTitle: n.NotificationTitle,
 			Message:           n.Message,
-			// Metadata:          n.Metadata,
-			IsRead:    n.IsRead.Bool,
-			CreatedAt: n.CreatedAt.Time,
+			Metadata:          n.Metadata, // requires models.Notification.Metadata json.RawMessage
+			IsRead:            n.IsRead,
+			CreatedAt:         n.CreatedAt.Time,
 		})
 	}
 
 	c.JSON(http.StatusOK, response)
 }
 
-func MarkNotificationAsReadByUserID(c *gin.Context) {
-	// ✅ Get the authenticated user's ID from middleware context
-	userIDValue, exists := c.Get("userID")
+// MarkAllNotificationsAsReadHandler marks all unread notifications for the user as read
+func MarkAllNotificationsAsReadHandler(c *gin.Context) {
+	userIDVal, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	userUUID, ok := userIDValue.(uuid.UUID)
+	userUUID, ok := userIDVal.(uuid.UUID)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID in context"})
 		return
 	}
 
-	// ✅ Call DB query
-	err := db.Q.MarkNotificationAsReadByUserID(
+	unreadEvents, err := db.Q.SelectUnreadEventsForUser(
 		c.Request.Context(),
 		pgtype.UUID{Bytes: userUUID, Valid: true},
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark notifications as read"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch unread events"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Notifications marked as read successfully"})
+	for _, e := range unreadEvents {
+		err := db.Q.UpsertUserNotificationStatus(
+			c.Request.Context(),
+			gen.UpsertUserNotificationStatusParams{
+				UserID:  pgtype.UUID{Bytes: userUUID, Valid: true},
+				EventID: e,
+			},
+		)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark notifications as read"})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "All notifications marked as read successfully"})
 }
 

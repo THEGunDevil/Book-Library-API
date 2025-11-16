@@ -32,18 +32,15 @@ type Borrow struct {
 	ReturnedAt pgtype.Timestamp `json:"returned_at"`
 }
 
-type Notification struct {
-	ID                pgtype.UUID      `json:"id"`
-	UserID            pgtype.UUID      `json:"user_id"`
-	UserName          pgtype.Text      `json:"user_name"`
-	ObjectID          pgtype.UUID      `json:"object_id"`
-	ObjectTitle       pgtype.Text      `json:"object_title"`
-	Type              string           `json:"type"`
-	NotificationTitle string           `json:"notification_title"`
-	Message           string           `json:"message"`
-	IsRead            pgtype.Bool      `json:"is_read"`
-	Metadata          []byte           `json:"metadata"`
-	CreatedAt         pgtype.Timestamp `json:"created_at"`
+type Event struct {
+	ID          pgtype.UUID      `json:"id"`
+	ObjectID    pgtype.UUID      `json:"object_id"`
+	ObjectTitle pgtype.Text      `json:"object_title"`
+	Type        string           `json:"type"`
+	Title       string           `json:"title"`
+	Message     string           `json:"message"`
+	Metadata    []byte           `json:"metadata"`
+	CreatedAt   pgtype.Timestamp `json:"created_at"`
 }
 
 type Reservation struct {
@@ -84,4 +81,13 @@ type User struct {
 	BanReason      pgtype.Text      `json:"ban_reason"`
 	BanUntil       pgtype.Timestamp `json:"ban_until"`
 	IsPermanentBan pgtype.Bool      `json:"is_permanent_ban"`
+}
+
+type UserNotificationStatus struct {
+	ID        pgtype.UUID      `json:"id"`
+	UserID    pgtype.UUID      `json:"user_id"`
+	EventID   pgtype.UUID      `json:"event_id"`
+	IsRead    pgtype.Bool      `json:"is_read"`
+	ReadAt    pgtype.Timestamp `json:"read_at"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
 }
