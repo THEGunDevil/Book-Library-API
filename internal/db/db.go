@@ -41,6 +41,31 @@ func Connect(cfg config.Config) {
 	Q = gen.New(pool)
 	log.Println("✅ Connected to Postgres successfully (no prepared statement caching)")
 }
+func LocalConnect(cfg config.Config) {
+	poolConfig, err := pgxpool.ParseConfig(cfg.LOCALDBURL)
+	if err != nil {
+		log.Fatalf("❌ Failed to parse DB config: %v", err)
+	}
+
+	// 🚫 Disable prepared statement caching
+	poolConfig.ConnConfig.StatementCacheCapacity = 0
+
+	// 🧩 Force simple protocol (no prepared statements)
+	poolConfig.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
+
+	pool, err := pgxpool.NewWithConfig(Ctx, poolConfig)
+	if err != nil {
+		log.Fatalf("❌ Unable to connect to database: %v", err)
+	}
+
+	if err := pool.Ping(Ctx); err != nil {
+		log.Fatalf("❌ Could not ping database: %v", err)
+	}
+
+	DB = pool
+	Q = gen.New(pool)
+	log.Println("✅ Connected to Postgres successfully (no prepared statement caching)")
+}
 
 func Close() {
 	if DB != nil {

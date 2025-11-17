@@ -20,6 +20,54 @@ CREATE TABLE users (
     ban_until TIMESTAMP,
     is_permanent_ban BOOLEAN DEFAULT FALSE
 );
+-- Subscription plans table
+CREATE TABLE subscription_plans (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL,              -- e.g., Basic, Premium, Monthly, Yearly
+    price FLOAT8 NOT NULL,                    -- changed from NUMERIC(10,2)
+    duration_days INT NOT NULL,               -- 30, 365, etc.
+    description TEXT,
+    features JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Subscriptions table
+CREATE TABLE subscriptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    plan_id UUID NOT NULL REFERENCES subscription_plans(id),
+    start_date TIMESTAMP NOT NULL DEFAULT NOW(),
+    end_date TIMESTAMP NOT NULL,
+    status VARCHAR(20) NOT NULL CHECK (status IN ('active', 'expired', 'cancelled')),
+    auto_renew BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Payments table
+CREATE TABLE payments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    subscription_id UUID REFERENCES subscriptions(id) ON DELETE SET NULL,
+    amount FLOAT8 NOT NULL,                   -- changed from NUMERIC(10,2)
+    currency VARCHAR(10) DEFAULT 'BDT',
+    transaction_id TEXT UNIQUE,
+    payment_gateway TEXT,                     -- Stripe, SSLCommerz, Nagad, etc.
+    status VARCHAR(20) CHECK (status IN ('paid', 'failed', 'pending')),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Refunds table
+CREATE TABLE refunds (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    payment_id UUID NOT NULL REFERENCES payments(id) ON DELETE CASCADE,
+    amount FLOAT8 NOT NULL,                    -- changed from NUMERIC(10,2)
+    reason TEXT,
+    status VARCHAR(20) NOT NULL CHECK (status IN ('requested', 'processed', 'rejected')),
+    requested_at TIMESTAMP DEFAULT NOW(),
+    processed_at TIMESTAMP
+);
 
 -- Books table
 CREATE TABLE books (
@@ -98,7 +146,7 @@ CREATE TABLE events (
     type TEXT NOT NULL,             -- e.g., 'new_book', 'reservation'
     title TEXT NOT NULL,            -- short title
     message TEXT NOT NULL,          -- full notification text
-    metadata JSONB,                 -- extra info if needed
+    metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP DEFAULT NOW()
 );
 

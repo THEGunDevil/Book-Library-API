@@ -1,0 +1,237 @@
+package handlers
+
+import (
+	"net/http"
+	"time"
+
+	"github.com/THEGunDevil/GoForBackend/internal/db"
+	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
+	"github.com/THEGunDevil/GoForBackend/internal/models"
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+)
+
+func CreateSubscriptionHandler(c *gin.Context) {
+	var req models.CreateSubscriptionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	if req.UserID.String() == "" || req.PlanID.String() == "" {
+		c.JSON(400, gin.H{"error": "user_id and plan_id are required"})
+		return
+	}
+
+	userUUID, err := uuid.Parse(req.UserID.String())
+	if err != nil {
+		c.JSON(400, gin.H{"error": "invalid user_id"})
+		return
+	}
+
+	planUUID, err := uuid.Parse(req.PlanID.String())
+	if err != nil {
+		c.JSON(400, gin.H{"error": "invalid plan_id"})
+		return
+	}
+	// countSubParams = gen.CountSubsPerUserParams{
+	// 	UserID: req.UserID,
+	// 	PlanID: req.PlanID,
+	// }
+	// subNumber,err := db.Q.CountSubsPerUser(c.Request.Context())
+	// if subNumber>0 {
+	// 	c.JSON(http.StatusForbidden,gin.H{""})
+	// }
+	start := time.Now().UTC()
+	end := start.Add(time.Duration(req.DurationDays) * 24 * time.Hour)
+	params := gen.CreateSubscriptionParams{
+		UserID: pgtype.UUID{Bytes: userUUID, Valid: true},
+		PlanID: pgtype.UUID{Bytes: planUUID, Valid: true},
+		StartDate: pgtype.Timestamp{
+			Time:  start,
+			Valid: true,
+		},
+		EndDate: pgtype.Timestamp{
+			Time:  end,
+			Valid: true,
+		},
+
+		Status:    req.Status,
+		AutoRenew: req.AutoRenew,
+	}
+
+	sub, err := db.Q.CreateSubscription(c.Request.Context(), params)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "failed to create subscription", "details": err.Error()})
+		return
+	}
+	var response []models.Subscription
+	response = append(response, models.Subscription{
+		ID:        sub.ID.Bytes,
+		UserID:    sub.PlanID.Bytes,
+		PlanID:    sub.PlanID.Bytes,
+		StartDate: sub.EndDate.Time,
+		EndDate:   sub.EndDate.Time,
+		CreatedAt: sub.CreatedAt.Time,
+		UpdatedAt: sub.UpdatedAt.Time,
+		Status:    sub.Status,
+		AutoRenew: sub.AutoRenew,
+	})
+	c.JSON(200, gin.H{"message": "subscription created", "subscription": response})
+}
+func GetSubscriptionByIDHandler(c *gin.Context) {
+	idStr := c.Param("id")
+
+	subID, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "invalid subscription ID"})
+		return
+	}
+
+	sub, err := db.Q.GetSubscriptionByID(c.Request.Context(), pgtype.UUID{
+		Bytes: subID, Valid: true,
+	})
+
+	if err != nil {
+		c.JSON(500, gin.H{"error": "failed to fetch subscription", "details": err.Error()})
+		return
+	}
+	var response []models.Subscription
+	response = append(response, models.Subscription{
+		ID:        sub.ID.Bytes,
+		UserID:    sub.PlanID.Bytes,
+		PlanID:    sub.PlanID.Bytes,
+		StartDate: sub.EndDate.Time,
+		EndDate:   sub.EndDate.Time,
+		CreatedAt: sub.CreatedAt.Time,
+		UpdatedAt: sub.UpdatedAt.Time,
+		Status:    sub.Status,
+		AutoRenew: sub.AutoRenew,
+	})
+	c.JSON(200, gin.H{"subscription": response})
+}
+func ListSubscriptionsHandler(c *gin.Context) {
+	subs, err := db.Q.ListSubscriptions(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "failed to fetch subscriptions",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	var response []models.Subscription
+
+	for _, sub := range subs {
+		response = append(response, models.Subscription{
+			ID:        sub.ID.Bytes,     // UUID
+			UserID:    sub.UserID.Bytes, // Corrected: UserID
+			PlanID:    sub.PlanID.Bytes,
+			StartDate: sub.StartDate.Time,
+			EndDate:   sub.EndDate.Time,
+			Status:    sub.Status,
+			AutoRenew: sub.AutoRenew,
+			CreatedAt: sub.CreatedAt.Time,
+			UpdatedAt: sub.UpdatedAt.Time,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"subscriptions": response, // fixed typo
+	})
+}
+func ListSubscriptionsByUserHandler(c *gin.Context) {
+	userID := c.Param("user_id")
+
+	parsed, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "invalid user_id"})
+		return
+	}
+
+	subs, err := db.Q.ListSubscriptionsByUser(c.Request.Context(), pgtype.UUID{
+		Bytes: parsed, Valid: true,
+	})
+
+	if err != nil {
+		c.JSON(500, gin.H{"error": "failed to fetch user subscriptions", "details": err.Error()})
+		return
+	}
+	var response []models.Subscription
+
+	for _, sub := range subs {
+		response = append(response, models.Subscription{
+			ID:        sub.ID.Bytes,     // UUID
+			UserID:    sub.UserID.Bytes, // Corrected: UserID
+			PlanID:    sub.PlanID.Bytes,
+			StartDate: sub.StartDate.Time,
+			EndDate:   sub.EndDate.Time,
+			Status:    sub.Status,
+			AutoRenew: sub.AutoRenew,
+			CreatedAt: sub.CreatedAt.Time,
+			UpdatedAt: sub.UpdatedAt.Time,
+		})
+	}
+	c.JSON(200, gin.H{"subscriptions": response})
+}
+func UpdateSubscriptionHandler(c *gin.Context) {
+	idStr := c.Param("id")
+	subID, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "invalid subscription ID"})
+		return
+	}
+
+	var req models.UpdateSubscriptionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	start := time.Now().UTC()
+	end := start.Add(time.Duration(req.DurationDays) * 24 * time.Hour)
+	params := gen.UpdateSubscriptionParams{
+		ID:        pgtype.UUID{Bytes: subID, Valid: true},
+		PlanID:    pgtype.UUID{Bytes: req.PlanID, Valid: true},
+		StartDate: pgtype.Timestamp{Time: start, Valid: true},
+		EndDate:   pgtype.Timestamp{Time: end, Valid: true},
+		AutoRenew: *req.AutoRenew,
+	}
+
+	updated, err := db.Q.UpdateSubscription(c.Request.Context(), params)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "failed to update subscription", "details": err.Error()})
+		return
+	}
+	var response []models.Subscription
+	response = append(response, models.Subscription{
+		ID:        updated.ID.Bytes,
+		UserID:    updated.PlanID.Bytes,
+		PlanID:    updated.PlanID.Bytes,
+		StartDate: updated.EndDate.Time,
+		EndDate:   updated.EndDate.Time,
+		CreatedAt: updated.CreatedAt.Time,
+		UpdatedAt: updated.UpdatedAt.Time,
+		Status:    updated.Status,
+		AutoRenew: updated.AutoRenew,
+	})
+	c.JSON(200, gin.H{"message": "subscription updated", "subscription": response})
+}
+func DeleteSubscriptionByIDHandler(c *gin.Context) {
+	idStr := c.Param("id")
+	subID, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "invalid subscription ID"})
+		return
+	}
+
+	err = db.Q.DeleteSubscription(c.Request.Context(), pgtype.UUID{
+		Bytes: subID, Valid: true,
+	})
+
+	if err != nil {
+		c.JSON(500, gin.H{"error": "failed to delete subscription", "details": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "subscription deleted"})
+}

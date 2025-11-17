@@ -12,22 +12,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// Converts uuid.UUID → pgtype.UUID
-func UUIDToPGType(u uuid.UUID) pgtype.UUID {
-	return pgtype.UUID{
-		Bytes: u,
-		Valid: true,
-	}
-}
-
-// Converts string → pgtype.Text
-func StringToPGText(s string) pgtype.Text {
-	return pgtype.Text{
-		String: s,
-		Valid:  s != "",
-	}
-}
-
 // NotificationService handles creating event-based notifications
 func NotificationService(ctx context.Context, req models.SendNotificationRequest) error {
 	log.Printf("🔔 [DEBUG] NotificationService called for Type=%s | Title=%s",

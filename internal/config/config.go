@@ -13,6 +13,7 @@ type Config struct {
 	DBName     string
 	DBSSLMode  string
 	DBURL      string
+	LOCALDBURL string
 }
 
 func LoadConfig() Config {
@@ -22,7 +23,7 @@ func LoadConfig() Config {
 	password := os.Getenv("DB_PASSWORD")
 	dbName := os.Getenv("DB_NAME")
 	sslMode := os.Getenv("DB_SSLMODE")
-
+	localDbURL := os.Getenv("LOCAL_DB_URL")
 	// Default to SSL required
 	if sslMode == "" {
 		sslMode = "require"
@@ -32,7 +33,6 @@ func LoadConfig() Config {
 		"postgresql://%s:%s@%s:%s/%s?sslmode=%s",
 		user, password, host, port, dbName, sslMode,
 	)
-
 	return Config{
 		DBHost:     host,
 		DBPort:     port,
@@ -41,5 +41,6 @@ func LoadConfig() Config {
 		DBName:     dbName,
 		DBSSLMode:  sslMode,
 		DBURL:      dbURL,
+		LOCALDBURL: localDbURL,
 	}
 }
