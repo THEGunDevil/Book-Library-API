@@ -2,7 +2,10 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -17,6 +20,11 @@ type Config struct {
 }
 
 func LoadConfig() Config {
+	// Load .env file
+	if err := godotenv.Load(); err != nil {
+		log.Println("⚠️ No .env file found, relying on environment variables")
+	}
+
 	host := os.Getenv("DB_HOST")
 	port := os.Getenv("DB_PORT")
 	user := os.Getenv("DB_USER")
@@ -24,7 +32,7 @@ func LoadConfig() Config {
 	dbName := os.Getenv("DB_NAME")
 	sslMode := os.Getenv("DB_SSLMODE")
 	localDbURL := os.Getenv("LOCAL_DB_URL")
-	// Default to SSL required
+
 	if sslMode == "" {
 		sslMode = "require"
 	}
@@ -33,6 +41,7 @@ func LoadConfig() Config {
 		"postgresql://%s:%s@%s:%s/%s?sslmode=%s",
 		user, password, host, port, dbName, sslMode,
 	)
+
 	return Config{
 		DBHost:     host,
 		DBPort:     port,
