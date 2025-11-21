@@ -20,174 +20,138 @@ import (
 )
 
 func StripeWebhookHandler(c *gin.Context) {
+	// 1. Read Body
 	const MaxBodyBytes = int64(65536)
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, MaxBodyBytes)
 	payload, err := io.ReadAll(c.Request.Body)
 	if err != nil {
+		log.Println("❌ [Webhook] Failed to read request body")
 		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to read request body"})
 		return
 	}
 
+	// 2. Verify Signature
 	sigHeader := c.GetHeader("Stripe-Signature")
 	endpointSecret := os.Getenv("STRIPE_WEBHOOK_SECRET")
-	if endpointSecret == "" {
-		log.Println("❌ STRIPE_WEBHOOK_SECRET not set")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "webhook secret not configured"})
-		return
-	}
+
+	log.Printf("🔍 [Webhook] Received event. Signature: %s... Secret Length: %d",
+		sigHeader[:10], len(endpointSecret))
 
 	event, err := webhook.ConstructEvent(payload, sigHeader, endpointSecret)
 	if err != nil {
-		log.Println("❌ Webhook signature verification failed:", err)
+		log.Printf("❌ [Webhook] Signature verification failed: %v", err)
+		log.Println("💡 Tip: Ensure STRIPE_WEBHOOK_SECRET matches the one in Stripe Dashboard > Developers > Webhooks")
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid webhook signature"})
 		return
 	}
 
+	log.Printf("✅ [Webhook] Event Verified. Type: %s", event.Type)
+
+	// 3. Handle Event
 	switch event.Type {
 	case "checkout.session.completed":
-		// FIX: Unmarshal the raw event data into the specific Stripe struct
 		var session stripe.CheckoutSession
-		err := json.Unmarshal(event.Data.Raw, &session)
-		if err != nil {
-			log.Printf("❌ Error parsing webhook JSON: %v", err)
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid json"})
+		if err := json.Unmarshal(event.Data.Raw, &session); err != nil {
+			log.Printf("❌ [Webhook] JSON Unmarshal error: %v", err)
+			c.Status(http.StatusBadRequest)
 			return
 		}
 
-		// Extract metadata from the correctly typed 'session' object
+		// Log Metadata to debug missing ID
+		log.Printf("🔍 [Webhook] Metadata Received: %+v", session.Metadata)
+
 		transactionID := session.Metadata["transaction_id"]
 		if transactionID == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "transaction_id missing in metadata"})
+			log.Println("❌ [Webhook] transaction_id MISSING in metadata. InitializeStripePayment might be wrong.")
+			c.Status(http.StatusBadRequest)
 			return
 		}
 
 		tranUUID, err := uuid.Parse(transactionID)
 		if err != nil {
-			log.Println("❌ Invalid transaction_id UUID:", err)
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid transaction_id"})
+			log.Printf("❌ [Webhook] Invalid UUID format: %s", transactionID)
+			c.Status(http.StatusBadRequest)
 			return
 		}
 
+		// Database Operations
 		ctx := c.Request.Context()
 
-		// Fetch payment record
-		payment, err := db.Q.GetPaymentByTransactionID(ctx, pgtype.UUID{
-			Bytes: tranUUID,
-			Valid: true,
-		})
+		// Check if payment exists
+		payment, err := db.Q.GetPaymentByTransactionID(ctx, pgtype.UUID{Bytes: tranUUID, Valid: true})
 		if err != nil {
-			log.Println("❌ Payment record not found:", transactionID)
-			c.JSON(http.StatusNotFound, gin.H{"error": "payment not found"})
+			log.Printf("❌ [Webhook] DB: Payment not found for ID: %s", transactionID)
+			c.Status(http.StatusNotFound)
 			return
 		}
 
-		if payment.Status == "paid" { // Check pgtype.Text
-			log.Println("ℹ Payment already processed:", transactionID)
-			c.JSON(http.StatusOK, gin.H{"message": "payment already processed"})
+		// Check status
+		if payment.Status == "paid" {
+			log.Println("ℹ️ [Webhook] Payment already marked as paid. Skipping.")
+			c.Status(http.StatusOK)
 			return
 		}
 
+		// Begin Transaction
 		tx, err := db.DB.BeginTx(ctx, pgx.TxOptions{})
 		if err != nil {
-			log.Println("❌ Failed to begin DB transaction:", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+			log.Printf("❌ [Webhook] DB: Failed to start transaction: %v", err)
+			c.Status(http.StatusInternalServerError)
 			return
 		}
+		defer tx.Rollback(ctx)
 		txQueries := gen.New(tx)
 
-		defer func() {
-			if err := tx.Rollback(ctx); err != nil &&
-				err.Error() != "pgx: transaction has already been committed or rolled back" {
-				log.Println("⚠ Failed to rollback transaction:", err)
-			}
-		}()
+		// Calculate Subscription Dates
+		plan, _ := txQueries.GetSubscriptionPlanByID(ctx, payment.PlanID)
+		start := time.Now().UTC()
+		end := start.Add(time.Duration(plan.DurationDays) * 24 * time.Hour)
 
-		// Check the payment status from the Stripe session object
-		if session.PaymentStatus == stripe.CheckoutSessionPaymentStatusPaid {
-			log.Printf("💰 Stripe payment verified as PAID for tran_id=%s", transactionID)
-
-			// Fetch subscription plan
-			plan, err := txQueries.GetSubscriptionPlanByID(ctx, payment.PlanID)
-			if err != nil {
-				log.Println("❌ Failed to load subscription plan:", err)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load plan"})
-				return
-			}
-
-			start := time.Now().UTC()
-			end := start.Add(time.Duration(plan.DurationDays) * 24 * time.Hour)
-
-			// Create subscription
-			subscription, err := txQueries.CreateSubscription(ctx, gen.CreateSubscriptionParams{
-				UserID: payment.UserID,
-				PlanID: payment.PlanID,
-				StartDate: pgtype.Timestamp{
-					Time:  start,
-					Valid: true,
-				},
-				EndDate: pgtype.Timestamp{
-					Time:  end,
-					Valid: true,
-				},
-				Status: "active", // Ensure status is set
-			})
-			if err != nil {
-				log.Println("❌ Failed to create subscription:", err)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create subscription"})
-				return
-			}
-
-			// Update payment with subscription ID
-			_, err = txQueries.UpdatePaymentSubscriptionID(ctx, gen.UpdatePaymentSubscriptionIDParams{
-				ID: payment.ID,
-				SubscriptionID: pgtype.UUID{
-					Bytes: subscription.ID.Bytes,
-					Valid: true,
-				},
-			})
-			if err != nil {
-				log.Println("❌ Failed to update payment subscription ID:", err)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update payment"})
-				return
-			}
-
-			// Update payment status to PAID
-			_, err = txQueries.UpdatePaymentStatus(ctx, gen.UpdatePaymentStatusParams{
-				ID:     payment.ID,
-				Status: "paid",
-			})
-			if err != nil {
-				log.Println("❌ Failed to mark payment as paid:", err)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update payment status"})
-				return
-			}
-
-			if err := tx.Commit(ctx); err != nil {
-				log.Println("❌ Failed to commit transaction:", err)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "commit failed"})
-				return
-			}
-
-			log.Printf("✅ Payment successful & subscription created! transaction_id=%s subscription_id=%s", transactionID, subscription.ID)
-
-		} else {
-			// Payment failed or incomplete
-			log.Println("❌ Stripe payment FAILED/INCOMPLETE for tran_id:", transactionID)
-			_, err = txQueries.UpdatePaymentStatus(ctx, gen.UpdatePaymentStatusParams{
-				ID:     payment.ID,
-				Status: "failed",
-			})
-			if err != nil {
-				log.Println("❌ Failed to mark payment as failed:", err)
-			}
-			_ = tx.Commit(ctx)
+		// Create Subscription
+		sub, err := txQueries.CreateSubscription(ctx, gen.CreateSubscriptionParams{
+			UserID:    payment.UserID,
+			PlanID:    payment.PlanID,
+			StartDate: pgtype.Timestamp{Time: start, Valid: true},
+			EndDate:   pgtype.Timestamp{Time: end, Valid: true},
+			Status:    "active",
+		})
+		if err != nil {
+			log.Printf("❌ [Webhook] DB: CreateSubscription failed: %v", err)
+			c.Status(http.StatusInternalServerError)
+			return
 		}
 
+		// Update Payment
+		err = txQueries.UpdatePaymentStatus(ctx, gen.UpdatePaymentStatusParams{
+			ID:     payment.ID,
+			Status: "paid",
+		})
+		if err != nil {
+			log.Printf("❌ [Webhook] DB: UpdatePaymentStatus failed: %v", err)
+			c.Status(http.StatusInternalServerError)
+			return
+		}
+
+		// Update Payment with Sub ID
+		_, err = txQueries.UpdatePaymentSubscriptionID(ctx, gen.UpdatePaymentSubscriptionIDParams{
+			ID:             payment.ID,
+			SubscriptionID: pgtype.UUID{Bytes: sub.ID.Bytes, Valid: true},
+		})
+
+		// Commit
+		if err := tx.Commit(ctx); err != nil {
+			log.Printf("❌ [Webhook] DB: Commit failed: %v", err)
+			c.Status(http.StatusInternalServerError)
+			return
+		}
+
+		log.Printf("✅ [Webhook] SUCCESS! Payment %s updated to PAID, Sub %s created.", transactionID, sub.ID)
+
 	default:
-		log.Println("ℹ Unhandled event type:", event.Type)
+		log.Printf("ℹ️ [Webhook] Unhandled event type: %s", event.Type)
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "success"})
+	c.Status(http.StatusOK)
 }
 func StripeRedirectHandler(c *gin.Context) {
 	tranID := c.Query("tran_id")
@@ -213,4 +177,3 @@ func StripeRedirectHandler(c *gin.Context) {
 		"transaction_id": tranID,
 	})
 }
-
