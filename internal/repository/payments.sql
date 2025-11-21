@@ -28,6 +28,12 @@ SET status = $2,
     updated_at = NOW()
 WHERE id = $1
 RETURNING *;
+-- name: UpdatePaymentStatusByTransactionID :one
+UPDATE payments
+SET status = $2,
+    updated_at = NOW()
+WHERE transaction_id = $1
+RETURNING *;
 
 -- name: UpdatePaymentSubscriptionID :one
 UPDATE payments

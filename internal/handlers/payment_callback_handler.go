@@ -103,7 +103,12 @@ func StripeWebhookHandler(c *gin.Context) {
 		txQueries := gen.New(tx)
 
 		// Calculate Subscription Dates
-		plan, _ := txQueries.GetSubscriptionPlanByID(ctx, payment.PlanID)
+		plan, err := txQueries.GetSubscriptionPlanByID(ctx, payment.PlanID)
+		if err != nil {
+			log.Printf("❌ [Webhook] Subscription plan not found for ID: %s", payment.PlanID)
+			c.Status(http.StatusInternalServerError)
+			return
+		}
 		start := time.Now().UTC()
 		end := start.Add(time.Duration(plan.DurationDays) * 24 * time.Hour)
 
@@ -155,28 +160,4 @@ func StripeWebhookHandler(c *gin.Context) {
 	}
 
 	c.Status(http.StatusOK)
-}
-func StripeRedirectHandler(c *gin.Context) {
-	tranID := c.Query("tran_id")
-	tranUUID, err := uuid.Parse(tranID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid transaction_id"})
-		return
-	}
-
-	payment, err := db.Q.GetPaymentByTransactionID(c.Request.Context(), pgtype.UUID{
-		Bytes: tranUUID,
-		Valid: true,
-	})
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "payment not found"})
-		return
-	}
-
-	status := payment.Status
-	c.JSON(http.StatusOK, gin.H{
-		"message":        "Payment processed",
-		"status":         status,
-		"transaction_id": tranID,
-	})
 }

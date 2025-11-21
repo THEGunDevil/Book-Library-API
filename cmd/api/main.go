@@ -58,8 +58,8 @@ func main() {
 	r.GET("/download/users", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DownloadUsersHandler)
 	r.GET("/download/borrows", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DownloadBorrowsHandler)
 	r.POST("/stripe/webhook", handlers.StripeWebhookHandler)
-	r.GET("/stripe/callback", handlers.StripeRedirectHandler)
-
+	r.GET("/stripe/success", handlers.StripeSuccessHandler)
+	r.GET("/stripe/cancel", handlers.StripeCancelHandler)
 	// Auth routes (public)
 	authGroup := r.Group("/auth")
 	{

@@ -319,6 +319,37 @@ func (q *Queries) UpdatePaymentStatus(ctx context.Context, arg UpdatePaymentStat
 	return i, err
 }
 
+const updatePaymentStatusByTransactionID = `-- name: UpdatePaymentStatusByTransactionID :one
+UPDATE payments
+SET status = $2,
+    updated_at = NOW()
+WHERE transaction_id = $1
+RETURNING id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at
+`
+
+type UpdatePaymentStatusByTransactionIDParams struct {
+	TransactionID pgtype.UUID `json:"transaction_id"`
+	Status        string      `json:"status"`
+}
+
+func (q *Queries) UpdatePaymentStatusByTransactionID(ctx context.Context, arg UpdatePaymentStatusByTransactionIDParams) (Payment, error) {
+	row := q.db.QueryRow(ctx, updatePaymentStatusByTransactionID, arg.TransactionID, arg.Status)
+	var i Payment
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.PlanID,
+		&i.SubscriptionID,
+		&i.Amount,
+		&i.Currency,
+		&i.TransactionID,
+		&i.PaymentGateway,
+		&i.Status,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const updatePaymentSubscriptionID = `-- name: UpdatePaymentSubscriptionID :one
 UPDATE payments
 SET subscription_id = $2,
