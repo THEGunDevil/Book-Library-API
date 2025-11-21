@@ -122,7 +122,7 @@ func StripeWebhookHandler(c *gin.Context) {
 		}
 
 		// Update Payment
-		err = txQueries.UpdatePaymentStatus(ctx, gen.UpdatePaymentStatusParams{
+		_,err = txQueries.UpdatePaymentStatus(ctx, gen.UpdatePaymentStatusParams{
 			ID:     payment.ID,
 			Status: "paid",
 		})
