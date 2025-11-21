@@ -1,13 +1,21 @@
 -- name: CreatePayment :one
 INSERT INTO payments (
-    id, user_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at
-) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, NOW()
-) RETURNING *;
+    user_id,
+    plan_id,
+    amount,
+    payment_gateway,
+    currency
+) VALUES ($1, $2, $3, $4, $5)
+RETURNING *;
+
 
 -- name: GetPaymentByID :one
 SELECT * FROM payments
 WHERE id = $1;
+
+-- name: GetPaymentByTransactionID :one
+SELECT * FROM payments
+WHERE transaction_id = $1;
 
 -- name: ListPaymentsByUser :many
 SELECT * FROM payments
@@ -17,6 +25,13 @@ ORDER BY created_at DESC;
 -- name: UpdatePaymentStatus :one
 UPDATE payments
 SET status = $2,
+    updated_at = NOW()
+WHERE id = $1
+RETURNING *;
+
+-- name: UpdatePaymentSubscriptionID :one
+UPDATE payments
+SET subscription_id = $2,
     updated_at = NOW()
 WHERE id = $1
 RETURNING *;

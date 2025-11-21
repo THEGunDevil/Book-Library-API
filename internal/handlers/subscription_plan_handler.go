@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/THEGunDevil/GoForBackend/internal/db"
@@ -15,208 +16,219 @@ import (
 )
 
 func CreateSubscriptionPlanHandler(c *gin.Context) {
+	log.Println("🔹 CreateSubscriptionPlanHandler called")
 	var req models.SubscriptionPlan
 
-	// Bind JSON
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Println("❌ JSON bind error:", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	log.Printf("🔹 Request received: %+v\n", req)
 
-	// Validate input
-	if len(req.Name) == 0 || len(req.Name) > 100 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "name must be 1-100 characters"})
+	// Validations
+	if len(req.Name) == 0 || len(req.Name) > 100 || req.Price <= 0 || req.DurationDays <= 0 || len(req.Description) > 255 {
+		log.Println("❌ Validation failed")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid input"})
 		return
 	}
 
-	if req.Price <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "price must be greater than 0"})
-		return
-	}
-
-	if req.DurationDays <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "duration_days must be greater than 0"})
-		return
-	}
-
-	// Optional: limit description length
-	if len(req.Description) > 255 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "description too long"})
-		return
-	}
-	// TODO: Insert into DB
-	featuresBytes, err := service.MapToJSONBBytes(req.Features)
+	featuresBytes, err := json.Marshal(req.Features)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "invalid features"})
+		log.Println("❌ Features marshal error:", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid features"})
 		return
 	}
+
 	params := gen.CreateSubscriptionPlanParams{
 		Name:         req.Name,
 		Price:        float64(req.Price),
 		DurationDays: int32(req.DurationDays),
 		Description:  service.StringToPGText(req.Description),
-		Features:     featuresBytes,
+		Features:     pgtype.Text{String: string(featuresBytes), Valid: true},
 	}
+	log.Println("🔹 SQLC params prepared")
+
 	sub, err := db.Q.CreateSubscriptionPlan(c.Request.Context(), params)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create subscription plans",
-			"details": err.Error()})
+		log.Println("❌ DB insert error:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create subscription plan", "details": err.Error()})
+		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "subscription plan created", "plan": sub})
+	log.Println("✅ Subscription plan created with ID:", sub.ID)
+
+	var features map[string]interface{}
+	if err := json.Unmarshal([]byte(sub.Features.String), &features); err != nil {
+		log.Println("❌ Features unmarshal error:", err)
+		features = make(map[string]interface{})
+	}
+
+	resp := models.SubscriptionPlan{
+		ID:           sub.ID.Bytes,
+		Name:         sub.Name,
+		Price:        sub.Price,
+		DurationDays: int(sub.DurationDays),
+		Description:  sub.Description.String,
+		Features:     features,
+		CreatedAt:    sub.CreatedAt.Time,
+		UpdatedAt:    sub.UpdatedAt.Time,
+	}
+
+	log.Println("🔹 Response prepared")
+	c.JSON(http.StatusOK, gin.H{"message": "subscription plan created", "plan": resp})
 }
+
+// ---------------- Update ----------------
 func UpdateSubscriptionPlanHandler(c *gin.Context) {
+	log.Println("🔹 UpdateSubscriptionPlanHandler called")
 	var req models.SubscriptionPlan
-	// Bind JSON
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Println("❌ JSON bind error:", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	log.Printf("🔹 Request received: %+v\n", req)
 
-	// Validate input
-	if len(req.Name) == 0 || len(req.Name) > 100 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "name must be 1-100 characters"})
-		return
-	}
-
-	if req.Price <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "price must be greater than 0"})
-		return
-	}
-
-	if req.DurationDays <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "duration_days must be greater than 0"})
-		return
-	}
-
-	// Optional: limit description length
-	if len(req.Description) > 255 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "description too long"})
-		return
-	}
-	// TODO: Insert into DB
-	featuresBytes, err := service.MapToJSONBBytes(req.Features)
+	featuresBytes, err := json.Marshal(req.Features)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "invalid features"})
+		log.Println("❌ Features marshal error:", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid features"})
 		return
 	}
+
 	params := gen.UpdateSubscriptionPlanParams{
 		ID:           service.UUIDToPGType(req.ID),
 		Name:         req.Name,
 		Price:        float64(req.Price),
 		DurationDays: int32(req.DurationDays),
 		Description:  service.StringToPGText(req.Description),
-		Features:     featuresBytes,
+		Features:     pgtype.Text{String: string(featuresBytes), Valid: true},
 	}
+	log.Println("🔹 SQLC params prepared")
+
 	sub, err := db.Q.UpdateSubscriptionPlan(c.Request.Context(), params)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update subscription plans",
-			"details": err.Error()})
-	}
-	var response []models.SubscriptionPlan
-	response = append(response, models.SubscriptionPlan{
-		ID:           sub.ID.Bytes, // assuming r.ID is uuid.UUID or string
-		Name:         sub.Name,
-		Price:        sub.Price, // if using pgtype.Float8
-		DurationDays: int(sub.DurationDays),
-		Description:  sub.Description.String, // if pgtype.Text
-		Features:     req.Features,             // []byte or map depending on SQLC
-	})
-	c.JSON(http.StatusOK, gin.H{"message": "subscription update created", "plan": response})
-}
-func GetSubscriptionsPlanHandler(c *gin.Context) {
-	// Get subscription plans from DB
-	sublists, err := db.Q.ListSubscriptionPlans(c.Request.Context())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "failed to get subscription plans",
-			"details": err.Error(),
-		})
+		log.Println("❌ DB update error:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update subscription plans", "details": err.Error()})
 		return
 	}
+	log.Println("✅ Subscription plan updated with ID:", sub.ID)
 
-	// Map to your API response model if needed
+	var features map[string]interface{}
+	if err := json.Unmarshal([]byte(sub.Features.String), &features); err != nil {
+		log.Println("❌ Features unmarshal error:", err)
+		features = make(map[string]interface{})
+	}
+
+	resp := models.SubscriptionPlan{
+		ID:           sub.ID.Bytes,
+		Name:         sub.Name,
+		Price:        sub.Price,
+		DurationDays: int(sub.DurationDays),
+		Description:  sub.Description.String,
+		Features:     features,
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "subscription plan updated", "plan": resp})
+}
+
+// ---------------- Get All ----------------
+func GetSubscriptionsPlanHandler(c *gin.Context) {
+	log.Println("🔹 GetSubscriptionsPlanHandler called")
+
+	sublists, err := db.Q.ListSubscriptionPlans(c.Request.Context())
+	if err != nil {
+		log.Println("❌ DB fetch error:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get subscription plans", "details": err.Error()})
+		return
+	}
+	log.Printf("🔹 %d plans fetched\n", len(sublists))
+
 	var response []models.SubscriptionPlan
 	for _, r := range sublists {
 		var features map[string]interface{}
-		if len(r.Features) > 0 {
-			if err := json.Unmarshal(r.Features, &features); err != nil {
-				features = map[string]interface{}{} // fallback empty map
+		if len(r.Features.String) > 0 {
+			if err := json.Unmarshal([]byte(r.Features.String), &features); err != nil {
+				log.Println("❌ Features unmarshal error:", err)
+				features = make(map[string]interface{})
 			}
 		} else {
 			features = map[string]interface{}{}
 		}
 		response = append(response, models.SubscriptionPlan{
-			ID:           r.ID.Bytes, // assuming r.ID is uuid.UUID or string
+			ID:           r.ID.Bytes,
 			Name:         r.Name,
-			Price:        r.Price, // if using pgtype.Float8
+			Price:        r.Price,
 			DurationDays: int(r.DurationDays),
-			Description:  r.Description.String, // if pgtype.Text
-			Features:     features,             // []byte or map depending on SQLC
+			Description:  r.Description.String,
+			Features:     features,
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "subscription plans retrieved",
-		"plans":   response,
-	})
+	c.JSON(http.StatusOK, gin.H{"message": "subscription plans retrieved", "plans": response})
 }
+
+// ---------------- Get By ID ----------------
 func GetSubscriptionPlanByIDHandler(c *gin.Context) {
+	log.Println("🔹 GetSubscriptionPlanByIDHandler called")
 	idStr := c.Param("id")
 	parsedID, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book ID"})
-		return
-	}
-	sub, err := db.Q.GetSubscriptionPlanByID(c.Request.Context(), pgtype.UUID{Bytes: parsedID, Valid: true})
-	if err != nil {
-		if err == pgx.ErrNoRows { // important
-			c.JSON(http.StatusNotFound, gin.H{"error": "subscription plan not found"})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get subscription", "details": err.Error()})
+		log.Println("❌ Invalid UUID:", idStr)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid subscription plan ID"})
 		return
 	}
 
-	// Map to your API response model if needed
-	var response []models.SubscriptionPlan
+	sub, err := db.Q.GetSubscriptionPlanByID(c.Request.Context(), pgtype.UUID{Bytes: parsedID, Valid: true})
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			log.Println("❌ Subscription plan not found:", parsedID)
+			c.JSON(http.StatusNotFound, gin.H{"error": "subscription plan not found"})
+			return
+		}
+		log.Println("❌ DB fetch error:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get subscription plan", "details": err.Error()})
+		return
+	}
 	var features map[string]interface{}
-	if len(sub.Features) > 0 {
-		if err := json.Unmarshal(sub.Features, &features); err != nil {
-			features = map[string]interface{}{} // fallback empty map
+	if len(sub.Features.String) > 0 {
+		if err := json.Unmarshal([]byte(sub.Features.String), &features); err != nil {
+			log.Println("❌ Features unmarshal error:", err)
+			features = make(map[string]interface{})
 		}
 	} else {
 		features = map[string]interface{}{}
 	}
-	response = append(response, models.SubscriptionPlan{
-		ID:           sub.ID.Bytes, // assuming sub.ID is uuid.UUID or string
+	resp := models.SubscriptionPlan{
+		ID:           sub.ID.Bytes,
 		Name:         sub.Name,
-		Price:        sub.Price, // if using pgtype.Float8
+		Price:        sub.Price,
 		DurationDays: int(sub.DurationDays),
-		Description:  sub.Description.String, // if pgtype.Text
-		Features:     features,               // []byte or map depending on SQLC
-	})
+		Description:  sub.Description.String,
+		Features:     features,
+	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "subscription plans retrieved",
-		"plans":   response,
-	})
+	c.JSON(http.StatusOK, gin.H{"message": "subscription plan retrieved", "plan": resp})
 }
+
+// ---------------- Delete ----------------
 func DeleteSubscriptionPlanByID(c *gin.Context) {
+	log.Println("🔹 DeleteSubscriptionPlanByID called")
 	idStr := c.Param("id")
 	parsedID, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book ID"})
+		log.Println("❌ Invalid UUID:", idStr)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid subscription plan ID"})
 		return
 	}
+
 	err = db.Q.DeleteSubscriptionPlan(c.Request.Context(), pgtype.UUID{Bytes: parsedID, Valid: true})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "failed to delete subscription plan",
-			"details": err.Error(),
-		})
+		log.Println("❌ DB delete error:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete subscription plan", "details": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"message": "subscription plan deleted successfully ",
-	})
+
+	log.Println("✅ Subscription plan deleted:", parsedID)
+	c.JSON(http.StatusOK, gin.H{"message": "subscription plan deleted successfully"})
 }

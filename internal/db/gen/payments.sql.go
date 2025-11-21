@@ -13,38 +13,36 @@ import (
 
 const createPayment = `-- name: CreatePayment :one
 INSERT INTO payments (
-    id, user_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at
-) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, NOW()
-) RETURNING id, user_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at
+    user_id,
+    plan_id,
+    amount,
+    payment_gateway,
+    currency
+) VALUES ($1, $2, $3, $4, $5)
+RETURNING id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at
 `
 
 type CreatePaymentParams struct {
-	ID             pgtype.UUID `json:"id"`
 	UserID         pgtype.UUID `json:"user_id"`
-	SubscriptionID pgtype.UUID `json:"subscription_id"`
+	PlanID         pgtype.UUID `json:"plan_id"`
 	Amount         float64     `json:"amount"`
-	Currency       pgtype.Text `json:"currency"`
-	TransactionID  pgtype.Text `json:"transaction_id"`
 	PaymentGateway pgtype.Text `json:"payment_gateway"`
-	Status         pgtype.Text `json:"status"`
+	Currency       string      `json:"currency"`
 }
 
 func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (Payment, error) {
 	row := q.db.QueryRow(ctx, createPayment,
-		arg.ID,
 		arg.UserID,
-		arg.SubscriptionID,
+		arg.PlanID,
 		arg.Amount,
-		arg.Currency,
-		arg.TransactionID,
 		arg.PaymentGateway,
-		arg.Status,
+		arg.Currency,
 	)
 	var i Payment
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
+		&i.PlanID,
 		&i.SubscriptionID,
 		&i.Amount,
 		&i.Currency,
@@ -120,7 +118,7 @@ func (q *Queries) DeleteRefund(ctx context.Context, id pgtype.UUID) error {
 }
 
 const getPaymentByID = `-- name: GetPaymentByID :one
-SELECT id, user_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at FROM payments
+SELECT id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at FROM payments
 WHERE id = $1
 `
 
@@ -130,6 +128,30 @@ func (q *Queries) GetPaymentByID(ctx context.Context, id pgtype.UUID) (Payment, 
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
+		&i.PlanID,
+		&i.SubscriptionID,
+		&i.Amount,
+		&i.Currency,
+		&i.TransactionID,
+		&i.PaymentGateway,
+		&i.Status,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getPaymentByTransactionID = `-- name: GetPaymentByTransactionID :one
+SELECT id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at FROM payments
+WHERE transaction_id = $1
+`
+
+func (q *Queries) GetPaymentByTransactionID(ctx context.Context, transactionID pgtype.UUID) (Payment, error) {
+	row := q.db.QueryRow(ctx, getPaymentByTransactionID, transactionID)
+	var i Payment
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.PlanID,
 		&i.SubscriptionID,
 		&i.Amount,
 		&i.Currency,
@@ -162,7 +184,7 @@ func (q *Queries) GetRefundByID(ctx context.Context, id pgtype.UUID) (Refund, er
 }
 
 const listPaymentsByUser = `-- name: ListPaymentsByUser :many
-SELECT id, user_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at FROM payments
+SELECT id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at FROM payments
 WHERE user_id = $1
 ORDER BY created_at DESC
 `
@@ -179,6 +201,7 @@ func (q *Queries) ListPaymentsByUser(ctx context.Context, userID pgtype.UUID) ([
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
+			&i.PlanID,
 			&i.SubscriptionID,
 			&i.Amount,
 			&i.Currency,
@@ -270,12 +293,12 @@ UPDATE payments
 SET status = $2,
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, user_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at
+RETURNING id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at
 `
 
 type UpdatePaymentStatusParams struct {
 	ID     pgtype.UUID `json:"id"`
-	Status pgtype.Text `json:"status"`
+	Status string      `json:"status"`
 }
 
 func (q *Queries) UpdatePaymentStatus(ctx context.Context, arg UpdatePaymentStatusParams) (Payment, error) {
@@ -284,6 +307,38 @@ func (q *Queries) UpdatePaymentStatus(ctx context.Context, arg UpdatePaymentStat
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
+		&i.PlanID,
+		&i.SubscriptionID,
+		&i.Amount,
+		&i.Currency,
+		&i.TransactionID,
+		&i.PaymentGateway,
+		&i.Status,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const updatePaymentSubscriptionID = `-- name: UpdatePaymentSubscriptionID :one
+UPDATE payments
+SET subscription_id = $2,
+    updated_at = NOW()
+WHERE id = $1
+RETURNING id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at
+`
+
+type UpdatePaymentSubscriptionIDParams struct {
+	ID             pgtype.UUID `json:"id"`
+	SubscriptionID pgtype.UUID `json:"subscription_id"`
+}
+
+func (q *Queries) UpdatePaymentSubscriptionID(ctx context.Context, arg UpdatePaymentSubscriptionIDParams) (Payment, error) {
+	row := q.db.QueryRow(ctx, updatePaymentSubscriptionID, arg.ID, arg.SubscriptionID)
+	var i Payment
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.PlanID,
 		&i.SubscriptionID,
 		&i.Amount,
 		&i.Currency,

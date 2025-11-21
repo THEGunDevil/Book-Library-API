@@ -46,12 +46,13 @@ type Event struct {
 type Payment struct {
 	ID             pgtype.UUID      `json:"id"`
 	UserID         pgtype.UUID      `json:"user_id"`
+	PlanID         pgtype.UUID      `json:"plan_id"`
 	SubscriptionID pgtype.UUID      `json:"subscription_id"`
 	Amount         float64          `json:"amount"`
-	Currency       pgtype.Text      `json:"currency"`
-	TransactionID  pgtype.Text      `json:"transaction_id"`
+	Currency       string           `json:"currency"`
+	TransactionID  pgtype.UUID      `json:"transaction_id"`
 	PaymentGateway pgtype.Text      `json:"payment_gateway"`
-	Status         pgtype.Text      `json:"status"`
+	Status         string           `json:"status"`
 	CreatedAt      pgtype.Timestamp `json:"created_at"`
 }
 
@@ -105,7 +106,7 @@ type SubscriptionPlan struct {
 	Price        float64          `json:"price"`
 	DurationDays int32            `json:"duration_days"`
 	Description  pgtype.Text      `json:"description"`
-	Features     []byte           `json:"features"`
+	Features     pgtype.Text      `json:"features"`
 	CreatedAt    pgtype.Timestamp `json:"created_at"`
 	UpdatedAt    pgtype.Timestamp `json:"updated_at"`
 }

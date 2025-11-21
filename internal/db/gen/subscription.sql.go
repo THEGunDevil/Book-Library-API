@@ -29,14 +29,13 @@ func (q *Queries) CountSubsPerUser(ctx context.Context, arg CountSubsPerUserPara
 
 const createSubscription = `-- name: CreateSubscription :one
 INSERT INTO subscriptions (
-    id, user_id, plan_id, start_date, end_date, status, auto_renew, created_at, updated_at
+user_id, plan_id, start_date, end_date, status, auto_renew, created_at, updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
+    $1, $2, $3, $4, $5, $6, NOW(), NOW()
 ) RETURNING id, user_id, plan_id, start_date, end_date, status, auto_renew, created_at, updated_at
 `
 
 type CreateSubscriptionParams struct {
-	ID        pgtype.UUID      `json:"id"`
 	UserID    pgtype.UUID      `json:"user_id"`
 	PlanID    pgtype.UUID      `json:"plan_id"`
 	StartDate pgtype.Timestamp `json:"start_date"`
@@ -47,7 +46,6 @@ type CreateSubscriptionParams struct {
 
 func (q *Queries) CreateSubscription(ctx context.Context, arg CreateSubscriptionParams) (Subscription, error) {
 	row := q.db.QueryRow(ctx, createSubscription,
-		arg.ID,
 		arg.UserID,
 		arg.PlanID,
 		arg.StartDate,
@@ -72,24 +70,22 @@ func (q *Queries) CreateSubscription(ctx context.Context, arg CreateSubscription
 
 const createSubscriptionPlan = `-- name: CreateSubscriptionPlan :one
 INSERT INTO subscription_plans (
-    id, name, price, duration_days, description, features, created_at, updated_at
+    name, price, duration_days, description, features, created_at, updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, NOW(), NOW()
+    $1, $2, $3, $4, $5, NOW(), NOW()
 ) RETURNING id, name, price, duration_days, description, features, created_at, updated_at
 `
 
 type CreateSubscriptionPlanParams struct {
-	ID           pgtype.UUID `json:"id"`
 	Name         string      `json:"name"`
 	Price        float64     `json:"price"`
 	DurationDays int32       `json:"duration_days"`
 	Description  pgtype.Text `json:"description"`
-	Features     []byte      `json:"features"`
+	Features     pgtype.Text `json:"features"`
 }
 
 func (q *Queries) CreateSubscriptionPlan(ctx context.Context, arg CreateSubscriptionPlanParams) (SubscriptionPlan, error) {
 	row := q.db.QueryRow(ctx, createSubscriptionPlan,
-		arg.ID,
 		arg.Name,
 		arg.Price,
 		arg.DurationDays,
@@ -137,6 +133,28 @@ WHERE id = $1
 
 func (q *Queries) GetSubscriptionByID(ctx context.Context, id pgtype.UUID) (Subscription, error) {
 	row := q.db.QueryRow(ctx, getSubscriptionByID, id)
+	var i Subscription
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.PlanID,
+		&i.StartDate,
+		&i.EndDate,
+		&i.Status,
+		&i.AutoRenew,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getSubscriptionByUserID = `-- name: GetSubscriptionByUserID :one
+SELECT id, user_id, plan_id, start_date, end_date, status, auto_renew, created_at, updated_at FROM subscriptions
+WHERE user_id = $1
+`
+
+func (q *Queries) GetSubscriptionByUserID(ctx context.Context, userID pgtype.UUID) (Subscription, error) {
+	row := q.db.QueryRow(ctx, getSubscriptionByUserID, userID)
 	var i Subscription
 	err := row.Scan(
 		&i.ID,
@@ -341,7 +359,7 @@ type UpdateSubscriptionPlanParams struct {
 	Price        float64     `json:"price"`
 	DurationDays int32       `json:"duration_days"`
 	Description  pgtype.Text `json:"description"`
-	Features     []byte      `json:"features"`
+	Features     pgtype.Text `json:"features"`
 }
 
 func (q *Queries) UpdateSubscriptionPlan(ctx context.Context, arg UpdateSubscriptionPlanParams) (SubscriptionPlan, error) {

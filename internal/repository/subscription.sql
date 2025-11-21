@@ -1,8 +1,8 @@
 -- name: CreateSubscriptionPlan :one
 INSERT INTO subscription_plans (
-    id, name, price, duration_days, description, features, created_at, updated_at
+    name, price, duration_days, description, features, created_at, updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, NOW(), NOW()
+    $1, $2, $3, $4, $5, NOW(), NOW()
 ) RETURNING *;
 
 -- name: GetSubscriptionPlanByID :one
@@ -35,14 +35,17 @@ WHERE user_id = $1 AND plan_id = $2 AND status = 'active';
 
 -- name: CreateSubscription :one
 INSERT INTO subscriptions (
-    id, user_id, plan_id, start_date, end_date, status, auto_renew, created_at, updated_at
+user_id, plan_id, start_date, end_date, status, auto_renew, created_at, updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
+    $1, $2, $3, $4, $5, $6, NOW(), NOW()
 ) RETURNING *;
 
 -- name: GetSubscriptionByID :one
 SELECT * FROM subscriptions
 WHERE id = $1;
+-- name: GetSubscriptionByUserID :one
+SELECT * FROM subscriptions
+WHERE user_id = $1;
 -- name: ListSubscriptions :many
 SELECT * FROM subscriptions
 ORDER BY created_at DESC;

@@ -42,15 +42,15 @@ type UpdateSubscriptionRequest struct {
 }
 
 type Payment struct {
-	ID             uuid.UUID `json:"id"`
-	UserID         uuid.UUID `json:"user_id"`
-	SubscriptionID *uuid.UUID `json:"subscription_id,omitempty"` // can be null
-	Amount         float64    `json:"amount"`       // NUMERIC(10,2)
-	Currency       string     `json:"currency"`     // default: BDT
-	TransactionID  string     `json:"transaction_id"`
-	PaymentGateway string     `json:"payment_gateway"` // Stripe, SSLCommerz, etc.
-	Status         string     `json:"status"`          // paid, failed, pending
-	CreatedAt      time.Time  `json:"created_at"`
+    ID               uuid.UUID  `json:"id"`
+    UserID           uuid.UUID  `json:"user_id"`
+    SubscriptionID   *uuid.UUID `json:"subscription_id,omitempty"` // nullable link
+    Amount           float64    `json:"amount"`
+    Currency         string     `json:"currency"`
+    TransactionID    uuid.UUID  `json:"transaction_id"`            // FIXED: Should be uuid.UUID to match DB and server generation
+    PaymentGateway   string     `json:"payment_gateway"`
+    Status           string     `json:"status"`
+    CreatedAt        time.Time  `json:"created_at"`
 }
 type Refund struct {
 	ID          uuid.UUID `json:"id"`
@@ -68,11 +68,6 @@ type CreateRefundRequest struct {
 	Status    string    `json:"status"`                // requested, processed, rejected
 }
 type CreatePaymentRequest struct {
-	UserID         uuid.UUID `json:"user_id"`                    // required
-	SubscriptionID uuid.UUID `json:"subscription_id"`            // required
-	Amount         float64   `json:"amount"`                     // required
-	Currency       string    `json:"currency,omitempty"`         // optional, defaults to 'BDT'
-	TransactionID  string    `json:"transaction_id,omitempty"`   // optional, for reference
-	PaymentGateway string    `json:"payment_gateway,omitempty"`  // optional, e.g., Stripe, Nagad
-	Status         string    `json:"status,omitempty"`           // optional, "paid", "failed", "pending"
+    UserID         uuid.UUID `json:"user_id"`
+    PlanID         uuid.UUID `json:"plan_id"`
 }

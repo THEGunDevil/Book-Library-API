@@ -33,8 +33,8 @@ func main() {
 
 	// Load config & connect DB
 	cfg := config.LoadConfig()
-	db.Connect(cfg)
-	// db.LocalConnect(cfg)
+	// db.Connect(cfg)
+	db.LocalConnect(cfg)
 	defer db.Close()
 
 	r := gin.New() // instead of gin.Default() if you want full control
@@ -57,6 +57,8 @@ func main() {
 	r.GET("/download/books", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DownloadSearchBooksHandler)
 	r.GET("/download/users", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DownloadUsersHandler)
 	r.GET("/download/borrows", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DownloadBorrowsHandler)
+	r.POST("/stripe/webhook", handlers.StripeWebhookHandler)
+	r.GET("/stripe/callback", handlers.StripeRedirectHandler)
 
 	// Auth routes (public)
 	authGroup := r.Group("/auth")
@@ -149,37 +151,37 @@ func main() {
 	{
 		subscriptionPlanGroup.GET("/", handlers.GetSubscriptionsPlanHandler)
 		subscriptionPlanGroup.GET("/:id", handlers.GetSubscriptionPlanByIDHandler)
-		subscriptionPlanGroup.POST("/", middleware.AdminOnly(),handlers.CreateSubscriptionPlanHandler)
-		subscriptionPlanGroup.DELETE("/:id", middleware.AdminOnly(),handlers.DeleteSubscriptionPlanByID)
+		subscriptionPlanGroup.POST("/", middleware.AdminOnly(), handlers.CreateSubscriptionPlanHandler)
+		subscriptionPlanGroup.DELETE("/:id", middleware.AdminOnly(), handlers.DeleteSubscriptionPlanByID)
 	}
 
 	subscriptionGroup := r.Group("/subscription")
 	subscriptionGroup.Use(middleware.AuthMiddleware())
 	{
-		subscriptionGroup.GET("/", middleware.AdminOnly(),handlers.ListSubscriptionsHandler)
-		subscriptionGroup.GET("/:id", handlers.GetSubscriptionByIDHandler)
-		subscriptionGroup.GET("/user/:user_id", middleware.AdminOnly(),handlers.ListSubscriptionsByUserHandler)
+		subscriptionGroup.GET("/", middleware.AdminOnly(), handlers.ListSubscriptionsHandler)
+		subscriptionGroup.GET("/:user_id", handlers.GetSubscriptionByUserIDHandler)
+		subscriptionGroup.GET("/user/:user_id", middleware.AdminOnly(), handlers.ListSubscriptionsByUserHandler)
 		subscriptionGroup.POST("/", handlers.CreateSubscriptionHandler)
-		subscriptionGroup.DELETE("/:id", middleware.AdminOnly(),handlers.DeleteSubscriptionByIDHandler)
+		subscriptionGroup.DELETE("/:id", middleware.AdminOnly(), handlers.DeleteSubscriptionByIDHandler)
 	}
 	paymentGroup := r.Group("/payments")
 	paymentGroup.Use(middleware.AuthMiddleware())
 	{
-		paymentGroup.POST("/", handlers.CreatePaymentHandler)                     // create payment
-		paymentGroup.GET("/:id", handlers.GetPaymentHandler)                      // get by ID
-		paymentGroup.GET("/payment/user/:user_id", middleware.AdminOnly(),handlers.ListPaymentsByUserHandler)   // list by user
-		paymentGroup.PATCH("/payment/:id/status", handlers.UpdatePaymentStatusHandler)    // update status
-		paymentGroup.DELETE("/payment/:id", middleware.AdminOnly(), handlers.DeletePaymentByIDHandler)    
+		paymentGroup.POST("/payment", handlers.CreatePaymentHandler)                                           // create payment
+		paymentGroup.GET("/:id", handlers.GetPaymentHandler)                                                   // get by ID
+		paymentGroup.GET("/payment/user/:user_id", middleware.AdminOnly(), handlers.ListPaymentsByUserHandler) // list by user
+		paymentGroup.PATCH("/payment/:id/status", handlers.UpdatePaymentStatusHandler)                         // update status
+		paymentGroup.DELETE("/payment/:id", middleware.AdminOnly(), handlers.DeletePaymentByIDHandler)
 	}
 	refundGroup := r.Group("/refunds")
 	refundGroup.Use(middleware.AuthMiddleware())
 	{
-		refundGroup.POST("/", handlers.CreateRefundHandler)                         // create refund
-		refundGroup.GET("/:id", handlers.GetRefundHandler)                          // get by ID
+		refundGroup.POST("/", handlers.CreateRefundHandler)                                                   // create refund
+		refundGroup.GET("/:id", handlers.GetRefundHandler)                                                    // get by ID
 		refundGroup.GET("/payment/:payment_id", middleware.AdminOnly(), handlers.ListRefundsByPaymentHandler) // list refunds by payment
-		refundGroup.GET("/status",middleware.AdminOnly(), handlers.ListRefundsByStatusHandler)            // list refunds by status (query param: ?status=requested)
-		refundGroup.PATCH("/:id/status", handlers.UpdateRefundStatusHandler)        // update status & processed_at
-		refundGroup.DELETE("/:id", middleware.AdminOnly(),handlers.DeleteRefundHandler)                    // delete refund
+		refundGroup.GET("/status", middleware.AdminOnly(), handlers.ListRefundsByStatusHandler)               // list refunds by status (query param: ?status=requested)
+		refundGroup.PATCH("/:id/status", handlers.UpdateRefundStatusHandler)                                  // update status & processed_at
+		refundGroup.DELETE("/:id", middleware.AdminOnly(), handlers.DeleteRefundHandler)                      // delete refund
 	}
 	listGroup := r.Group("/list")
 	listGroup.Use(middleware.AuthMiddleware(), middleware.AdminOnly()) // ← Auth MUST come before Admin
