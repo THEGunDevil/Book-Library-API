@@ -176,6 +176,10 @@ CREATE INDEX idx_book_created_at ON reservations (book_id, created_at);
 
 -- +goose Down
 DROP TABLE IF EXISTS notifications;
+DROP TABLE IF EXISTS payments;
+DROP TABLE IF EXISTS Subscriptions;
+DROP TABLE IF EXISTS subscription_plans;
+DROP TABLE IF EXISTS refunds;
 DROP TABLE IF EXISTS reservations;
 DROP TABLE IF EXISTS reviews;
 DROP TABLE IF EXISTS borrows;

@@ -94,7 +94,12 @@ func InitializeStripePayment(payment *gen.Payment) (string, error) {
 	if successURL == "" || cancelURL == "" {
 		return "", fmt.Errorf("success/cancel URLs not set in env")
 	}
+	successRedirect := os.Getenv("PAYMENT_SUCCESS_REDIRECT")
+	cancelRedirect := os.Getenv("PAYMENT_CANCEL_REDIRECT")
 
+	if successRedirect == "" || cancelRedirect == "" {
+		return "", fmt.Errorf("PAYMENT_SUCCESS_REDIRECT or PAYMENT_CANCEL_REDIRECT missing")
+	}
 	log.Printf("Initializing Stripe payment: payment_id=%s, transaction_id=%s, amount=%.2f, currency=%s",
 		payment.ID, payment.TransactionID.String(), payment.Amount, payment.Currency)
 
@@ -113,8 +118,8 @@ func InitializeStripePayment(payment *gen.Payment) (string, error) {
 			},
 		},
 		Mode:       stripe.String(string(stripe.CheckoutSessionModePayment)),
-		SuccessURL: stripe.String(fmt.Sprintf("%s?tran_id=%s", successURL, payment.TransactionID.String())),
-		CancelURL:  stripe.String(fmt.Sprintf("%s?tran_id=%s", cancelURL, payment.TransactionID.String())),
+		SuccessURL: stripe.String(fmt.Sprintf("%s?tran_id=%s", successRedirect, payment.TransactionID.String())),
+		CancelURL:  stripe.String(fmt.Sprintf("%s?tran_id=%s", cancelRedirect, payment.TransactionID.String())),
 	}
 
 	s, err := session.New(params)
@@ -122,7 +127,9 @@ func InitializeStripePayment(payment *gen.Payment) (string, error) {
 		log.Printf("[ERROR] Request error from Stripe: %v", err)
 		return "", fmt.Errorf("failed to create Stripe session: %w", err)
 	}
-
+    // Your backend will use Stripe webhook or callback to update DB
+    _ = successURL
+    _ = cancelURL
 	log.Println("Stripe Checkout session created:", s.URL)
 	return s.URL, nil
 }
