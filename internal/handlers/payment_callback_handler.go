@@ -122,7 +122,7 @@ func StripeWebhookHandler(c *gin.Context) {
 		}
 
 		// Update Payment
-		_,err = txQueries.UpdatePaymentStatus(ctx, gen.UpdatePaymentStatusParams{
+		_, err = txQueries.UpdatePaymentStatus(ctx, gen.UpdatePaymentStatusParams{
 			ID:     payment.ID,
 			Status: "paid",
 		})
@@ -137,8 +137,11 @@ func StripeWebhookHandler(c *gin.Context) {
 			ID:             payment.ID,
 			SubscriptionID: pgtype.UUID{Bytes: sub.ID.Bytes, Valid: true},
 		})
-
-		// Commit
+		if err != nil {
+			log.Printf("❌ [Webhook] DB: UpdatePaymentStatus with subscription ID failed: %v", err)
+			c.Status(http.StatusInternalServerError)
+			return
+		}
 		if err := tx.Commit(ctx); err != nil {
 			log.Printf("❌ [Webhook] DB: Commit failed: %v", err)
 			c.Status(http.StatusInternalServerError)
