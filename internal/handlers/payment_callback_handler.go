@@ -135,7 +135,7 @@ func StripeWebhookHandler(c *gin.Context) {
 			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 				// 23505 is the PostgreSQL code for unique_violation.
 				// This usually means the user already has an active subscription.
-				log.Printf("⚠️ [Webhook] DB Constraint Failed (23505): User %s already has an active subscription. Proceeding to mark payment as paid.", payment.UserID.String)
+				log.Printf("⚠️ [Webhook] DB Constraint Failed (23505): User %s already has an active subscription. Proceeding to mark payment as paid.", payment.UserID)
 				
 				// Set sub ID to invalid so we skip linking it below, but allow the payment status update to proceed.
 				sub.ID = getInvalidUUID() 
