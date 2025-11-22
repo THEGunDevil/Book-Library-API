@@ -62,8 +62,21 @@ CREATE TABLE payments (
     status VARCHAR(20) NOT NULL DEFAULT 'pending'
         CHECK (status IN ('paid', 'failed', 'pending')),
 
-    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW();
 );
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+   NEW.updated_at = now();
+   RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_payments_updated_at
+BEFORE UPDATE ON payments
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
 
 
 -- Refunds table
