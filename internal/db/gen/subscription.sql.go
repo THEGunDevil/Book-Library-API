@@ -151,6 +151,10 @@ func (q *Queries) GetSubscriptionByID(ctx context.Context, id pgtype.UUID) (Subs
 const getSubscriptionByUserID = `-- name: GetSubscriptionByUserID :one
 SELECT id, user_id, plan_id, start_date, end_date, status, auto_renew, created_at, updated_at FROM subscriptions
 WHERE user_id = $1
+  AND status = 'active'
+  AND end_date >= NOW()
+ORDER BY end_date DESC
+LIMIT 1
 `
 
 func (q *Queries) GetSubscriptionByUserID(ctx context.Context, userID pgtype.UUID) (Subscription, error) {

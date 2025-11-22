@@ -45,7 +45,11 @@ SELECT * FROM subscriptions
 WHERE id = $1;
 -- name: GetSubscriptionByUserID :one
 SELECT * FROM subscriptions
-WHERE user_id = $1;
+WHERE user_id = $1
+  AND status = 'active'
+  AND end_date >= NOW()
+ORDER BY end_date DESC
+LIMIT 1;
 -- name: ListSubscriptions :many
 SELECT * FROM subscriptions
 ORDER BY created_at DESC;
