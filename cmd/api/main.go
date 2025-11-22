@@ -189,7 +189,7 @@ func main() {
 		listGroup.GET("/data-paginated", handlers.ListDataByStatusHandler)
 	}
 	port := os.Getenv("PORT")
-	if port == "/" {
+	if port == "" {
 		port = "8080"
 	}
 	log.Printf("Server running on port %s", port)
