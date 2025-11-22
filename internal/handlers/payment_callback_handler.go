@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context" // Added context for consistency
 	"encoding/json"
 	"errors" // New import for errors.As
 	"io"
