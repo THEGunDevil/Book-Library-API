@@ -135,6 +135,32 @@ func (q *Queries) GetUserNotificationsByUserID(ctx context.Context, arg GetUserN
 	return items, nil
 }
 
+const markAllNotificationsAsRead = `-- name: MarkAllNotificationsAsRead :exec
+INSERT INTO user_notification_status (user_id, event_id, is_read, read_at, created_at)
+SELECT 
+    $1,                -- user_id
+    e.id,              -- event_id
+    true,              -- is_read
+    NOW(),             -- read_at
+    NOW()              -- created_at
+FROM events e
+JOIN users u ON u.id = $1
+LEFT JOIN user_notification_status uns 
+    ON e.id = uns.event_id AND uns.user_id = $1
+WHERE 
+    -- VISIBILITY FILTER: (Same as your GetNotifications logic)
+    (e.created_at >= u.created_at OR uns.user_id IS NOT NULL)
+    -- STATUS FILTER: Only process if currently unread
+    AND COALESCE(uns.is_read, false) = false
+ON CONFLICT (user_id, event_id) 
+DO UPDATE SET is_read = true, read_at = NOW()
+`
+
+func (q *Queries) MarkAllNotificationsAsRead(ctx context.Context, userID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, markAllNotificationsAsRead, userID)
+	return err
+}
+
 const selectUnreadEventsForUser = `-- name: SelectUnreadEventsForUser :many
 SELECT e.id
 FROM events e

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/THEGunDevil/GoForBackend/internal/db"
@@ -75,41 +76,30 @@ func GetUserNotificationsByUserIDHandler(c *gin.Context) {
 
 // MarkAllNotificationsAsReadHandler marks all unread notifications for the user as read
 func MarkAllNotificationsAsReadHandler(c *gin.Context) {
-	userIDVal, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return
-	}
+    userIDVal, exists := c.Get("userID")
+    if !exists {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+        return
+    }
 
-	userUUID, ok := userIDVal.(uuid.UUID)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID in context"})
-		return
-	}
+    userUUID, ok := userIDVal.(uuid.UUID)
+    if !ok {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID in context"})
+        return
+    }
 
-	unreadEvents, err := db.Q.SelectUnreadEventsForUser(
-		c.Request.Context(),
-		pgtype.UUID{Bytes: userUUID, Valid: true},
-	)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch unread events"})
-		return
-	}
+    // 🚀 OPTIMIZED: One single atomic query
+    err := db.Q.MarkAllNotificationsAsRead(
+        c.Request.Context(),
+        pgtype.UUID{Bytes: userUUID, Valid: true},
+    )
 
-	for _, e := range unreadEvents {
-		err := db.Q.UpsertUserNotificationStatus(
-			c.Request.Context(),
-			gen.UpsertUserNotificationStatusParams{
-				UserID:  pgtype.UUID{Bytes: userUUID, Valid: true},
-				EventID: e,
-			},
-		)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark notifications as read"})
-			return
-		}
-	}
+    if err != nil {
+        // Log the error internally
+        log.Printf("Failed to mark all as read for user %v: %v", userUUID, err)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark notifications as read"})
+        return
+    }
 
-	c.JSON(http.StatusOK, gin.H{"message": "All notifications marked as read successfully"})
+    c.JSON(http.StatusOK, gin.H{"message": "All notifications marked as read successfully"})
 }
-
