@@ -170,7 +170,7 @@ func main() {
 	{
 		paymentGroup.POST("/payment", handlers.CreatePaymentHandler)                                           // create payment
 		paymentGroup.GET("/:id", handlers.GetPaymentHandler)                                                   // get by ID
-		paymentGroup.GET("/payment/user/:user_id", middleware.AdminOnly(), handlers.ListPaymentsByUserHandler) // list by user
+		paymentGroup.GET("/payment/user/:user_id", middleware.AdminOnly(), handlers.ListAllPaymentsHandler) // list by user
 		paymentGroup.PATCH("/payment/:id/status", handlers.UpdatePaymentStatusHandler)                         // update status
 		paymentGroup.DELETE("/payment/:id", middleware.AdminOnly(), handlers.DeletePaymentByIDHandler)
 	}

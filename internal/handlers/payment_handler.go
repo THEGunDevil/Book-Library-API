@@ -92,7 +92,7 @@ func GetPaymentHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"payment": payment})
 }
 
-func ListPaymentsByALLHandler(c *gin.Context) {
+func ListAllPaymentsHandler(c *gin.Context) {
 	// Pagination params (default: page 1, limit 20)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
