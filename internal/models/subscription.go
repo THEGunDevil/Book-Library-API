@@ -58,7 +58,7 @@ type Refund struct {
 	PaymentID   uuid.UUID  `json:"payment_id"`
 	Amount      float64    `json:"amount"`
 	Reason      string     `json:"reason,omitempty"`
-	Status      string     `json:"status binding:"required,oneof=requested processed rejected"` // requested, processed, rejected
+	Status      string     `json:"status" binding:"required,oneof=requested processed rejected"` // requested, processed, rejected
 	RequestedAt time.Time  `json:"requested_at"`
 	ProcessedAt *time.Time `json:"processed_at,omitempty"` // pointer to allow NULL
 }
