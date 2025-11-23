@@ -1,14 +1,20 @@
 package handlers
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/THEGunDevil/GoForBackend/internal/db"
 	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
 	"github.com/THEGunDevil/GoForBackend/internal/models"
+	"github.com/THEGunDevil/GoForBackend/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -46,13 +52,23 @@ func CreateRefundHandler(c *gin.Context) {
 		ProcessedAt: pgtype.Timestamp{Valid: false}, // initially NULL
 	}
 
-	refund, err := db.Q.CreateRefund(c.Request.Context(), params)
+	ref, err := db.Q.CreateRefund(c.Request.Context(), params)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create refund", "details": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "refund created", "refund": refund})
+	res := models.Refund{
+		ID:          ref.ID.Bytes,
+		PaymentID:   ref.PaymentID.Bytes,
+		Amount:      ref.Amount,
+		Reason:      ref.Reason.String,
+		RequestedAt: ref.RequestedAt.Time,
+		ProcessedAt: &ref.ProcessedAt.Time,
+		Status:      ref.Status,
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "refund created", "refund": res})
 }
 
 func GetRefundHandler(c *gin.Context) {
@@ -128,58 +144,141 @@ func ListRefundsByStatusHandler(c *gin.Context) {
 }
 
 func UpdateRefundStatusHandler(c *gin.Context) {
+	// 1. Validate Refund ID from URL
 	idStr := c.Param("id")
-	id, err := uuid.Parse(idStr)
+	refundID, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid refund ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid refund ID format"})
 		return
 	}
 
-	var req struct {
-		Status      string    `json:"status"`
-		ProcessedAt time.Time `json:"processed_at"`
-	}
+	// 2. Bind and validate request payload
+	var req models.CreateRefundRequest // Assuming this struct contains the desired Status
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request payload", "details": err.Error()})
 		return
 	}
 
+	// 3. Validate status value
 	validStatuses := map[string]bool{"requested": true, "processed": true, "rejected": true}
 	if !validStatuses[req.Status] {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status value"})
 		return
 	}
 
-	params := gen.UpdateRefundStatusParams{
-		ID:          pgtype.UUID{Bytes: id, Valid: true},
-		Status:      req.Status,
-		ProcessedAt: pgtype.Timestamp{Time: req.ProcessedAt, Valid: true},
-	}
-
-	refund, err := db.Q.UpdateRefundStatus(c.Request.Context(), params)
+	// --- TRANSACTION START ---
+	// 4. Begin a database transaction
+	tx, err := db.DB.Begin(c.Request.Context()) // Assuming 'db.Pool' is your *pgxpool.Pool
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update refund", "details": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to start database transaction", "details": err.Error()})
+		return
+	}
+	defer func() {
+		// Rollback is safe to call even if the transaction is already committed.
+		// It only executes if the transaction is still active (e.g., due to an earlier error).
+		_ = tx.Rollback(c.Request.Context())
+	}()
+
+	// Use the transaction-aware query object
+	txQ := db.Q.WithTx(tx) // Assuming this method returns a query object bound to the transaction
+
+	// 5. Fetch the existing Refund to get the PaymentID (Step: Refund -> Payment)
+	originalRefund, err := txQ.GetRefundByID(c.Request.Context(), pgtype.UUID{Bytes: refundID, Valid: true})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "refund not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch refund details", "details": err.Error()})
 		return
 	}
 
-	var processedAt *time.Time
-	if refund.ProcessedAt.Valid {
-		processedAt = &refund.ProcessedAt.Time
+	// 6. Fetch the Payment using the PaymentID to get the SubscriptionID (Step: Payment -> Subscription)
+	// NOTE: You must have a query function like GetPaymentByID that returns a struct containing SubscriptionID
+	payment, err := txQ.GetPaymentByID(c.Request.Context(), originalRefund.PaymentID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "payment not found (data inconsistency)"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch payment details", "details": err.Error()})
+		return
 	}
 
-	var reason string
-	if refund.Reason.Valid {
-		reason = refund.Reason.String
+	// 7. Prepare and execute the Refund status update
+	var processedAt pgtype.Timestamp
+	if req.Status == "processed" {
+		processedAt = pgtype.Timestamp{Time: time.Now().UTC(), Valid: true}
 	}
 
-	response := models.Refund{
-		ID:          refund.ID.Bytes,
-		PaymentID:   refund.PaymentID.Bytes,
-		Amount:      refund.Amount,
-		Reason:      reason,
-		Status:      refund.Status,
-		RequestedAt: refund.RequestedAt.Time,
+	updateRefundParams := gen.UpdateRefundStatusParams{
+		ID:          pgtype.UUID{Bytes: refundID, Valid: true},
+		Status:      req.Status,
 		ProcessedAt: processedAt,
+	}
+
+	updatedRefund, err := txQ.UpdateRefundStatus(c.Request.Context(), updateRefundParams)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update refund status", "details": err.Error()})
+		return
+	}
+
+	// 8. Conditionally update Subscription status (only if refund is processed)
+	if updatedRefund.Status == "processed" {
+		_, err = txQ.UpdateSubscription(c.Request.Context(), gen.UpdateSubscriptionParams{
+			ID:     payment.SubscriptionID, // Use the ID fetched from the payment record
+			Status: "cancelled",
+		})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to cancel associated subscription", "details": err.Error()})
+			return
+		}
+	}
+
+	// 9. Commit the transaction
+	if err := tx.Commit(c.Request.Context()); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to commit transaction", "details": err.Error()})
+		return
+	}
+	// --- TRANSACTION END ---
+	if updatedRefund.Status == "processed" {
+		// 1. Convert the database's raw UUID ([16]byte) to the standard uuid.UUID type
+		refundUUID := uuid.UUID(updatedRefund.ID.Bytes)
+		userUUID := uuid.UUID(payment.UserID.Bytes)
+
+		// 2. Define the anonymous function to accept arguments (r, u, amount)
+		go func(r gen.Refund, u uuid.UUID, amount float64) {
+			// 3. Define the actual context
+			bgCtx := context.Background()
+
+			// 4. Use the passed arguments to construct the request
+			notifReq := models.SendNotificationRequest{
+				UserID:            u, // Use the passed 'u'
+				Type:              "refund_processed",
+				NotificationTitle: fmt.Sprintf("Refund Processed: %s", r.Status),                               // Use the passed 'r'
+				Message:           fmt.Sprintf("Your refund of %.2f has been successfully processed.", amount), // Use the passed 'amount'
+				ObjectID:          &refundUUID,
+				ObjectTitle:       "Refund",
+			}
+
+			if err := service.NotificationService(bgCtx, notifReq); err != nil {
+				log.Printf("⚠️ [RefundHandler] Failed to send refund notification: %v", err)
+			} else {
+				log.Printf("✅ [RefundHandler] Refund notification sent for user %s", u)
+			}
+
+			// 5. Pass the values when calling the anonymous function
+		}(updatedRefund, userUUID, updatedRefund.Amount)
+	}
+	// 10. Construct final successful response
+	response := models.Refund{
+		ID:          updatedRefund.ID.Bytes,
+		PaymentID:   updatedRefund.PaymentID.Bytes,
+		Amount:      updatedRefund.Amount,
+		Reason:      originalRefund.Reason.String, // Using original reason for response
+		Status:      updatedRefund.Status,
+		RequestedAt: updatedRefund.RequestedAt.Time,
+		ProcessedAt: &updatedRefund.ProcessedAt.Time,
 	}
 
 	c.JSON(http.StatusOK, gin.H{"refund": response})

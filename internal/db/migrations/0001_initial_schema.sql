@@ -85,7 +85,7 @@ CREATE TABLE refunds (
     payment_id UUID NOT NULL REFERENCES payments(id) ON DELETE CASCADE,
     amount FLOAT8 NOT NULL,                    -- changed from NUMERIC(10,2)
     reason TEXT,
-    status VARCHAR(20) NOT NULL CHECK (status IN ('requested', 'processed', 'rejected')),
+    status VARCHAR(20) NOT NULL DEFAULT 'requested' CHECK (status IN ('requested', 'processed', 'rejected')),
     requested_at TIMESTAMP DEFAULT NOW(),
     processed_at TIMESTAMP
 );
