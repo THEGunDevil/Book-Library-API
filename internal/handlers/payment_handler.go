@@ -3,6 +3,8 @@ package handlers
 import (
 	"log"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/THEGunDevil/GoForBackend/internal/db"
 	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
@@ -15,7 +17,7 @@ import (
 
 // =======================
 // Payments Handlers
-func CreatePaymentHandler(c *gin.Context) {	
+func CreatePaymentHandler(c *gin.Context) {
 	var req models.CreatePaymentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload", "details": err.Error()})
@@ -90,23 +92,96 @@ func GetPaymentHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"payment": payment})
 }
 
-func ListPaymentsByUserHandler(c *gin.Context) {
-	userIDStr := c.Param("user_id")
-	userID, err := uuid.Parse(userIDStr)
+func ListPaymentsByALLHandler(c *gin.Context) {
+	// Pagination params (default: page 1, limit 20)
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 20
+	}
+	offset := (page - 1) * limit
+
+	// Fetch payments with sorting and pagination
+	payments, err := db.Q.GetAllPayments(c.Request.Context(), gen.GetAllPaymentsParams{Limit: int32(limit), Offset: int32(offset)})
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID"})
+		// Log error, e.g., log.Println("Error fetching payments:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list payments"})
 		return
 	}
 
-	payments, err := db.Q.ListPaymentsByUser(c.Request.Context(), pgtype.UUID{Bytes: userID, Valid: true})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list payments", "details": err.Error()})
-		return
+	var response []models.DashboardPaymentResponse
+	for _, r := range payments {
+		refunds, err := db.Q.GetRefundByPaymentID(c.Request.Context(), r.ID) // map[uuid.UUID]Refund
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch refunds"})
+			return
+		}
+		users, err := db.Q.GetUserByID(c.Request.Context(), r.UserID) // map[uuid.UUID]User
+		if err != nil {
+			// Log error
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch users"})
+			return
+		}
+		username := users.FirstName + "" + users.LastName
+		var subscriptionID *uuid.UUID
+		if r.SubscriptionID.Valid {
+			u, err := uuid.FromBytes(r.SubscriptionID.Bytes[:])
+			if err == nil {
+				subscriptionID = &u
+			}
+		}
+
+		// Default refund fields
+		var refundStatus, refundReason string
+		var requestedAt time.Time
+		var processedAt *time.Time
+
+		if refunds.PaymentID == r.ID { // only mark if it matches payment
+			refundStatus = refunds.Status
+			refundReason = refunds.Reason.String
+			requestedAt = refunds.RequestedAt.Time
+			if !refunds.ProcessedAt.Valid {
+				processedAt = &refunds.ProcessedAt.Time
+			}
+		}
+
+		response = append(response, models.DashboardPaymentResponse{
+			ID:             r.ID.Bytes,
+			UserID:         r.UserID.Bytes,
+			SubscriptionID: subscriptionID,
+			Amount:         r.Amount,
+			Currency:       r.Currency,
+			TransactionID:  r.TransactionID.Bytes,
+			PaymentGateway: r.PaymentGateway.String,
+			Status:         r.Status,
+			CreatedAt:      r.CreatedAt.Time,
+			RefundStatus:   refundStatus,
+			RefundReason:   refundReason,
+			RequestedAt:    requestedAt,
+			ProcessedAt:    processedAt,
+			UserName:       username,
+		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{"payments": payments})
+	// Optional metadata
+	totalPayments, err := db.Q.CountPayments(c.Request.Context())
+	if err != nil {
+		// Log error
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to count payments"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"payments": response,
+		"metadata": gin.H{
+			"total": totalPayments,
+			"page":  page,
+			"limit": limit,
+		},
+	})
 }
-
 func UpdatePaymentStatusHandler(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)

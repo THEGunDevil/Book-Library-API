@@ -12,6 +12,10 @@ RETURNING *;
 -- name: GetPaymentByID :one
 SELECT * FROM payments
 WHERE id = $1;
+-- name: GetAllPayments :many
+SELECT * FROM payments
+ORDER BY created_at DESC
+LIMIT $1 OFFSET $2;
 
 -- name: GetPaymentByTransactionID :one
 SELECT * FROM payments
@@ -62,6 +66,10 @@ INSERT INTO refunds (
 SELECT * FROM refunds
 WHERE id = $1;
 
+-- name: GetRefundByPaymentID :one
+SELECT * FROM refunds
+WHERE payment_id = $1;
+
 -- name: ListRefundsByPayment :many
 SELECT * FROM refunds
 WHERE payment_id = $1
@@ -82,3 +90,6 @@ RETURNING *;
 -- name: DeleteRefund :exec
 DELETE FROM refunds
 WHERE id = $1;
+
+-- name: CountPayments :one
+SELECT COUNT(*) FROM payments;

@@ -53,6 +53,23 @@ type Payment struct {
 	Status         string     `json:"status"`
 	CreatedAt      time.Time  `json:"created_at"`
 }
+type DashboardPaymentResponse struct {
+	ID             uuid.UUID  `json:"id"`
+	UserID         uuid.UUID  `json:"user_id"`
+	SubscriptionID *uuid.UUID `json:"subscription_id,omitempty"` // nullable link
+	Amount         float64    `json:"amount"`
+	Currency       string     `json:"currency"`
+	TransactionID  uuid.UUID  `json:"transaction_id"` // FIXED: Should be uuid.UUID to match DB and server generation
+	PaymentGateway string     `json:"payment_gateway"`
+	Status         string     `json:"status"`
+	CreatedAt      time.Time  `json:"created_at"`
+	RefundStatus   string     `json:"refund_status"`
+	RefundReason   string     `json:"refund_reason"`
+	RequestedAt    time.Time  `json:"requested_at"`
+	ProcessedAt    *time.Time `json:"processed_at,omitempty"`
+	UserName       string     `json:"user_name"` // NEW: Add username
+}
+
 type Refund struct {
 	ID          uuid.UUID  `json:"id"`
 	PaymentID   uuid.UUID  `json:"payment_id"`

@@ -11,6 +11,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countPayments = `-- name: CountPayments :one
+SELECT COUNT(*) FROM payments
+`
+
+func (q *Queries) CountPayments(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countPayments)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createPayment = `-- name: CreatePayment :one
 INSERT INTO payments (
     user_id,
@@ -118,6 +129,49 @@ func (q *Queries) DeleteRefund(ctx context.Context, id pgtype.UUID) error {
 	return err
 }
 
+const getAllPayments = `-- name: GetAllPayments :many
+SELECT id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at FROM payments
+ORDER BY created_at DESC
+LIMIT $1 OFFSET $2
+`
+
+type GetAllPaymentsParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+func (q *Queries) GetAllPayments(ctx context.Context, arg GetAllPaymentsParams) ([]Payment, error) {
+	rows, err := q.db.Query(ctx, getAllPayments, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Payment
+	for rows.Next() {
+		var i Payment
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.PlanID,
+			&i.SubscriptionID,
+			&i.Amount,
+			&i.Currency,
+			&i.TransactionID,
+			&i.PaymentGateway,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getPaymentByID = `-- name: GetPaymentByID :one
 SELECT id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at FROM payments
 WHERE id = $1
@@ -173,6 +227,26 @@ WHERE id = $1
 
 func (q *Queries) GetRefundByID(ctx context.Context, id pgtype.UUID) (Refund, error) {
 	row := q.db.QueryRow(ctx, getRefundByID, id)
+	var i Refund
+	err := row.Scan(
+		&i.ID,
+		&i.PaymentID,
+		&i.Amount,
+		&i.Reason,
+		&i.Status,
+		&i.RequestedAt,
+		&i.ProcessedAt,
+	)
+	return i, err
+}
+
+const getRefundByPaymentID = `-- name: GetRefundByPaymentID :one
+SELECT id, payment_id, amount, reason, status, requested_at, processed_at FROM refunds
+WHERE payment_id = $1
+`
+
+func (q *Queries) GetRefundByPaymentID(ctx context.Context, paymentID pgtype.UUID) (Refund, error) {
+	row := q.db.QueryRow(ctx, getRefundByPaymentID, paymentID)
 	var i Refund
 	err := row.Scan(
 		&i.ID,
