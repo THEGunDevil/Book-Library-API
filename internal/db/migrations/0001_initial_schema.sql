@@ -63,7 +63,7 @@ CREATE TABLE payments (
         CHECK (status IN ('paid', 'failed', 'pending')),
 
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW();
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$

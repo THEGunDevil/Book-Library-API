@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors" // New import for errors.As
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -11,6 +13,8 @@ import (
 
 	"github.com/THEGunDevil/GoForBackend/internal/db"
 	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
+	"github.com/THEGunDevil/GoForBackend/internal/models"
+	"github.com/THEGunDevil/GoForBackend/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -128,7 +132,7 @@ func StripeWebhookHandler(c *gin.Context) {
 			EndDate:   pgtype.Timestamp{Time: end, Valid: true},
 			Status:    "active",
 		})
-		
+
 		// --- CRITICAL ERROR HANDLING BLOCK ---
 		if err != nil {
 			var pgErr *pgconn.PgError
@@ -136,9 +140,9 @@ func StripeWebhookHandler(c *gin.Context) {
 				// 23505 is the PostgreSQL code for unique_violation.
 				// This usually means the user already has an active subscription.
 				log.Printf("⚠️ [Webhook] DB Constraint Failed (23505): User %s already has an active subscription. Proceeding to mark payment as paid.", payment.UserID)
-				
+
 				// Set sub ID to invalid so we skip linking it below, but allow the payment status update to proceed.
-				sub.ID = getInvalidUUID() 
+				sub.ID = getInvalidUUID()
 			} else {
 				// A real, unexpected DB error occurred (e.g., NOT NULL violation, connection lost).
 				log.Printf("❌ [Webhook] DB: CreateSubscription failed unexpectedly: %v", err)
@@ -174,12 +178,33 @@ func StripeWebhookHandler(c *gin.Context) {
 		} else {
 			log.Printf("✅ [Webhook] SUCCESS! Payment %s updated to PAID, Subscription creation skipped (pre-existing sub constraint).", transactionID)
 		}
-		
+
 		if err := tx.Commit(ctx); err != nil {
 			log.Printf("❌ [Webhook] DB: Commit failed: %v", err)
 			c.Status(http.StatusInternalServerError)
 			return
-		}
+		} // Send notification asynchronously
+		go func() {
+			// Use a fresh background context (don't use the request ctx – it may be cancelled)
+			bgCtx := context.Background()
+
+			notifReq := models.SendNotificationRequest{
+				UserID:            payment.UserID.Bytes, // Adjust if needed
+				Type:              "subscription_created",
+				NotificationTitle: fmt.Sprintf("Subscription to %s Activated!", plan.Name),
+				Message: fmt.Sprintf("Your subscription is active from %s to %s.",
+					start.Format("January 02, 2006"), end.Format("January 02, 2006")),
+				ObjectID:    nil, // or &sub.ID.UUID if you want to link it
+				ObjectTitle: plan.Name,
+			}
+
+			if err := service.NotificationService(bgCtx, notifReq); err != nil {
+				log.Printf("⚠️ [Webhook] Failed to send subscription notification: %v", err)
+				// Optional: send to Sentry/Slack for monitoring
+			} else {
+				log.Printf("✅ [Webhook] Subscription notification sent for user %s", payment.UserID)
+			}
+		}()
 
 	default:
 		log.Printf("ℹ️ [Webhook] Unhandled event type: %s", event.Type)

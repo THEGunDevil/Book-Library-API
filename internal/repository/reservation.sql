@@ -1,7 +1,7 @@
 -- name: CreateReservation :one
 INSERT INTO reservations (user_id, book_id,status)
 VALUES ($1, $2,'pending')
-RETURNING id, user_id, book_id, status, created_at, notified_at, fulfilled_at, cancelled_at;
+RETURNING id, user_id, book_id, status, created_at, notified_at, fulfilled_at, cancelled_at, picked_up;
 
 -- name: UpdateReservationStatus :one
 UPDATE reservations
@@ -23,6 +23,7 @@ SELECT
     r.notified_at, 
     r.fulfilled_at, 
     r.cancelled_at, 
+    r.picked_up,
     CONCAT(u.first_name, ' ', u.last_name) as user_name,
     u.email,
     b.title,
@@ -45,7 +46,8 @@ SELECT
     r.created_at,
     r.notified_at,
     r.fulfilled_at,
-    r.cancelled_at,    
+    r.cancelled_at,
+    r.picked_up,    
     CONCAT(u.first_name, ' ', u.last_name) as user_name,
     u.email,
     b.title,
@@ -67,7 +69,8 @@ SELECT
     r.created_at,
     r.notified_at,
     r.fulfilled_at,
-    r.cancelled_at,    
+    r.cancelled_at,
+    r.picked_up,    
     CONCAT(u.first_name, ' ', u.last_name) as user_name,
     u.email,
     b.title,
@@ -107,7 +110,8 @@ SELECT
     r.created_at,
     r.notified_at,
     r.fulfilled_at,
-    r.cancelled_at,    
+    r.cancelled_at,
+    r.picked_up,        
     CONCAT(u.first_name, ' ', u.last_name) as user_name,
     u.email,
     b.title,
@@ -128,6 +132,7 @@ SELECT
     r.notified_at,
     r.fulfilled_at,
     r.cancelled_at,
+    r.picked_up,
     CONCAT(u.first_name, ' ', u.last_name) as user_name,
     u.email,
     b.title,
@@ -155,6 +160,7 @@ SELECT
     r.notified_at,
     r.fulfilled_at,
     r.cancelled_at,
+    r.picked_up,
     CONCAT(u.first_name, ' ', u.last_name) AS user_name,
     u.email,
     b.title AS book_title,

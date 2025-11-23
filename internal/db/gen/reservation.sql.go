@@ -32,7 +32,7 @@ func (q *Queries) CheckExistingReservation(ctx context.Context, arg CheckExistin
 const createReservation = `-- name: CreateReservation :one
 INSERT INTO reservations (user_id, book_id,status)
 VALUES ($1, $2,'pending')
-RETURNING id, user_id, book_id, status, created_at, notified_at, fulfilled_at, cancelled_at
+RETURNING id, user_id, book_id, status, created_at, notified_at, fulfilled_at, cancelled_at, picked_up
 `
 
 type CreateReservationParams struct {
@@ -40,20 +40,9 @@ type CreateReservationParams struct {
 	BookID pgtype.UUID `json:"book_id"`
 }
 
-type CreateReservationRow struct {
-	ID          pgtype.UUID        `json:"id"`
-	UserID      pgtype.UUID        `json:"user_id"`
-	BookID      pgtype.UUID        `json:"book_id"`
-	Status      string             `json:"status"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	NotifiedAt  pgtype.Timestamptz `json:"notified_at"`
-	FulfilledAt pgtype.Timestamptz `json:"fulfilled_at"`
-	CancelledAt pgtype.Timestamptz `json:"cancelled_at"`
-}
-
-func (q *Queries) CreateReservation(ctx context.Context, arg CreateReservationParams) (CreateReservationRow, error) {
+func (q *Queries) CreateReservation(ctx context.Context, arg CreateReservationParams) (Reservation, error) {
 	row := q.db.QueryRow(ctx, createReservation, arg.UserID, arg.BookID)
-	var i CreateReservationRow
+	var i Reservation
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
@@ -63,6 +52,7 @@ func (q *Queries) CreateReservation(ctx context.Context, arg CreateReservationPa
 		&i.NotifiedAt,
 		&i.FulfilledAt,
 		&i.CancelledAt,
+		&i.PickedUp,
 	)
 	return i, err
 }
@@ -77,6 +67,7 @@ SELECT
     r.notified_at,
     r.fulfilled_at,
     r.cancelled_at,
+    r.picked_up,
     CONCAT(u.first_name, ' ', u.last_name) as user_name,
     u.email,
     b.title,
@@ -103,6 +94,7 @@ type GetAllReservationsRow struct {
 	NotifiedAt  pgtype.Timestamptz `json:"notified_at"`
 	FulfilledAt pgtype.Timestamptz `json:"fulfilled_at"`
 	CancelledAt pgtype.Timestamptz `json:"cancelled_at"`
+	PickedUp    bool               `json:"picked_up"`
 	UserName    interface{}        `json:"user_name"`
 	Email       string             `json:"email"`
 	Title       string             `json:"title"`
@@ -128,6 +120,7 @@ func (q *Queries) GetAllReservations(ctx context.Context, arg GetAllReservations
 			&i.NotifiedAt,
 			&i.FulfilledAt,
 			&i.CancelledAt,
+			&i.PickedUp,
 			&i.UserName,
 			&i.Email,
 			&i.Title,
@@ -154,6 +147,7 @@ SELECT
     r.notified_at, 
     r.fulfilled_at, 
     r.cancelled_at, 
+    r.picked_up,
     CONCAT(u.first_name, ' ', u.last_name) as user_name,
     u.email,
     b.title,
@@ -176,6 +170,7 @@ type GetNextReservationForBookRow struct {
 	NotifiedAt  pgtype.Timestamptz `json:"notified_at"`
 	FulfilledAt pgtype.Timestamptz `json:"fulfilled_at"`
 	CancelledAt pgtype.Timestamptz `json:"cancelled_at"`
+	PickedUp    bool               `json:"picked_up"`
 	UserName    interface{}        `json:"user_name"`
 	Email       string             `json:"email"`
 	Title       string             `json:"title"`
@@ -195,6 +190,7 @@ func (q *Queries) GetNextReservationForBook(ctx context.Context, bookID pgtype.U
 		&i.NotifiedAt,
 		&i.FulfilledAt,
 		&i.CancelledAt,
+		&i.PickedUp,
 		&i.UserName,
 		&i.Email,
 		&i.Title,
@@ -213,7 +209,8 @@ SELECT
     r.created_at,
     r.notified_at,
     r.fulfilled_at,
-    r.cancelled_at,    
+    r.cancelled_at,
+    r.picked_up,    
     CONCAT(u.first_name, ' ', u.last_name) as user_name,
     u.email,
     b.title,
@@ -235,6 +232,7 @@ type GetReservationsByBookIDRow struct {
 	NotifiedAt  pgtype.Timestamptz `json:"notified_at"`
 	FulfilledAt pgtype.Timestamptz `json:"fulfilled_at"`
 	CancelledAt pgtype.Timestamptz `json:"cancelled_at"`
+	PickedUp    bool               `json:"picked_up"`
 	UserName    interface{}        `json:"user_name"`
 	Email       string             `json:"email"`
 	Title       string             `json:"title"`
@@ -260,6 +258,7 @@ func (q *Queries) GetReservationsByBookID(ctx context.Context, bookID pgtype.UUI
 			&i.NotifiedAt,
 			&i.FulfilledAt,
 			&i.CancelledAt,
+			&i.PickedUp,
 			&i.UserName,
 			&i.Email,
 			&i.Title,
@@ -351,7 +350,8 @@ SELECT
     r.created_at,
     r.notified_at,
     r.fulfilled_at,
-    r.cancelled_at,    
+    r.cancelled_at,
+    r.picked_up,        
     CONCAT(u.first_name, ' ', u.last_name) as user_name,
     u.email,
     b.title,
@@ -372,6 +372,7 @@ type GetReservationsByReservationIDRow struct {
 	NotifiedAt  pgtype.Timestamptz `json:"notified_at"`
 	FulfilledAt pgtype.Timestamptz `json:"fulfilled_at"`
 	CancelledAt pgtype.Timestamptz `json:"cancelled_at"`
+	PickedUp    bool               `json:"picked_up"`
 	UserName    interface{}        `json:"user_name"`
 	Email       string             `json:"email"`
 	Title       string             `json:"title"`
@@ -391,6 +392,7 @@ func (q *Queries) GetReservationsByReservationID(ctx context.Context, id pgtype.
 		&i.NotifiedAt,
 		&i.FulfilledAt,
 		&i.CancelledAt,
+		&i.PickedUp,
 		&i.UserName,
 		&i.Email,
 		&i.Title,
@@ -409,7 +411,8 @@ SELECT
     r.created_at,
     r.notified_at,
     r.fulfilled_at,
-    r.cancelled_at,    
+    r.cancelled_at,
+    r.picked_up,    
     CONCAT(u.first_name, ' ', u.last_name) as user_name,
     u.email,
     b.title,
@@ -438,6 +441,7 @@ type GetUserReservationsRow struct {
 	NotifiedAt  pgtype.Timestamptz `json:"notified_at"`
 	FulfilledAt pgtype.Timestamptz `json:"fulfilled_at"`
 	CancelledAt pgtype.Timestamptz `json:"cancelled_at"`
+	PickedUp    bool               `json:"picked_up"`
 	UserName    interface{}        `json:"user_name"`
 	Email       string             `json:"email"`
 	Title       string             `json:"title"`
@@ -463,6 +467,7 @@ func (q *Queries) GetUserReservations(ctx context.Context, arg GetUserReservatio
 			&i.NotifiedAt,
 			&i.FulfilledAt,
 			&i.CancelledAt,
+			&i.PickedUp,
 			&i.UserName,
 			&i.Email,
 			&i.Title,
@@ -489,6 +494,7 @@ SELECT
     r.notified_at,
     r.fulfilled_at,
     r.cancelled_at,
+    r.picked_up,
     CONCAT(u.first_name, ' ', u.last_name) AS user_name,
     u.email,
     b.title AS book_title,
@@ -517,6 +523,7 @@ type ListReservationPaginatedByStatusesRow struct {
 	NotifiedAt  pgtype.Timestamptz `json:"notified_at"`
 	FulfilledAt pgtype.Timestamptz `json:"fulfilled_at"`
 	CancelledAt pgtype.Timestamptz `json:"cancelled_at"`
+	PickedUp    bool               `json:"picked_up"`
 	UserName    interface{}        `json:"user_name"`
 	Email       string             `json:"email"`
 	BookTitle   string             `json:"book_title"`
@@ -542,6 +549,7 @@ func (q *Queries) ListReservationPaginatedByStatuses(ctx context.Context, arg Li
 			&i.NotifiedAt,
 			&i.FulfilledAt,
 			&i.CancelledAt,
+			&i.PickedUp,
 			&i.UserName,
 			&i.Email,
 			&i.BookTitle,

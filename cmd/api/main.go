@@ -48,6 +48,7 @@ func main() {
 	}))
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
+	r.Use(middleware.RateLimiter())
 
 	// Health check
 	r.GET("/", func(c *gin.Context) {
@@ -77,8 +78,8 @@ func main() {
 		userGroup.GET("/user/profile/:id", handlers.GetProfileDataByIDHandler)
 		userGroup.PATCH("/user/:id", handlers.UpdateUserByIDHandler)
 		// only admin can update user info
-		userGroup.GET("/", middleware.AdminOnly(), handlers.GetUsersHandler)
-		userGroup.GET("user/email", middleware.AdminOnly(), handlers.SearchUsersPaginatedHandler)
+		userGroup.GET("/",middleware.SkipRateLimit(), middleware.AdminOnly(), handlers.GetUsersHandler)
+		userGroup.GET("user/email", middleware.AdminOnly(),middleware.SkipRateLimit(), handlers.SearchUsersPaginatedHandler)
 		userGroup.PATCH("/user/ban/:id", middleware.AdminOnly(), handlers.BanUserByIDHandler)
 	}
 	bannedUserGroup := r.Group("/banned-users")
@@ -90,9 +91,9 @@ func main() {
 	bookGroup := r.Group("/books")
 	{
 		// Public
-		bookGroup.GET("/", handlers.GetBooksHandler)
+		bookGroup.GET("/",middleware.SkipRateLimit(), handlers.GetBooksHandler)
 		bookGroup.GET("/:id", handlers.GetBookByIDHandler)
-		bookGroup.GET("/search", handlers.SearchBooksPaginatedHandler)
+		bookGroup.GET("/search",middleware.SkipRateLimit(), handlers.SearchBooksPaginatedHandler)
 		bookGroup.GET("/genres", handlers.ListGenresHandler)
 		bookGroup.GET("/genre/:genre", handlers.ListBooksByGenreHandler)
 		// Admin-only
@@ -117,7 +118,7 @@ func main() {
 	borrowGroup := r.Group("/borrows")
 	borrowGroup.Use(middleware.AuthMiddleware())
 	{
-		borrowGroup.GET("/", middleware.AdminOnly(), handlers.GetAllBorrowsHandlers)
+		borrowGroup.GET("/", middleware.AdminOnly(),middleware.SkipRateLimit(), handlers.GetAllBorrowsHandlers)
 		borrowGroup.GET("/user/:id", handlers.GetBorrowsByUserIDHandler)
 		borrowGroup.GET("/book/:id", handlers.GetBorrowsByBookIDHandler)
 		borrowGroup.GET("/borrow/book/:id", handlers.GetBorrowByBookAndUserIDHandler)

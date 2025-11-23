@@ -131,6 +131,7 @@ func GetReservationsHandler(c *gin.Context) {
 				NotifiedAt:  r.NotifiedAt.Time,
 				FulfilledAt: r.FulfilledAt.Time,
 				CancelledAt: r.CancelledAt.Time,
+				PickedUp:    r.PickedUp,
 				UserName:    r.UserName,
 				UserEmail:   r.Email,
 				BookTitle:   r.Title,
@@ -163,11 +164,12 @@ func GetReservationsHandler(c *gin.Context) {
 				NotifiedAt:  r.NotifiedAt.Time,
 				FulfilledAt: r.FulfilledAt.Time,
 				CancelledAt: r.CancelledAt.Time,
-				UserName:    r.UserName,
-				UserEmail:   r.Email,
-				BookTitle:   r.Title,
-				BookAuthor:  r.Author,
-				BookImage:   r.ImageUrl,
+				PickedUp:    r.PickedUp,
+				UserName:   r.UserName,
+				UserEmail:  r.Email,
+				BookTitle:  r.Title,
+				BookAuthor: r.Author,
+				BookImage:  r.ImageUrl,
 			})
 		}
 	}

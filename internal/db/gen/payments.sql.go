@@ -19,7 +19,7 @@ INSERT INTO payments (
     payment_gateway,
     currency
 ) VALUES ($1, $2, $3, $4, $5)
-RETURNING id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at
+RETURNING id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at
 `
 
 type CreatePaymentParams struct {
@@ -50,6 +50,7 @@ func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (P
 		&i.PaymentGateway,
 		&i.Status,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -118,7 +119,7 @@ func (q *Queries) DeleteRefund(ctx context.Context, id pgtype.UUID) error {
 }
 
 const getPaymentByID = `-- name: GetPaymentByID :one
-SELECT id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at FROM payments
+SELECT id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at FROM payments
 WHERE id = $1
 `
 
@@ -136,12 +137,13 @@ func (q *Queries) GetPaymentByID(ctx context.Context, id pgtype.UUID) (Payment, 
 		&i.PaymentGateway,
 		&i.Status,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getPaymentByTransactionID = `-- name: GetPaymentByTransactionID :one
-SELECT id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at FROM payments
+SELECT id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at FROM payments
 WHERE transaction_id = $1
 `
 
@@ -159,6 +161,7 @@ func (q *Queries) GetPaymentByTransactionID(ctx context.Context, transactionID p
 		&i.PaymentGateway,
 		&i.Status,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -184,7 +187,7 @@ func (q *Queries) GetRefundByID(ctx context.Context, id pgtype.UUID) (Refund, er
 }
 
 const listPaymentsByUser = `-- name: ListPaymentsByUser :many
-SELECT id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at FROM payments
+SELECT id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at FROM payments
 WHERE user_id = $1
 ORDER BY created_at DESC
 `
@@ -209,6 +212,7 @@ func (q *Queries) ListPaymentsByUser(ctx context.Context, userID pgtype.UUID) ([
 			&i.PaymentGateway,
 			&i.Status,
 			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -293,7 +297,7 @@ UPDATE payments
 SET status = $2,
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at
+RETURNING id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at
 `
 
 type UpdatePaymentStatusParams struct {
@@ -315,6 +319,7 @@ func (q *Queries) UpdatePaymentStatus(ctx context.Context, arg UpdatePaymentStat
 		&i.PaymentGateway,
 		&i.Status,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -324,7 +329,7 @@ UPDATE payments
 SET status = $2,
     updated_at = NOW()
 WHERE transaction_id = $1
-RETURNING id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at
+RETURNING id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at
 `
 
 type UpdatePaymentStatusByTransactionIDParams struct {
@@ -346,6 +351,7 @@ func (q *Queries) UpdatePaymentStatusByTransactionID(ctx context.Context, arg Up
 		&i.PaymentGateway,
 		&i.Status,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -355,7 +361,7 @@ UPDATE payments
 SET subscription_id = $2,
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at
+RETURNING id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at
 `
 
 type UpdatePaymentSubscriptionIDParams struct {
@@ -377,6 +383,7 @@ func (q *Queries) UpdatePaymentSubscriptionID(ctx context.Context, arg UpdatePay
 		&i.PaymentGateway,
 		&i.Status,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

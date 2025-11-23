@@ -54,6 +54,7 @@ type Payment struct {
 	PaymentGateway pgtype.Text      `json:"payment_gateway"`
 	Status         string           `json:"status"`
 	CreatedAt      pgtype.Timestamp `json:"created_at"`
+	UpdatedAt      pgtype.Timestamp `json:"updated_at"`
 }
 
 type Refund struct {

@@ -10,6 +10,8 @@ import (
 
 	"github.com/THEGunDevil/GoForBackend/internal/db"
 	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
+	"github.com/THEGunDevil/GoForBackend/internal/models"
+	"github.com/THEGunDevil/GoForBackend/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -82,7 +84,28 @@ func processPaidCheckoutSession(ctx context.Context, checkoutSession *stripe.Che
 	if err = tx.Commit(ctx); err != nil {
 		return err
 	}
+	// Send notification asynchronously
+	go func() {
+		// Use a fresh background context (don't use the request ctx – it may be cancelled)
+		bgCtx := context.Background()
 
+		notifReq := models.SendNotificationRequest{
+			UserID:            payment.UserID.Bytes, // Adjust if needed
+			Type:              "subscription_created",
+			NotificationTitle: fmt.Sprintf("Subscription to %s Activated!", plan.Name),
+			Message: fmt.Sprintf("Your subscription is active from %s to %s.",
+				start.Format("January 02, 2006"), end.Format("January 02, 2006")),
+			ObjectID:    nil, // or &sub.ID.UUID if you want to link it
+			ObjectTitle: plan.Name,
+		}
+
+		if err := service.NotificationService(bgCtx, notifReq); err != nil {
+			log.Printf("⚠️ [Webhook] Failed to send subscription notification: %v", err)
+			// Optional: send to Sentry/Slack for monitoring
+		} else {
+			log.Printf("✅ [Webhook] Subscription notification sent for user %s", payment.UserID)
+		}
+	}()
 	log.Printf("✅ [SuccessHandler] Payment %s marked as PAID, subscription %s created", transactionIDStr, sub.ID)
 	return nil
 }
@@ -135,7 +158,7 @@ func StripeCancelHandler(c *gin.Context) {
 			// Only mark as cancelled if it really wasn't paid
 			if tranID, ok := s.Metadata["transaction_id"]; ok && tranID != "" {
 				if uuid, err := uuid.Parse(tranID); err == nil {
-					if _,err := db.Q.UpdatePaymentStatusByTransactionID(c.Request.Context(), gen.UpdatePaymentStatusByTransactionIDParams{
+					if _, err := db.Q.UpdatePaymentStatusByTransactionID(c.Request.Context(), gen.UpdatePaymentStatusByTransactionIDParams{
 						TransactionID: pgtype.UUID{Bytes: uuid, Valid: true},
 						Status:        "cancelled",
 					}); err != nil {
