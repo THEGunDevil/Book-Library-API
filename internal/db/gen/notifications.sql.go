@@ -59,7 +59,7 @@ func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Event
 }
 
 const getUserNotificationsByUserID = `-- name: GetUserNotificationsByUserID :many
-SELECT
+SELECT 
     e.id AS event_id,
     e.object_id,
     e.object_title,
@@ -71,15 +71,21 @@ SELECT
     COALESCE(uns.is_read, false) AS is_read,
     uns.read_at
 FROM events e
-LEFT JOIN user_notification_status uns
-    ON e.id = uns.event_id
+JOIN users u ON u.id = $1
+LEFT JOIN user_notification_status uns 
+    ON e.id = uns.event_id 
     AND uns.user_id = $1
+WHERE 
+    -- 2. The Logic: Show event ONLY IF it happened after the user signed up
+    e.created_at >= u.created_at
+    -- 3. Optional: OR if it was specifically sent to them (handles edge cases)
+    OR uns.user_id IS NOT NULL
 ORDER BY e.created_at DESC
 LIMIT $2 OFFSET $3
 `
 
 type GetUserNotificationsByUserIDParams struct {
-	UserID pgtype.UUID `json:"user_id"`
+	ID     pgtype.UUID `json:"id"`
 	Limit  int32       `json:"limit"`
 	Offset int32       `json:"offset"`
 }
@@ -97,8 +103,9 @@ type GetUserNotificationsByUserIDRow struct {
 	ReadAt            pgtype.Timestamp `json:"read_at"`
 }
 
+// 1. Join the Users table to get the current user's signup date
 func (q *Queries) GetUserNotificationsByUserID(ctx context.Context, arg GetUserNotificationsByUserIDParams) ([]GetUserNotificationsByUserIDRow, error) {
-	rows, err := q.db.Query(ctx, getUserNotificationsByUserID, arg.UserID, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, getUserNotificationsByUserID, arg.ID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -131,13 +138,18 @@ func (q *Queries) GetUserNotificationsByUserID(ctx context.Context, arg GetUserN
 const selectUnreadEventsForUser = `-- name: SelectUnreadEventsForUser :many
 SELECT e.id
 FROM events e
-LEFT JOIN user_notification_status uns
+JOIN users u ON u.id = $1
+LEFT JOIN user_notification_status uns 
   ON e.id = uns.event_id AND uns.user_id = $1
-WHERE COALESCE(uns.is_read, false) = false
+WHERE 
+  COALESCE(uns.is_read, false) = false
+  -- 2. Apply the same time filter
+  AND (e.created_at >= u.created_at OR uns.user_id IS NOT NULL)
 `
 
-func (q *Queries) SelectUnreadEventsForUser(ctx context.Context, userID pgtype.UUID) ([]pgtype.UUID, error) {
-	rows, err := q.db.Query(ctx, selectUnreadEventsForUser, userID)
+// 1. Join users to get the signup date
+func (q *Queries) SelectUnreadEventsForUser(ctx context.Context, id pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, selectUnreadEventsForUser, id)
 	if err != nil {
 		return nil, err
 	}

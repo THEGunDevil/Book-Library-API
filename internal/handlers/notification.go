@@ -30,7 +30,7 @@ func GetUserNotificationsByUserIDHandler(c *gin.Context) {
 	offset := int32(0)
 
 	params := gen.GetUserNotificationsByUserIDParams{
-		UserID: pgtype.UUID{Bytes: userID, Valid: true},
+		ID: pgtype.UUID{Bytes: userID, Valid: true},
 		Limit:  limit,
 		Offset: offset,
 	}
