@@ -226,7 +226,7 @@ func UpdateReservationStatusHandler(c *gin.Context) {
 
 	// 2️⃣ Bind JSON body for status
 	var req struct {
-		Status string `json:"status" binding:"required,oneof=pending notified fulfilled cancelled"`
+		Status string `json:"status" binding:"required,oneof=pending notified fulfilled cancelled picked_up"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body or status"})
