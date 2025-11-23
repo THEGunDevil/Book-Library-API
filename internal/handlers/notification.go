@@ -26,12 +26,12 @@ func GetUserNotificationsByUserIDHandler(c *gin.Context) {
 		return
 	}
 
-	// Pagination parameters (optional, can parse from query params)
+	// Pagination parameters
 	limit := int32(50)
 	offset := int32(0)
 
 	params := gen.GetUserNotificationsByUserIDParams{
-		ID: pgtype.UUID{Bytes: userID, Valid: true},
+		ID:     pgtype.UUID{Bytes: userID, Valid: true},
 		Limit:  limit,
 		Offset: offset,
 	}
@@ -45,7 +45,9 @@ func GetUserNotificationsByUserIDHandler(c *gin.Context) {
 		return
 	}
 
-	var response []models.Notification
+	// ✅ FIX: Initialize as empty slice so it returns [] instead of null
+	response := make([]models.Notification, 0)
+
 	for _, n := range notifications {
 		var objectID *uuid.UUID
 		if n.ObjectID.Valid {
@@ -57,16 +59,16 @@ func GetUserNotificationsByUserIDHandler(c *gin.Context) {
 		}
 
 		response = append(response, models.Notification{
-			ID:                n.EventID.Bytes, // Event ID
+			ID:                n.EventID.Bytes,
 			UserID:            userID,
-			UserName:          "", // user-agnostic
+			UserName:          "",
 			ObjectID:          objectID,
 			ObjectTitle:       n.ObjectTitle.String,
 			Type:              n.Type,
 			NotificationTitle: n.NotificationTitle,
 			Message:           n.Message,
-			Metadata:          n.Metadata, // requires models.Notification.Metadata json.RawMessage
-			IsRead:            n.IsRead,
+			Metadata:          n.Metadata,
+			IsRead:            n.IsRead, // This is now correct (false for broadcast, true if read)
 			CreatedAt:         n.CreatedAt.Time,
 		})
 	}
@@ -76,30 +78,28 @@ func GetUserNotificationsByUserIDHandler(c *gin.Context) {
 
 // MarkAllNotificationsAsReadHandler marks all unread notifications for the user as read
 func MarkAllNotificationsAsReadHandler(c *gin.Context) {
-    userIDVal, exists := c.Get("userID")
-    if !exists {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-        return
-    }
+	userIDVal, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
 
-    userUUID, ok := userIDVal.(uuid.UUID)
-    if !ok {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID in context"})
-        return
-    }
+	userUUID, ok := userIDVal.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID in context"})
+		return
+	}
 
-    // 🚀 OPTIMIZED: One single atomic query
-    err := db.Q.MarkAllNotificationsAsRead(
-        c.Request.Context(),
-        pgtype.UUID{Bytes: userUUID, Valid: true},
-    )
+	err := db.Q.MarkAllNotificationsAsRead(
+		c.Request.Context(),
+		pgtype.UUID{Bytes: userUUID, Valid: true},
+	)
 
-    if err != nil {
-        // Log the error internally
-        log.Printf("Failed to mark all as read for user %v: %v", userUUID, err)
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark notifications as read"})
-        return
-    }
+	if err != nil {
+		log.Printf("Failed to mark all as read for user %v: %v", userUUID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark notifications as read"})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{"message": "All notifications marked as read successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "All notifications marked as read successfully"})
 }

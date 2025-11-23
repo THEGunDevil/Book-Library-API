@@ -11,6 +11,26 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const assignNotificationToUser = `-- name: AssignNotificationToUser :exec
+INSERT INTO user_notification_status (
+    user_id, event_id, is_read, read_at, created_at
+) VALUES (
+    $1, $2, false, NULL, NOW()
+)
+ON CONFLICT (user_id, event_id) DO NOTHING
+`
+
+type AssignNotificationToUserParams struct {
+	UserID  pgtype.UUID `json:"user_id"`
+	EventID pgtype.UUID `json:"event_id"`
+}
+
+// Use this for TARGETED notifications (Direct Messages). It forces is_read = false.
+func (q *Queries) AssignNotificationToUser(ctx context.Context, arg AssignNotificationToUserParams) error {
+	_, err := q.db.Exec(ctx, assignNotificationToUser, arg.UserID, arg.EventID)
+	return err
+}
+
 const createEvent = `-- name: CreateEvent :one
 INSERT INTO events (
     object_id,
@@ -73,12 +93,9 @@ SELECT
 FROM events e
 JOIN users u ON u.id = $1
 LEFT JOIN user_notification_status uns 
-    ON e.id = uns.event_id 
-    AND uns.user_id = $1
+    ON e.id = uns.event_id AND uns.user_id = $1
 WHERE 
-    -- 2. The Logic: Show event ONLY IF it happened after the user signed up
     e.created_at >= u.created_at
-    -- 3. Optional: OR if it was specifically sent to them (handles edge cases)
     OR uns.user_id IS NOT NULL
 ORDER BY e.created_at DESC
 LIMIT $2 OFFSET $3
@@ -103,7 +120,6 @@ type GetUserNotificationsByUserIDRow struct {
 	ReadAt            pgtype.Timestamp `json:"read_at"`
 }
 
-// 1. Join the Users table to get the current user's signup date
 func (q *Queries) GetUserNotificationsByUserID(ctx context.Context, arg GetUserNotificationsByUserIDParams) ([]GetUserNotificationsByUserIDRow, error) {
 	rows, err := q.db.Query(ctx, getUserNotificationsByUserID, arg.ID, arg.Limit, arg.Offset)
 	if err != nil {
@@ -138,19 +154,12 @@ func (q *Queries) GetUserNotificationsByUserID(ctx context.Context, arg GetUserN
 const markAllNotificationsAsRead = `-- name: MarkAllNotificationsAsRead :exec
 INSERT INTO user_notification_status (user_id, event_id, is_read, read_at, created_at)
 SELECT 
-    $1,                -- user_id
-    e.id,              -- event_id
-    true,              -- is_read
-    NOW(),             -- read_at
-    NOW()              -- created_at
+    $1, e.id, true, NOW(), NOW()
 FROM events e
 JOIN users u ON u.id = $1
-LEFT JOIN user_notification_status uns 
-    ON e.id = uns.event_id AND uns.user_id = $1
+LEFT JOIN user_notification_status uns ON e.id = uns.event_id AND uns.user_id = $1
 WHERE 
-    -- VISIBILITY FILTER: (Same as your GetNotifications logic)
     (e.created_at >= u.created_at OR uns.user_id IS NOT NULL)
-    -- STATUS FILTER: Only process if currently unread
     AND COALESCE(uns.is_read, false) = false
 ON CONFLICT (user_id, event_id) 
 DO UPDATE SET is_read = true, read_at = NOW()
@@ -161,52 +170,20 @@ func (q *Queries) MarkAllNotificationsAsRead(ctx context.Context, userID pgtype.
 	return err
 }
 
-const selectUnreadEventsForUser = `-- name: SelectUnreadEventsForUser :many
-SELECT e.id
-FROM events e
-JOIN users u ON u.id = $1
-LEFT JOIN user_notification_status uns 
-  ON e.id = uns.event_id AND uns.user_id = $1
-WHERE 
-  COALESCE(uns.is_read, false) = false
-  -- 2. Apply the same time filter
-  AND (e.created_at >= u.created_at OR uns.user_id IS NOT NULL)
-`
-
-// 1. Join users to get the signup date
-func (q *Queries) SelectUnreadEventsForUser(ctx context.Context, id pgtype.UUID) ([]pgtype.UUID, error) {
-	rows, err := q.db.Query(ctx, selectUnreadEventsForUser, id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []pgtype.UUID
-	for rows.Next() {
-		var id pgtype.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		items = append(items, id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const upsertUserNotificationStatus = `-- name: UpsertUserNotificationStatus :exec
+const markNotificationAsRead = `-- name: MarkNotificationAsRead :exec
 INSERT INTO user_notification_status (user_id, event_id, is_read, read_at, created_at)
 VALUES ($1, $2, true, NOW(), NOW())
 ON CONFLICT (user_id, event_id)
 DO UPDATE SET is_read = true, read_at = NOW()
 `
 
-type UpsertUserNotificationStatusParams struct {
+type MarkNotificationAsReadParams struct {
 	UserID  pgtype.UUID `json:"user_id"`
 	EventID pgtype.UUID `json:"event_id"`
 }
 
-func (q *Queries) UpsertUserNotificationStatus(ctx context.Context, arg UpsertUserNotificationStatusParams) error {
-	_, err := q.db.Exec(ctx, upsertUserNotificationStatus, arg.UserID, arg.EventID)
+// Use this when a user clicks a notification.
+func (q *Queries) MarkNotificationAsRead(ctx context.Context, arg MarkNotificationAsReadParams) error {
+	_, err := q.db.Exec(ctx, markNotificationAsRead, arg.UserID, arg.EventID)
 	return err
 }

@@ -32,7 +32,7 @@ func NotificationService(ctx context.Context, req models.SendNotificationRequest
 		Type:        req.Type,
 		Title:       req.NotificationTitle,
 		Message:     req.Message,
-		Metadata:    req.Metadata, // optional JSONB
+		Metadata:    req.Metadata,
 	}
 
 	// Insert event into events table
@@ -43,19 +43,24 @@ func NotificationService(ctx context.Context, req models.SendNotificationRequest
 	}
 	log.Printf("✅ [DEBUG] Event created successfully: ID=%v", event.ID)
 
-	// Optional: create initial unread status for a specific user (if sending to one user)
+	// LOGIC CHANGE:
+	// Only assign to user_notification_status if we are targeting a SPECIFIC user.
+	// If it is a broadcast (UserID is nil/empty), do nothing.
 	if req.UserID != uuid.Nil {
-		statusArg := gen.UpsertUserNotificationStatusParams{
+		assignArg := gen.AssignNotificationToUserParams{
 			UserID:  UUIDToPGType(req.UserID),
 			EventID: event.ID,
 		}
-		err := db.Q.UpsertUserNotificationStatus(ctx, statusArg)
-		if err != nil {
-			log.Printf("❌ Failed to insert user notification status: %v", err)
-			return fmt.Errorf("failed to create user notification status: %w", err)
-		}
-		log.Printf("✅ User notification status created for UserID=%v", req.UserID)
 
+		// Use the new Assign function (sets is_read = FALSE)
+		err := db.Q.AssignNotificationToUser(ctx, assignArg)
+		if err != nil {
+			log.Printf("❌ Failed to assign notification to user: %v", err)
+			return fmt.Errorf("failed to assign notification: %w", err)
+		}
+		log.Printf("✅ User notification status created (Unread) for UserID=%v", req.UserID)
+	} else {
+		log.Printf("📢 [DEBUG] Broadcast notification created (No specific assignment needed)")
 	}
 
 	return nil
