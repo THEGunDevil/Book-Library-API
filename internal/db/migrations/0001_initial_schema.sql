@@ -11,6 +11,7 @@ CREATE TABLE users (
     phone_number TEXT NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
+    profile_img TEXT,
     role TEXT DEFAULT 'member' CHECK (role IN ('member', 'admin')),
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
@@ -188,14 +189,19 @@ CREATE UNIQUE INDEX unique_user_book ON reservations (user_id, book_id);
 CREATE INDEX idx_book_created_at ON reservations (book_id, created_at);
 
 -- +goose Down
-DROP TABLE IF EXISTS notifications;
-DROP TABLE IF EXISTS payments;
-DROP TABLE IF EXISTS Subscriptions;
-DROP TABLE IF EXISTS subscription_plans;
-DROP TABLE IF EXISTS refunds;
-DROP TABLE IF EXISTS reservations;
-DROP TABLE IF EXISTS reviews;
-DROP TABLE IF EXISTS borrows;
-DROP TABLE IF EXISTS books;
-DROP TABLE IF EXISTS users;
-DROP EXTENSION IF EXISTS "uuid-ossp";
+DROP TRIGGER IF EXISTS update_payments_updated_at ON payments;
+DROP FUNCTION IF EXISTS update_updated_at_column;
+DROP TRIGGER IF EXISTS trg_set_available_copies_equal_total ON books;
+DROP FUNCTION IF EXISTS set_available_copies_equal_total;
+
+DROP TABLE IF EXISTS user_notification_status CASCADE;
+DROP TABLE IF EXISTS events CASCADE;
+DROP TABLE IF EXISTS refunds CASCADE;
+DROP TABLE IF EXISTS payments CASCADE;
+DROP TABLE IF EXISTS subscriptions CASCADE;
+DROP TABLE IF EXISTS subscription_plans CASCADE;
+DROP TABLE IF EXISTS reservations CASCADE;
+DROP TABLE IF EXISTS reviews CASCADE;
+DROP TABLE IF EXISTS borrows CASCADE;
+DROP TABLE IF EXISTS books CASCADE;
+DROP TABLE IF EXISTS users CASCADE;

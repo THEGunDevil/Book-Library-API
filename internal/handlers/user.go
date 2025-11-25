@@ -291,6 +291,11 @@ func UpdateUserByIDHandler(c *gin.Context) {
 	} else {
 		params.Bio = pgtype.Text{Valid: false}
 	}
+	if req.ProfileImg != nil {
+		params.ProfileImg = pgtype.Text{String: *req.ProfileImg, Valid: true}
+	} else {
+		params.ProfileImg = pgtype.Text{Valid: false}
+	}
 
 	updatedUser, err := db.Q.UpdateUserByID(c.Request.Context(), params)
 	if err != nil {
@@ -311,6 +316,7 @@ func UpdateUserByIDHandler(c *gin.Context) {
 		Email:          updatedUser.Email,
 		PhoneNumber:    updatedUser.PhoneNumber,
 		Role:           updatedUser.Role.String,
+		ProfileImg:     &updatedUser.ProfileImg.String,
 		IsBanned:       updatedUser.IsBanned.Bool,
 		BanUntil:       &updatedUser.BanUntil.Time,
 		BanReason:      updatedUser.BanReason.String,

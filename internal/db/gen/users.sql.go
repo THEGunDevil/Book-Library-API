@@ -42,7 +42,7 @@ func (q *Queries) CountUsersByEmail(ctx context.Context, dollar_1 interface{}) (
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (first_name, last_name, email, password_hash, phone_number, token_version)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban
+RETURNING id, first_name, last_name, bio, phone_number, email, password_hash, profile_img, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban
 `
 
 type CreateUserParams struct {
@@ -72,6 +72,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.PhoneNumber,
 		&i.Email,
 		&i.PasswordHash,
+		&i.ProfileImg,
 		&i.Role,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -85,7 +86,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 }
 
 const getAllUser = `-- name: GetAllUser :many
-SELECT id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban FROM users
+SELECT id, first_name, last_name, bio, phone_number, email, password_hash, profile_img, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban FROM users
 `
 
 func (q *Queries) GetAllUser(ctx context.Context) ([]User, error) {
@@ -105,6 +106,7 @@ func (q *Queries) GetAllUser(ctx context.Context) ([]User, error) {
 			&i.PhoneNumber,
 			&i.Email,
 			&i.PasswordHash,
+			&i.ProfileImg,
 			&i.Role,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -125,7 +127,7 @@ func (q *Queries) GetAllUser(ctx context.Context) ([]User, error) {
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban FROM users
+SELECT id, first_name, last_name, bio, phone_number, email, password_hash, profile_img, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban FROM users
 WHERE email = $1
 `
 
@@ -140,6 +142,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.PhoneNumber,
 		&i.Email,
 		&i.PasswordHash,
+		&i.ProfileImg,
 		&i.Role,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -153,7 +156,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban FROM users
+SELECT id, first_name, last_name, bio, phone_number, email, password_hash, profile_img, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban FROM users
 WHERE id = $1
 `
 
@@ -168,6 +171,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 		&i.PhoneNumber,
 		&i.Email,
 		&i.PasswordHash,
+		&i.ProfileImg,
 		&i.Role,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -192,7 +196,7 @@ func (q *Queries) IncrementTokenVersion(ctx context.Context, id pgtype.UUID) err
 }
 
 const listUsersPaginated = `-- name: ListUsersPaginated :many
-SELECT id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban FROM users
+SELECT id, first_name, last_name, bio, phone_number, email, password_hash, profile_img, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban FROM users
 ORDER BY created_at DESC
 LIMIT $1 OFFSET $2
 `
@@ -219,6 +223,7 @@ func (q *Queries) ListUsersPaginated(ctx context.Context, arg ListUsersPaginated
 			&i.PhoneNumber,
 			&i.Email,
 			&i.PasswordHash,
+			&i.ProfileImg,
 			&i.Role,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -309,7 +314,7 @@ SET is_banned = COALESCE($1, is_banned),
     ban_until = $3,
     is_permanent_ban = COALESCE($4, is_permanent_ban)
 WHERE id = $5
-RETURNING id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban
+RETURNING id, first_name, last_name, bio, phone_number, email, password_hash, profile_img, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban
 `
 
 type UpdateUserBanByUserIDParams struct {
@@ -337,6 +342,7 @@ func (q *Queries) UpdateUserBanByUserID(ctx context.Context, arg UpdateUserBanBy
 		&i.PhoneNumber,
 		&i.Email,
 		&i.PasswordHash,
+		&i.ProfileImg,
 		&i.Role,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -355,9 +361,10 @@ SET
   first_name   = COALESCE($1, first_name),
   last_name    = COALESCE($2, last_name),
   phone_number = COALESCE($3, phone_number),
-  bio          = COALESCE($4, bio)
-WHERE id = $5
-RETURNING id, first_name, last_name, bio, phone_number, email, password_hash, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban
+  bio          = COALESCE($4, bio),
+  profile_img  = COALESCE($5, profile_img)
+WHERE id = $6
+RETURNING id, first_name, last_name, bio, phone_number, email, password_hash, profile_img, role, created_at, updated_at, token_version, is_banned, ban_reason, ban_until, is_permanent_ban
 `
 
 type UpdateUserByIDParams struct {
@@ -365,6 +372,7 @@ type UpdateUserByIDParams struct {
 	LastName    pgtype.Text `json:"last_name"`
 	PhoneNumber pgtype.Text `json:"phone_number"`
 	Bio         pgtype.Text `json:"bio"`
+	ProfileImg  pgtype.Text `json:"profile_img"`
 	ID          pgtype.UUID `json:"id"`
 }
 
@@ -374,6 +382,7 @@ func (q *Queries) UpdateUserByID(ctx context.Context, arg UpdateUserByIDParams) 
 		arg.LastName,
 		arg.PhoneNumber,
 		arg.Bio,
+		arg.ProfileImg,
 		arg.ID,
 	)
 	var i User
@@ -385,6 +394,7 @@ func (q *Queries) UpdateUserByID(ctx context.Context, arg UpdateUserByIDParams) 
 		&i.PhoneNumber,
 		&i.Email,
 		&i.PasswordHash,
+		&i.ProfileImg,
 		&i.Role,
 		&i.CreatedAt,
 		&i.UpdatedAt,

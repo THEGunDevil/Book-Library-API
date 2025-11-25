@@ -29,6 +29,7 @@ type UpdateUserRequest struct {
 	LastName    *string `json:"last_name"`
 	Bio         *string `json:"bio"` // added
 	PhoneNumber *string `json:"phone_number"`
+	ProfileImg  *string `json:"profile_img"`
 }
 
 type UserResponse struct {
@@ -44,6 +45,7 @@ type UserResponse struct {
 	IsBanned           bool       `json:"is_banned"`
 	BanReason          string     `json:"ban_reason"`
 	BanUntil           *time.Time `json:"ban_until,omitempty"` // nil = no ban date
+	ProfileImg         *string    `json:"profile_img"`
 	IsPermanentBan     bool       `json:"is_permanent_ban"`
 	AllBorrowsCount    int        `json:"all_borrows_count,omitempty"`    // true = permanent ban
 	ActiveBorrowsCount int        `json:"active_borrows_count,omitempty"` // true = permanent ban

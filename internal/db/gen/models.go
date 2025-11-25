@@ -120,6 +120,7 @@ type User struct {
 	PhoneNumber    string           `json:"phone_number"`
 	Email          string           `json:"email"`
 	PasswordHash   string           `json:"password_hash"`
+	ProfileImg     pgtype.Text      `json:"profile_img"`
 	Role           pgtype.Text      `json:"role"`
 	CreatedAt      pgtype.Timestamp `json:"created_at"`
 	UpdatedAt      pgtype.Timestamp `json:"updated_at"`
