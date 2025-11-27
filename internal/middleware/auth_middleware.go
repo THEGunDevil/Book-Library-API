@@ -20,10 +20,6 @@ import (
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		log.Println("🔹 AuthMiddleware started")
-		if c.Request.Method == http.MethodOptions {
-			c.AbortWithStatus(http.StatusOK)
-			return
-		}
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			log.Println("❌ Authorization header missing")
