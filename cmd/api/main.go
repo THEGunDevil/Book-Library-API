@@ -19,9 +19,9 @@ import (
 
 func main() {
 	// Load env — fail hard in development if .env is missing/corrupted
-	if err := godotenv.Load(); err != nil {
-		log.Fatal("Error loading .env file:", err) // ← change log.Println to log.Fatal
-	}
+    if err := godotenv.Load(); err != nil {
+        log.Println("No .env file found, skipping...")
+    }
 	cloudName := os.Getenv("CLOUDINARY_CLOUD_NAME")
 	apiKey := os.Getenv("CLOUDINARY_API_KEY")
 	apiSecret := os.Getenv("CLOUDINARY_API_SECRET")
