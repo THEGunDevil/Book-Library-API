@@ -68,6 +68,7 @@ type DashboardPaymentResponse struct {
 	RequestedAt    time.Time  `json:"requested_at"`
 	ProcessedAt    *time.Time `json:"processed_at,omitempty"`
 	UserName       string     `json:"user_name"` // NEW: Add username
+	UserEmail      string     `json:"email"`
 }
 
 type Refund struct {

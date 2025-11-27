@@ -269,7 +269,7 @@ func DeleteBookHandler(c *gin.Context) {
 func UpdateBookByIDHandler(c *gin.Context) {
 	idStr := c.Param("id")
 	log.Printf("📝 [DEBUG] UpdateBookByIDHandler called with ID param: %s", idStr)
-
+	var err error
 	parsedID, err := uuid.Parse(idStr)
 	if err != nil {
 		log.Printf("❌ [DEBUG] Invalid UUID param: %s", idStr)
@@ -278,9 +278,16 @@ func UpdateBookByIDHandler(c *gin.Context) {
 	}
 
 	var req models.UpdateBookRequest
-	if err := c.ShouldBind(&req); err != nil {
-		log.Printf("❌ [DEBUG] Invalid request body: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+	contentType := c.ContentType()
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		// Bind form-data (image upload)
+		err = c.ShouldBind(&req)
+	} else {
+		// Bind JSON
+		err = c.ShouldBindJSON(&req)
+	}
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -317,25 +324,23 @@ func UpdateBookByIDHandler(c *gin.Context) {
 	log.Printf("🧩 [DEBUG] UpdateBookByIDParams ready: %+v", params)
 
 	// Upload image if exists
+	var imageURL string
 	if req.Image != nil {
 		f, err := req.Image.Open()
-		if err == nil {
-			defer f.Close()
-			url, err := service.UploadImageToCloudinary(f, req.Image.Filename)
-			if err == nil {
-				params.ImageUrl = pgtype.Text{String: url, Valid: true}
-				log.Printf("🖼️ [DEBUG] Image uploaded successfully: %s", url)
-			} else {
-				log.Printf("❌ [DEBUG] Image upload failed: %v", err)
-				params.ImageUrl = pgtype.Text{Valid: false}
-			}
-		} else {
-			log.Printf("❌ [DEBUG] Failed to open image file: %v", err)
-			params.ImageUrl = pgtype.Text{Valid: false}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open image"})
+			return
 		}
-	} else {
-		log.Printf("⚠️ [DEBUG] No image provided in update request.")
-		params.ImageUrl = pgtype.Text{Valid: false}
+		defer f.Close()
+
+		imageURL, err = service.UploadImageToCloudinary(f, req.Image.Filename)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "image upload failed"})
+			return
+		}
+	}
+	if imageURL != "" {
+		params.ImageUrl = pgtype.Text{String: imageURL, Valid: true}
 	}
 
 	updatedBook, err := db.Q.UpdateBookByID(c.Request.Context(), params)
@@ -365,8 +370,7 @@ func UpdateBookByIDHandler(c *gin.Context) {
 				userID := r.UserID
 				go func(userID pgtype.UUID) {
 					defer wg.Done()
-					ctx := context.Background()
-
+					ctx := c.Request.Context()
 					userUUID, _ := uuid.FromBytes(userID.Bytes[:])
 
 					err := service.NotificationService(ctx, models.SendNotificationRequest{
@@ -391,15 +395,6 @@ func UpdateBookByIDHandler(c *gin.Context) {
 					if err != nil {
 						log.Printf("❌ Failed to update reservation %s to 'notified': %v", r.ID, err)
 						return
-					}
-
-					// Then mark as 'fulfilled' (if applicable)
-					_, err = db.Q.UpdateReservationStatus(ctx, gen.UpdateReservationStatusParams{
-						ID:     r.ID,
-						Status: "fulfilled",
-					})
-					if err != nil {
-						log.Printf("❌ Failed to mark reservation %s as 'fulfilled': %v", r.ID, err)
 					}
 				}(userID)
 			}

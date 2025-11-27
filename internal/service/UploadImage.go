@@ -32,3 +32,14 @@ func UploadImageToCloudinary(file multipart.File, filename string) (string, erro
 
 	return uploadResp.SecureURL, nil
 }
+func UploadProfileImgToCloudinary(file multipart.File, filename string) (string, error) {
+	uploadResp, err := cld.Upload.Upload(db.Ctx, file, uploader.UploadParams{
+		Folder:   "profile_pictures",     // optional folder in Cloudinary
+		PublicID: filename,    // use filename as Cloudinary public_id
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return uploadResp.SecureURL, nil
+}

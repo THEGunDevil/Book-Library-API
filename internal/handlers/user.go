@@ -12,6 +12,7 @@ import (
 	"github.com/THEGunDevil/GoForBackend/internal/db"
 	gen "github.com/THEGunDevil/GoForBackend/internal/db/gen"
 	"github.com/THEGunDevil/GoForBackend/internal/models"
+	"github.com/THEGunDevil/GoForBackend/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -244,6 +245,7 @@ func SearchUsersPaginatedHandler(c *gin.Context) {
 func UpdateUserByIDHandler(c *gin.Context) {
 	// Parse UUID
 	idStr := c.Param("id")
+	var err error
 	parsedID, err := uuid.Parse(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
@@ -251,10 +253,20 @@ func UpdateUserByIDHandler(c *gin.Context) {
 	}
 
 	var req models.UpdateUserRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+	contentType := c.ContentType()
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		// Bind form-data (image upload)
+		err = c.ShouldBind(&req)
+	} else {
+		// Bind JSON
+		err = c.ShouldBindJSON(&req)
+	}
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	log.Printf("📘 [DEBUG] Update request: %+v", req)
 
 	if req.FirstName != nil && *req.FirstName == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "first name cannot be empty"})
@@ -291,12 +303,44 @@ func UpdateUserByIDHandler(c *gin.Context) {
 	} else {
 		params.Bio = pgtype.Text{Valid: false}
 	}
+	var imageURL string
 	if req.ProfileImg != nil {
-		params.ProfileImg = pgtype.Text{String: *req.ProfileImg, Valid: true}
-	} else {
-		params.ProfileImg = pgtype.Text{Valid: false}
-	}
+		f, err := req.ProfileImg.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open image"})
+			return
+		}
+		defer f.Close()
 
+		imageURL, err = service.UploadProfileImgToCloudinary(f, req.ProfileImg.Filename)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "image upload failed"})
+			return
+		}
+	}
+	if imageURL != "" {
+		params.ProfileImg= pgtype.Text{String: imageURL, Valid: true}
+	}
+	// if req.ProfileImg != nil {
+	// 	f, err := req.ProfileImg.Open()
+	// 	if err == nil {
+	// 		defer f.Close()
+	// 		url, err := service.UploadProfileImgToCloudinary(f, req.ProfileImg.Filename)
+	// 		if err == nil {
+	// 			params.ProfileImg = pgtype.Text{String: url, Valid: true}
+	// 			log.Printf("🖼️ [DEBUG] Image uploaded successfully: %s", url)
+	// 		} else {
+	// 			log.Printf("❌ [DEBUG] Image upload failed: %v", err)
+	// 			params.ProfileImg = pgtype.Text{Valid: false}
+	// 		}
+	// 	} else {
+	// 		log.Printf("❌ [DEBUG] Failed to open image file: %v", err)
+	// 		params.ProfileImg = pgtype.Text{Valid: false}
+	// 	}
+	// } else {
+	// 	log.Printf("⚠️ [DEBUG] No image provided in update request.")
+	// 	params.ProfileImg = pgtype.Text{Valid: false}
+	// }
 	updatedUser, err := db.Q.UpdateUserByID(c.Request.Context(), params)
 	if err != nil {
 		log.Printf("UpdateUserByID error: %v", err)
@@ -316,7 +360,7 @@ func UpdateUserByIDHandler(c *gin.Context) {
 		Email:          updatedUser.Email,
 		PhoneNumber:    updatedUser.PhoneNumber,
 		Role:           updatedUser.Role.String,
-		ProfileImg:     &updatedUser.ProfileImg.String,
+		ProfileImg:     updatedUser.ProfileImg.String,
 		IsBanned:       updatedUser.IsBanned.Bool,
 		BanUntil:       &updatedUser.BanUntil.Time,
 		BanReason:      updatedUser.BanReason.String,

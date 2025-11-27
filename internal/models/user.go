@@ -1,6 +1,7 @@
 package models
 
 import (
+	"mime/multipart"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,11 +26,11 @@ type User struct {
 }
 
 type UpdateUserRequest struct {
-	FirstName   *string `json:"first_name"`
-	LastName    *string `json:"last_name"`
-	Bio         *string `json:"bio"` // added
-	PhoneNumber *string `json:"phone_number"`
-	ProfileImg  *string `json:"profile_img"`
+	FirstName   *string `form:"first_name"`
+	LastName    *string `form:"last_name"`
+	Bio         *string `form:"bio"` // added
+	PhoneNumber *string `form:"phone_number"`
+	ProfileImg  *multipart.FileHeader `form:"profile_img"`
 }
 
 type UserResponse struct {
@@ -45,7 +46,7 @@ type UserResponse struct {
 	IsBanned           bool       `json:"is_banned"`
 	BanReason          string     `json:"ban_reason"`
 	BanUntil           *time.Time `json:"ban_until,omitempty"` // nil = no ban date
-	ProfileImg         *string    `json:"profile_img"`
+	ProfileImg         string    `json:"profile_img"`
 	IsPermanentBan     bool       `json:"is_permanent_ban"`
 	AllBorrowsCount    int        `json:"all_borrows_count,omitempty"`    // true = permanent ban
 	ActiveBorrowsCount int        `json:"active_borrows_count,omitempty"` // true = permanent ban

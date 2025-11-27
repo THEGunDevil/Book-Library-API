@@ -9,9 +9,10 @@ SET status = $2,
     notified_at = CASE WHEN $2 = 'notified' AND notified_at IS NULL THEN now() ELSE notified_at END,
     fulfilled_at = CASE WHEN $2 = 'fulfilled' AND fulfilled_at IS NULL THEN now() ELSE fulfilled_at END,
     cancelled_at = CASE WHEN $2 = 'cancelled' AND cancelled_at IS NULL THEN now() ELSE cancelled_at END,
-    picked_up = CASE WHEN $2 = 'picked_up' THEN TRUE ELSE picked_up END
+    picked_up = CASE WHEN $2 = 'picked_up' THEN TRUE ELSE picked_up END,
+    updated_at = now()
 WHERE id = $1
-RETURNING id, user_id, book_id, status, created_at, notified_at, fulfilled_at, cancelled_at, picked_up;
+RETURNING id, user_id, book_id, status, created_at, notified_at, fulfilled_at, cancelled_at, picked_up, updated_at;
 
 -- name: GetNextReservationForBook :one
 SELECT 

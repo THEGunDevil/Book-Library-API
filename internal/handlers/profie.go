@@ -60,6 +60,7 @@ func GetProfileDataByIDHandler(c *gin.Context) {
 		PhoneNumber:    user.PhoneNumber,
 		CreatedAt:      user.CreatedAt.Time,
 		Role:           user.Role.String,
+		ProfileImg:     user.ProfileImg.String,
 		BanReason:      user.BanReason.String,
 		IsBanned:       user.IsBanned.Bool,
 		IsPermanentBan: user.IsPermanentBan.Bool,

@@ -18,10 +18,9 @@ import (
 )
 
 func main() {
-	// Load env
-	err := godotenv.Load()
-	if err != nil {
-		log.Println("No .env file found")
+	// Load env — fail hard in development if .env is missing/corrupted
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("Error loading .env file:", err) // ← change log.Println to log.Fatal
 	}
 	cloudName := os.Getenv("CLOUDINARY_CLOUD_NAME")
 	apiKey := os.Getenv("CLOUDINARY_API_KEY")
@@ -33,13 +32,17 @@ func main() {
 
 	// Load config & connect DB
 	cfg := config.LoadConfig()
-	db.Connect(cfg)
-	// db.LocalConnect(cfg)
+	// db.Connect(cfg)
+	// fmt.Println("DEBUG DBURL:", cfg.DBURL)
+	fmt.Println("DEBUG LOCAL DB:", cfg.LOCALDBURL)
+	// fmt.Println("DEBUG DB NAME:", cfg.DBName)
+	db.LocalConnect(cfg)
 	defer db.Close()
 
 	r := gin.New() // instead of gin.Default() if you want full control
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"https://himel-s-library.vercel.app", "http://localhost:3000", "http://localhost:8080"},
+		AllowOrigins:     []string{"https://himel-s-library.vercel.app", "http://localhost:3000"},
+		// AllowOrigins:     []string{"*"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -48,7 +51,7 @@ func main() {
 	}))
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
-	r.Use(middleware.RateLimiter())
+	// r.Use(middleware.RateLimiter())
 
 	// Health check
 	r.GET("/", func(c *gin.Context) {
@@ -78,8 +81,8 @@ func main() {
 		userGroup.GET("/user/profile/:id", handlers.GetProfileDataByIDHandler)
 		userGroup.PATCH("/user/:id", handlers.UpdateUserByIDHandler)
 		// only admin can update user info
-		userGroup.GET("/",middleware.SkipRateLimit(), middleware.AdminOnly(), handlers.GetUsersHandler)
-		userGroup.GET("user/email", middleware.AdminOnly(),middleware.SkipRateLimit(), handlers.SearchUsersPaginatedHandler)
+		userGroup.GET("/", middleware.SkipRateLimit(), middleware.AdminOnly(), handlers.GetUsersHandler)
+		userGroup.GET("user/email", middleware.AdminOnly(), middleware.SkipRateLimit(), handlers.SearchUsersPaginatedHandler)
 		userGroup.PATCH("/user/ban/:id", middleware.AdminOnly(), handlers.BanUserByIDHandler)
 	}
 	bannedUserGroup := r.Group("/banned-users")
@@ -91,9 +94,9 @@ func main() {
 	bookGroup := r.Group("/books")
 	{
 		// Public
-		bookGroup.GET("/",middleware.SkipRateLimit(), handlers.GetBooksHandler)
+		bookGroup.GET("/", middleware.SkipRateLimit(), handlers.GetBooksHandler)
 		bookGroup.GET("/:id", handlers.GetBookByIDHandler)
-		bookGroup.GET("/search",middleware.SkipRateLimit(), handlers.SearchBooksPaginatedHandler)
+		bookGroup.GET("/search", middleware.SkipRateLimit(), handlers.SearchBooksPaginatedHandler)
 		bookGroup.GET("/genres", handlers.ListGenresHandler)
 		bookGroup.GET("/genre/:genre", handlers.ListBooksByGenreHandler)
 		// Admin-only
@@ -118,7 +121,7 @@ func main() {
 	borrowGroup := r.Group("/borrows")
 	borrowGroup.Use(middleware.AuthMiddleware())
 	{
-		borrowGroup.GET("/", middleware.AdminOnly(),middleware.SkipRateLimit(), handlers.GetAllBorrowsHandlers)
+		borrowGroup.GET("/", middleware.AdminOnly(), middleware.SkipRateLimit(), handlers.GetAllBorrowsHandlers)
 		borrowGroup.GET("/user/:id", handlers.GetBorrowsByUserIDHandler)
 		borrowGroup.GET("/book/:id", handlers.GetBorrowsByBookIDHandler)
 		borrowGroup.GET("/borrow/book/:id", handlers.GetBorrowByBookAndUserIDHandler)
@@ -168,10 +171,10 @@ func main() {
 	paymentGroup := r.Group("/payments")
 	paymentGroup.Use(middleware.AuthMiddleware())
 	{
-		paymentGroup.POST("/payment", handlers.CreatePaymentHandler)                                           // create payment
-		paymentGroup.GET("/:id", handlers.GetPaymentHandler)                                                   // get by ID
-		paymentGroup.GET("/payments", middleware.AdminOnly(), handlers.ListAllPaymentsHandler) // list by user
-		paymentGroup.PATCH("/payment/:id/status", handlers.UpdatePaymentStatusHandler)                         // update status
+		paymentGroup.POST("/payment", handlers.CreatePaymentHandler)                           // create payment
+		paymentGroup.GET("/:id", handlers.GetPaymentHandler)                                   // get by ID
+		paymentGroup.GET("/", middleware.AdminOnly(), handlers.ListAllPaymentsHandler) // list by user
+		paymentGroup.PATCH("/payment/:id/status", handlers.UpdatePaymentStatusHandler)         // update status
 		paymentGroup.DELETE("/payment/:id", middleware.AdminOnly(), handlers.DeletePaymentByIDHandler)
 	}
 	refundGroup := r.Group("/refunds")

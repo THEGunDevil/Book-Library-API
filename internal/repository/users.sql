@@ -16,13 +16,14 @@ SELECT * FROM users;
 -- name: UpdateUserByID :one
 UPDATE users
 SET
-  first_name   = COALESCE(sqlc.narg('first_name'), first_name),
-  last_name    = COALESCE(sqlc.narg('last_name'), last_name),
-  phone_number = COALESCE(sqlc.narg('phone_number'), phone_number),
-  bio          = COALESCE(sqlc.narg('bio'), bio),
-  profile_img  = COALESCE(sqlc.narg('profile_img'), profile_img)
-WHERE id = sqlc.arg('id')
+  first_name   = COALESCE(sqlc.narg(first_name), first_name),
+  last_name    = COALESCE(sqlc.narg(last_name), last_name),
+  phone_number = COALESCE(sqlc.narg(phone_number), phone_number),
+  bio          = COALESCE(sqlc.narg(bio), bio),
+  profile_img  = COALESCE(sqlc.narg(profile_img), profile_img)
+WHERE id = sqlc.arg(id)
 RETURNING *;
+
 
 
 -- name: UpdateUserBanByUserID :one

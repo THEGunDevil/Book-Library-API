@@ -153,6 +153,7 @@ CREATE TABLE reservations (
     book_id UUID NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT NOW(),
     notified_at TIMESTAMPTZ,
     fulfilled_at TIMESTAMPTZ,
     cancelled_at TIMESTAMPTZ,
@@ -160,6 +161,18 @@ CREATE TABLE reservations (
     CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
     CONSTRAINT fk_book FOREIGN KEY (book_id) REFERENCES books (id) ON DELETE CASCADE
 );
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_reservations_updated_at
+BEFORE UPDATE ON reservations
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
 
 CREATE TABLE events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

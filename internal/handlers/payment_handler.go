@@ -93,95 +93,94 @@ func GetPaymentHandler(c *gin.Context) {
 }
 
 func ListAllPaymentsHandler(c *gin.Context) {
-	// Pagination params (default: page 1, limit 20)
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	if page < 1 {
-		page = 1
-	}
-	if limit < 1 || limit > 100 {
-		limit = 20
-	}
-	offset := (page - 1) * limit
+    // Pagination params (default: page 1, limit 20)
+    page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+    limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+    if page < 1 {
+        page = 1
+    }
+    if limit < 1 || limit > 100 {
+        limit = 20
+    }
+    offset := (page - 1) * limit
 
-	// Fetch payments with sorting and pagination
-	payments, err := db.Q.GetAllPayments(c.Request.Context(), gen.GetAllPaymentsParams{Limit: int32(limit), Offset: int32(offset)})
-	if err != nil {
-		// Log error, e.g., log.Println("Error fetching payments:", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list payments"})
-		return
-	}
+    // Fetch payments
+    payments, err := db.Q.GetAllPayments(c.Request.Context(), gen.GetAllPaymentsParams{Limit: int32(limit), Offset: int32(offset)})
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list payments"})
+        return
+    }
 
-	var response []models.DashboardPaymentResponse
-	for _, r := range payments {
-		refunds, err := db.Q.GetRefundByPaymentID(c.Request.Context(), r.ID) // map[uuid.UUID]Refund
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch refunds"})
-			return
-		}
-		users, err := db.Q.GetUserByID(c.Request.Context(), r.UserID) // map[uuid.UUID]User
-		if err != nil {
-			// Log error
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch users"})
-			return
-		}
-		username := users.FirstName + "" + users.LastName
-		var subscriptionID *uuid.UUID
-		if r.SubscriptionID.Valid {
-			u, err := uuid.FromBytes(r.SubscriptionID.Bytes[:])
-			if err == nil {
-				subscriptionID = &u
-			}
-		}
+    response := make([]models.DashboardPaymentResponse, 0) // ← always returns [] instead of null
+    for _, r := range payments {
+        refunds, err := db.Q.GetRefundByPaymentID(c.Request.Context(), r.ID)
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch refunds"})
+            return
+        }
+        users, err := db.Q.GetUserByID(c.Request.Context(), r.UserID)
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch users"})
+            return
+        }
 
-		// Default refund fields
-		var refundStatus, refundReason string
-		var requestedAt time.Time
-		var processedAt *time.Time
+        username := users.FirstName + " " + users.LastName
+        email := users.Email
+        var subscriptionID *uuid.UUID
+        if r.SubscriptionID.Valid {
+            u, err := uuid.FromBytes(r.SubscriptionID.Bytes[:])
+            if err == nil {
+                subscriptionID = &u
+            }
+        }
 
-		if refunds.PaymentID == r.ID { // only mark if it matches payment
-			refundStatus = refunds.Status
-			refundReason = refunds.Reason.String
-			requestedAt = refunds.RequestedAt.Time
-			if !refunds.ProcessedAt.Valid {
-				processedAt = &refunds.ProcessedAt.Time
-			}
-		}
+        var refundStatus, refundReason string
+        var requestedAt time.Time
+        var processedAt *time.Time
+        if refunds.PaymentID == r.ID {
+            refundStatus = refunds.Status
+            refundReason = refunds.Reason.String
+            requestedAt = refunds.RequestedAt.Time
+            if refunds.ProcessedAt.Valid { // ← only if valid
+                processedAt = &refunds.ProcessedAt.Time
+            }
+        }
 
-		response = append(response, models.DashboardPaymentResponse{
-			ID:             r.ID.Bytes,
-			UserID:         r.UserID.Bytes,
-			SubscriptionID: subscriptionID,
-			Amount:         r.Amount,
-			Currency:       r.Currency,
-			TransactionID:  r.TransactionID.Bytes,
-			PaymentGateway: r.PaymentGateway.String,
-			Status:         r.Status,
-			CreatedAt:      r.CreatedAt.Time,
-			RefundStatus:   refundStatus,
-			RefundReason:   refundReason,
-			RequestedAt:    requestedAt,
-			ProcessedAt:    processedAt,
-			UserName:       username,
-		})
-	}
+        response = append(response, models.DashboardPaymentResponse{
+            ID:             r.ID.Bytes,
+            UserID:         r.UserID.Bytes,
+            SubscriptionID: subscriptionID,
+            Amount:         r.Amount,
+            Currency:       r.Currency,
+            TransactionID:  r.TransactionID.Bytes,
+            PaymentGateway: r.PaymentGateway.String,
+            Status:         r.Status,
+            CreatedAt:      r.CreatedAt.Time,
+            RefundStatus:   refundStatus,
+            RefundReason:   refundReason,
+            RequestedAt:    requestedAt,
+            ProcessedAt:    processedAt,
+            UserName:       username,
+            UserEmail:      email,
+        })
+    }
 
-	// Optional metadata
-	totalPayments, err := db.Q.CountPayments(c.Request.Context())
-	if err != nil {
-		// Log error
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to count payments"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"payments": response,
-		"metadata": gin.H{
-			"total": totalPayments,
-			"page":  page,
-			"limit": limit,
-		},
-	})
+    totalPayments, err := db.Q.CountPayments(c.Request.Context())
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to count payments"})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "payments": response,
+        "metadata": gin.H{
+            "total": totalPayments,
+            "page":  page,
+            "limit": limit,
+        },
+    })
 }
+
 func UpdatePaymentStatusHandler(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
