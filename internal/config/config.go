@@ -7,6 +7,7 @@ import (
 
 type Config struct {
 	DBHost     string
+	DBHostAddr string
 	DBPort     string
 	DBUser     string
 	DBPassword string
@@ -19,6 +20,7 @@ type Config struct {
 func LoadConfig() Config {
 
 	host := os.Getenv("DB_HOST")
+	hostAddr := os.Getenv("DB_HOSTADDR") // <-- NEW
 	port := os.Getenv("DB_PORT")
 	user := os.Getenv("DB_USER")
 	password := os.Getenv("DB_PASSWORD")
@@ -30,13 +32,15 @@ func LoadConfig() Config {
 		sslMode = "require"
 	}
 
+	// Use host for SSL verification, hostaddr forces IPv4
 	dbURL := fmt.Sprintf(
-		"postgresql://%s:%s@%s:%s/%s?sslmode=%s",
-		user, password, host, port, dbName, sslMode,
+		"postgresql://%s:%s@%s:%s/%s?sslmode=%s&hostaddr=%s",
+		user, password, host, port, dbName, sslMode, hostAddr,
 	)
 
 	return Config{
 		DBHost:     host,
+		DBHostAddr: hostAddr,
 		DBPort:     port,
 		DBUser:     user,
 		DBPassword: password,
@@ -46,3 +50,4 @@ func LoadConfig() Config {
 		LOCALDBURL: localDbURL,
 	}
 }
+
