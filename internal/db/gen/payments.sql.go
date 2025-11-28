@@ -68,6 +68,8 @@ func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (P
 
 const createRefund = `-- name: CreateRefund :one
 
+
+
 INSERT INTO refunds (
     id, payment_id, amount, reason, status, requested_at, processed_at
 ) VALUES (
@@ -84,6 +86,8 @@ type CreateRefundParams struct {
 	ProcessedAt pgtype.Timestamp `json:"processed_at"`
 }
 
+// SELECT COUNT(*) FROM payments WHERE status = 'pending';
+// SELECT COUNT(*) FROM payments WHERE status = 'failed';
 // ===============================
 // Refunds
 // ===============================
@@ -258,6 +262,19 @@ func (q *Queries) GetRefundByPaymentID(ctx context.Context, paymentID pgtype.UUI
 		&i.ProcessedAt,
 	)
 	return i, err
+}
+
+const getTotalSales = `-- name: GetTotalSales :one
+SELECT COALESCE(SUM(amount), 0) AS total_sales
+FROM payments
+WHERE status = 'paid'
+`
+
+func (q *Queries) GetTotalSales(ctx context.Context) (interface{}, error) {
+	row := q.db.QueryRow(ctx, getTotalSales)
+	var total_sales interface{}
+	err := row.Scan(&total_sales)
+	return total_sales, err
 }
 
 const listPaymentsByUser = `-- name: ListPaymentsByUser :many

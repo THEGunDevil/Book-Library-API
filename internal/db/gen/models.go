@@ -73,6 +73,7 @@ type Reservation struct {
 	BookID      pgtype.UUID        `json:"book_id"`
 	Status      string             `json:"status"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamp   `json:"updated_at"`
 	NotifiedAt  pgtype.Timestamptz `json:"notified_at"`
 	FulfilledAt pgtype.Timestamptz `json:"fulfilled_at"`
 	CancelledAt pgtype.Timestamptz `json:"cancelled_at"`

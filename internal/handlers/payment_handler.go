@@ -194,13 +194,18 @@ func ListAllPaymentsHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to count payments"})
 		return
 	}
-
+	totalSales, err := db.Q.GetTotalSales(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to calculate total sales"})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"payments": response,
 		"metadata": gin.H{
-			"total": totalPayments,
-			"page":  page,
-			"limit": limit,
+			"total":      totalPayments,
+			"page":       page,
+			"limit":      limit,
+			"totalSales": totalSales,
 		},
 	})
 }

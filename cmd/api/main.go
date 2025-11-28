@@ -19,9 +19,9 @@ import (
 
 func main() {
 	// Load env — fail hard in development if .env is missing/corrupted
-    if err := godotenv.Load(); err != nil {
-        log.Println("No .env file found, skipping...")
-    }
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, skipping...")
+	}
 	cloudName := os.Getenv("CLOUDINARY_CLOUD_NAME")
 	apiKey := os.Getenv("CLOUDINARY_API_KEY")
 	apiSecret := os.Getenv("CLOUDINARY_API_SECRET")
@@ -32,11 +32,11 @@ func main() {
 
 	// Load config & connect DB
 	cfg := config.LoadConfig()
-	db.Connect(cfg)
+	// db.Connect(cfg)
 	// fmt.Println("DEBUG DBURL:", cfg.DBURL)
 	fmt.Println("DEBUG LOCAL DB:", cfg.LOCALDBURL)
 	// fmt.Println("DEBUG DB NAME:", cfg.DBName)
-	// db.LocalConnect(cfg)
+	db.LocalConnect(cfg)
 	defer db.Close()
 
 	r := gin.New() // instead of gin.Default() if you want full control
@@ -60,9 +60,11 @@ func main() {
 	r.GET("/download/books", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DownloadSearchBooksHandler)
 	r.GET("/download/users", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DownloadUsersHandler)
 	r.GET("/download/borrows", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DownloadBorrowsHandler)
+	r.GET("/overview", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.OverviewHandler)
 	r.POST("/stripe/webhook", handlers.StripeWebhookHandler)
 	r.GET("/stripe/success", handlers.StripeSuccessHandler)
 	r.GET("/stripe/cancel", handlers.StripeCancelHandler)
+
 	// Auth routes (public)
 	authGroup := r.Group("/auth")
 	{
@@ -81,7 +83,7 @@ func main() {
 		userGroup.PATCH("/user/:id", handlers.UpdateUserByIDHandler)
 		// only admin can update user info
 		userGroup.GET("/", middleware.SkipRateLimit(), middleware.AdminOnly(), handlers.GetUsersHandler)
-		userGroup.GET("user/email", middleware.AdminOnly(), middleware.SkipRateLimit(), handlers.SearchUsersPaginatedHandler)
+		userGroup.GET("/user/email", middleware.AdminOnly(), middleware.SkipRateLimit(), handlers.SearchUsersPaginatedHandler)
 		userGroup.PATCH("/user/ban/:id", middleware.AdminOnly(), handlers.BanUserByIDHandler)
 	}
 	bannedUserGroup := r.Group("/banned-users")
@@ -94,12 +96,12 @@ func main() {
 	{
 		// Public
 		bookGroup.GET("/", middleware.SkipRateLimit(), handlers.GetBooksHandler)
-		bookGroup.GET("/:id", handlers.GetBookByIDHandler)
+		bookGroup.POST("/", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.CreateBookHandler)
 		bookGroup.GET("/search", middleware.SkipRateLimit(), handlers.SearchBooksPaginatedHandler)
 		bookGroup.GET("/genres", handlers.ListGenresHandler)
 		bookGroup.GET("/genre/:genre", handlers.ListBooksByGenreHandler)
 		// Admin-only
-		bookGroup.POST("/", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.CreateBookHandler)
+		bookGroup.GET("/:id", handlers.GetBookByIDHandler)
 		bookGroup.PATCH("/:id", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.UpdateBookByIDHandler)
 		bookGroup.DELETE("/:id", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DeleteBookHandler)
 	}
@@ -170,12 +172,13 @@ func main() {
 	paymentGroup := r.Group("/payments")
 	paymentGroup.Use(middleware.AuthMiddleware())
 	{
-		paymentGroup.POST("/payment", handlers.CreatePaymentHandler)                           // create payment
-		paymentGroup.GET("/:id", handlers.GetPaymentHandler)                                   // get by ID
-		paymentGroup.GET("/", middleware.AdminOnly(), handlers.ListAllPaymentsHandler) // list by user
-		paymentGroup.PATCH("/payment/:id/status", handlers.UpdatePaymentStatusHandler)         // update status
+		paymentGroup.GET("/", middleware.AdminOnly(), handlers.ListAllPaymentsHandler) // LIST FIRST
+		paymentGroup.GET("/:id", handlers.GetPaymentHandler)                           // THEN SINGLE
+		paymentGroup.POST("/payment", handlers.CreatePaymentHandler)
+		paymentGroup.PATCH("/payment/:id/status", handlers.UpdatePaymentStatusHandler)
 		paymentGroup.DELETE("/payment/:id", middleware.AdminOnly(), handlers.DeletePaymentByIDHandler)
 	}
+
 	refundGroup := r.Group("/refunds")
 	refundGroup.Use(middleware.AuthMiddleware())
 	{

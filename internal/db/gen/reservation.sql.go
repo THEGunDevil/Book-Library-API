@@ -40,9 +40,21 @@ type CreateReservationParams struct {
 	BookID pgtype.UUID `json:"book_id"`
 }
 
-func (q *Queries) CreateReservation(ctx context.Context, arg CreateReservationParams) (Reservation, error) {
+type CreateReservationRow struct {
+	ID          pgtype.UUID        `json:"id"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	BookID      pgtype.UUID        `json:"book_id"`
+	Status      string             `json:"status"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	NotifiedAt  pgtype.Timestamptz `json:"notified_at"`
+	FulfilledAt pgtype.Timestamptz `json:"fulfilled_at"`
+	CancelledAt pgtype.Timestamptz `json:"cancelled_at"`
+	PickedUp    bool               `json:"picked_up"`
+}
+
+func (q *Queries) CreateReservation(ctx context.Context, arg CreateReservationParams) (CreateReservationRow, error) {
 	row := q.db.QueryRow(ctx, createReservation, arg.UserID, arg.BookID)
-	var i Reservation
+	var i CreateReservationRow
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
@@ -572,9 +584,10 @@ SET status = $2,
     notified_at = CASE WHEN $2 = 'notified' AND notified_at IS NULL THEN now() ELSE notified_at END,
     fulfilled_at = CASE WHEN $2 = 'fulfilled' AND fulfilled_at IS NULL THEN now() ELSE fulfilled_at END,
     cancelled_at = CASE WHEN $2 = 'cancelled' AND cancelled_at IS NULL THEN now() ELSE cancelled_at END,
-    picked_up = CASE WHEN $2 = 'picked_up' THEN TRUE ELSE picked_up END
+    picked_up = CASE WHEN $2 = 'picked_up' THEN TRUE ELSE picked_up END,
+    updated_at = now()
 WHERE id = $1
-RETURNING id, user_id, book_id, status, created_at, notified_at, fulfilled_at, cancelled_at, picked_up
+RETURNING id, user_id, book_id, status, created_at, notified_at, fulfilled_at, cancelled_at, picked_up, updated_at
 `
 
 type UpdateReservationStatusParams struct {
@@ -582,9 +595,22 @@ type UpdateReservationStatusParams struct {
 	Status string      `json:"status"`
 }
 
-func (q *Queries) UpdateReservationStatus(ctx context.Context, arg UpdateReservationStatusParams) (Reservation, error) {
+type UpdateReservationStatusRow struct {
+	ID          pgtype.UUID        `json:"id"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	BookID      pgtype.UUID        `json:"book_id"`
+	Status      string             `json:"status"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	NotifiedAt  pgtype.Timestamptz `json:"notified_at"`
+	FulfilledAt pgtype.Timestamptz `json:"fulfilled_at"`
+	CancelledAt pgtype.Timestamptz `json:"cancelled_at"`
+	PickedUp    bool               `json:"picked_up"`
+	UpdatedAt   pgtype.Timestamp   `json:"updated_at"`
+}
+
+func (q *Queries) UpdateReservationStatus(ctx context.Context, arg UpdateReservationStatusParams) (UpdateReservationStatusRow, error) {
 	row := q.db.QueryRow(ctx, updateReservationStatus, arg.ID, arg.Status)
-	var i Reservation
+	var i UpdateReservationStatusRow
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
@@ -595,6 +621,7 @@ func (q *Queries) UpdateReservationStatus(ctx context.Context, arg UpdateReserva
 		&i.FulfilledAt,
 		&i.CancelledAt,
 		&i.PickedUp,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

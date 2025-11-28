@@ -50,6 +50,14 @@ RETURNING *;
 DELETE FROM payments
 WHERE id = $1;
 
+-- name: GetTotalSales :one
+SELECT COALESCE(SUM(amount), 0) AS total_sales
+FROM payments
+WHERE status = 'paid';
+
+-- SELECT COUNT(*) FROM payments WHERE status = 'pending';
+-- SELECT COUNT(*) FROM payments WHERE status = 'failed';
+
 
 -- ===============================
 -- Refunds
