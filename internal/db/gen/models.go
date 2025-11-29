@@ -114,22 +114,23 @@ type SubscriptionPlan struct {
 }
 
 type User struct {
-	ID             pgtype.UUID      `json:"id"`
-	FirstName      string           `json:"first_name"`
-	LastName       string           `json:"last_name"`
-	Bio            string           `json:"bio"`
-	PhoneNumber    string           `json:"phone_number"`
-	Email          string           `json:"email"`
-	PasswordHash   string           `json:"password_hash"`
-	ProfileImg     pgtype.Text      `json:"profile_img"`
-	Role           pgtype.Text      `json:"role"`
-	CreatedAt      pgtype.Timestamp `json:"created_at"`
-	UpdatedAt      pgtype.Timestamp `json:"updated_at"`
-	TokenVersion   int32            `json:"token_version"`
-	IsBanned       pgtype.Bool      `json:"is_banned"`
-	BanReason      pgtype.Text      `json:"ban_reason"`
-	BanUntil       pgtype.Timestamp `json:"ban_until"`
-	IsPermanentBan pgtype.Bool      `json:"is_permanent_ban"`
+	ID                 pgtype.UUID      `json:"id"`
+	FirstName          string           `json:"first_name"`
+	LastName           string           `json:"last_name"`
+	Bio                string           `json:"bio"`
+	PhoneNumber        string           `json:"phone_number"`
+	Email              string           `json:"email"`
+	PasswordHash       string           `json:"password_hash"`
+	ProfileImg         pgtype.Text      `json:"profile_img"`
+	ProfileImgPublicID pgtype.Text      `json:"profile_img_public_id"`
+	Role               pgtype.Text      `json:"role"`
+	CreatedAt          pgtype.Timestamp `json:"created_at"`
+	UpdatedAt          pgtype.Timestamp `json:"updated_at"`
+	TokenVersion       int32            `json:"token_version"`
+	IsBanned           pgtype.Bool      `json:"is_banned"`
+	BanReason          pgtype.Text      `json:"ban_reason"`
+	BanUntil           pgtype.Timestamp `json:"ban_until"`
+	IsPermanentBan     pgtype.Bool      `json:"is_permanent_ban"`
 }
 
 type UserNotificationStatus struct {

@@ -52,19 +52,20 @@ func GetProfileDataByIDHandler(c *gin.Context) {
 
 	// Prepare user response
 	userResp := models.UserResponse{
-		ID:             user.ID.Bytes,
-		FirstName:      user.FirstName,
-		LastName:       user.LastName,
-		Bio:            user.Bio,
-		Email:          user.Email,
-		PhoneNumber:    user.PhoneNumber,
-		CreatedAt:      user.CreatedAt.Time,
-		Role:           user.Role.String,
-		ProfileImg:     user.ProfileImg.String,
-		BanReason:      user.BanReason.String,
-		IsBanned:       user.IsBanned.Bool,
-		IsPermanentBan: user.IsPermanentBan.Bool,
-		BanUntil:       &user.BanUntil.Time,
+		ID:                 user.ID.Bytes,
+		FirstName:          user.FirstName,
+		LastName:           user.LastName,
+		Bio:                user.Bio,
+		Email:              user.Email,
+		PhoneNumber:        user.PhoneNumber,
+		CreatedAt:          user.CreatedAt.Time,
+		Role:               user.Role.String,
+		ProfileImg:         &user.ProfileImg.String,
+		ProfileImgPublicID: &user.ProfileImgPublicID.String,
+		BanReason:          user.BanReason.String,
+		IsBanned:           user.IsBanned.Bool,
+		IsPermanentBan:     user.IsPermanentBan.Bool,
+		BanUntil:           &user.BanUntil.Time,
 	}
 
 	// Map borrows

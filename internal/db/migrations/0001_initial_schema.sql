@@ -12,6 +12,7 @@ CREATE TABLE users (
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     profile_img TEXT,
+    profile_img_public_id TEXT,
     role TEXT DEFAULT 'member' CHECK (role IN ('member', 'admin')),
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),

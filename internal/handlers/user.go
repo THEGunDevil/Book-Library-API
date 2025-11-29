@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"errors"
 	"log"
 	"math"
 	"net/http"
@@ -15,7 +14,6 @@ import (
 	"github.com/THEGunDevil/GoForBackend/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -245,131 +243,172 @@ func SearchUsersPaginatedHandler(c *gin.Context) {
 func UpdateUserByIDHandler(c *gin.Context) {
 	// Parse UUID
 	idStr := c.Param("id")
-	var err error
 	parsedID, err := uuid.Parse(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
+	// Fetch current user (to get old public_id)
+	currentUser, err := db.Q.GetUserByID(c, pgtype.UUID{Bytes: parsedID, Valid: true})
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Parse the incoming request
 	var req models.UpdateUserRequest
 	contentType := c.ContentType()
+
 	if strings.HasPrefix(contentType, "multipart/form-data") {
-		// Bind form-data (image upload)
 		err = c.ShouldBind(&req)
 	} else {
-		// Bind JSON
 		err = c.ShouldBindJSON(&req)
 	}
+
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	log.Printf("📘 [DEBUG] Update request: %+v", req)
-
-	if req.FirstName != nil && *req.FirstName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "first name cannot be empty"})
-		return
-	}
-	if req.LastName != nil && *req.LastName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "last name cannot be empty"})
 		return
 	}
 
 	params := gen.UpdateUserByIDParams{
 		ID: pgtype.UUID{Bytes: parsedID, Valid: true},
 	}
+
+	// ===========================
+	// Simple field updates
+	// ===========================
+
 	if req.FirstName != nil {
 		params.FirstName = pgtype.Text{String: *req.FirstName, Valid: true}
-	} else {
-		params.FirstName = pgtype.Text{Valid: false}
 	}
 
 	if req.LastName != nil {
 		params.LastName = pgtype.Text{String: *req.LastName, Valid: true}
-	} else {
-		params.LastName = pgtype.Text{Valid: false}
 	}
 
 	if req.PhoneNumber != nil {
 		params.PhoneNumber = pgtype.Text{String: *req.PhoneNumber, Valid: true}
-	} else {
-		params.PhoneNumber = pgtype.Text{Valid: false}
 	}
 
 	if req.Bio != nil {
 		params.Bio = pgtype.Text{String: *req.Bio, Valid: true}
-	} else {
-		params.Bio = pgtype.Text{Valid: false}
 	}
-	var imageURL string
+
+	// ===========================
+	// IMAGE HANDLING
+	// ===========================
+
+	var newImageURL string
+	var newPublicID string
+
 	if req.ProfileImg != nil {
-		f, err := req.ProfileImg.Open()
+		// 1) Delete old image if exists
+		if currentUser.ProfileImgPublicID.Valid {
+			_ = service.DeleteImageFromCloudinary(currentUser.ProfileImgPublicID.String)
+		}
+
+		// 2) Upload new image
+		file, err := req.ProfileImg.Open()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open image"})
 			return
 		}
-		defer f.Close()
+		defer file.Close()
 
-		imageURL, err = service.UploadProfileImgToCloudinary(f, req.ProfileImg.Filename)
+		newImageURL, newPublicID, err = service.UploadProfileImgToCloudinary(file, req.ProfileImg.Filename)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "image upload failed"})
 			return
 		}
+
+		// 3) Set params
+		params.ProfileImg = pgtype.Text{String: newImageURL, Valid: true}
+		params.ProfileImgPublicID = pgtype.Text{String: newPublicID, Valid: true}
 	}
-	if imageURL != "" {
-		params.ProfileImg= pgtype.Text{String: imageURL, Valid: true}
-	}
-	// if req.ProfileImg != nil {
-	// 	f, err := req.ProfileImg.Open()
-	// 	if err == nil {
-	// 		defer f.Close()
-	// 		url, err := service.UploadProfileImgToCloudinary(f, req.ProfileImg.Filename)
-	// 		if err == nil {
-	// 			params.ProfileImg = pgtype.Text{String: url, Valid: true}
-	// 			log.Printf("🖼️ [DEBUG] Image uploaded successfully: %s", url)
-	// 		} else {
-	// 			log.Printf("❌ [DEBUG] Image upload failed: %v", err)
-	// 			params.ProfileImg = pgtype.Text{Valid: false}
-	// 		}
-	// 	} else {
-	// 		log.Printf("❌ [DEBUG] Failed to open image file: %v", err)
-	// 		params.ProfileImg = pgtype.Text{Valid: false}
-	// 	}
-	// } else {
-	// 	log.Printf("⚠️ [DEBUG] No image provided in update request.")
-	// 	params.ProfileImg = pgtype.Text{Valid: false}
-	// }
-	updatedUser, err := db.Q.UpdateUserByID(c.Request.Context(), params)
+
+	// Save changes
+	updatedUser, err := db.Q.UpdateUserByID(c, params)
 	if err != nil {
-		log.Printf("UpdateUserByID error: %v", err)
-		if errors.Is(err, pgx.ErrNoRows) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong"})
-		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Update failed"})
 		return
 	}
 
+	// Response
 	resp := models.UserResponse{
-		ID:             updatedUser.ID.Bytes,
-		FirstName:      updatedUser.FirstName,
-		LastName:       updatedUser.LastName,
-		Bio:            updatedUser.Bio,
-		Email:          updatedUser.Email,
-		PhoneNumber:    updatedUser.PhoneNumber,
-		Role:           updatedUser.Role.String,
-		ProfileImg:     updatedUser.ProfileImg.String,
-		IsBanned:       updatedUser.IsBanned.Bool,
-		BanUntil:       &updatedUser.BanUntil.Time,
-		BanReason:      updatedUser.BanReason.String,
-		IsPermanentBan: updatedUser.IsPermanentBan.Bool,
-		CreatedAt:      updatedUser.CreatedAt.Time,
+		ID:                updatedUser.ID.Bytes,
+		FirstName:         updatedUser.FirstName,
+		LastName:          updatedUser.LastName,
+		Bio:               updatedUser.Bio,
+		Email:             updatedUser.Email,
+		PhoneNumber:       updatedUser.PhoneNumber,
+		Role:              updatedUser.Role.String,
+		ProfileImg:        &updatedUser.ProfileImg.String,
+		IsBanned:          updatedUser.IsBanned.Bool,
+		BanUntil:          &updatedUser.BanUntil.Time,
+		BanReason:         updatedUser.BanReason.String,
+		IsPermanentBan:    updatedUser.IsPermanentBan.Bool,
+		CreatedAt:         updatedUser.CreatedAt.Time,
 	}
 
 	c.JSON(http.StatusOK, resp)
 }
+
+func DeleteProfileImage(c *gin.Context) {
+	// Get userID from context (from auth middleware)
+	userIDVal, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "userID not found in context"})
+		return
+	}
+
+	userUUID, ok := userIDVal.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid userID type"})
+		return
+	}
+
+	// Fetch user to check existing image
+	user, err := db.Q.GetUserByID(c, pgtype.UUID{
+		Bytes: userUUID,
+		Valid: true,
+	})
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	// If no profile image → return immediately
+	if !user.ProfileImgPublicID.Valid || user.ProfileImgPublicID.String == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no profile image to delete"})
+		return
+	}
+
+	// Delete from Cloudinary
+	err = service.DeleteImageFromCloudinary(user.ProfileImgPublicID.String)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete from cloudinary"})
+		return
+	}
+
+	// Update DB → remove image + public_id
+	params := gen.UpdateUserByIDParams{
+		ID:                 pgtype.UUID{Bytes: userUUID, Valid: true},
+		ProfileImg:         pgtype.Text{Valid: false}, // sets NULL
+		ProfileImgPublicID: pgtype.Text{Valid: false}, // sets NULL
+	}
+
+	_, err = db.Q.UpdateUserByID(c, params)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update user record"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "profile image deleted successfully",
+	})
+}
+
 
 func BanUserByIDHandler(c *gin.Context) {
 	// Parse UUID

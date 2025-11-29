@@ -32,14 +32,22 @@ func UploadImageToCloudinary(file multipart.File, filename string) (string, erro
 
 	return uploadResp.SecureURL, nil
 }
-func UploadProfileImgToCloudinary(file multipart.File, filename string) (string, error) {
+func UploadProfileImgToCloudinary(file multipart.File, filename string) (string, string, error) {
 	uploadResp, err := cld.Upload.Upload(db.Ctx, file, uploader.UploadParams{
-		Folder:   "profile_pictures",     // optional folder in Cloudinary
-		PublicID: filename,    // use filename as Cloudinary public_id
+		Folder:   "profile_pictures",
+		PublicID: filename,
 	})
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	return uploadResp.SecureURL, nil
+	return uploadResp.SecureURL, uploadResp.PublicID, nil
+}
+func DeleteImageFromCloudinary(publicID string) error {
+	// Must call Destroy (Upload API) to delete a single asset
+	_, err := cld.Upload.Destroy(db.Ctx, uploader.DestroyParams{
+		PublicID: publicID,
+	})
+
+	return err
 }

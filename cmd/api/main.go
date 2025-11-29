@@ -32,11 +32,11 @@ func main() {
 
 	// Load config & connect DB
 	cfg := config.LoadConfig()
-	db.Connect(cfg)
+	// db.Connect(cfg)
 	// fmt.Println("DEBUG DBURL:", cfg.DBURL)
 	fmt.Println("DEBUG LOCAL DB:", cfg.LOCALDBURL)
 	// fmt.Println("DEBUG DB NAME:", cfg.DBName)
-	// db.LocalConnect(cfg)
+	db.LocalConnect(cfg)
 	defer db.Close()
 
 	r := gin.New() // instead of gin.Default() if you want full control
@@ -81,6 +81,7 @@ func main() {
 		userGroup.GET("/user/:id", handlers.GetUserByIDHandler)
 		userGroup.GET("/user/profile/:id", handlers.GetProfileDataByIDHandler)
 		userGroup.PATCH("/user/:id", handlers.UpdateUserByIDHandler)
+		userGroup.DELETE("/user/:id", handlers.DeleteProfileImage)
 		// only admin can update user info
 		userGroup.GET("/", middleware.SkipRateLimit(), middleware.AdminOnly(), handlers.GetUsersHandler)
 		userGroup.GET("/user/email", middleware.AdminOnly(), middleware.SkipRateLimit(), handlers.SearchUsersPaginatedHandler)
