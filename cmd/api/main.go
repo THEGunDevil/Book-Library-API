@@ -78,14 +78,13 @@ func main() {
 	userGroup := r.Group("/users")
 	userGroup.Use(middleware.AuthMiddleware())
 	{
+		userGroup.GET("/", middleware.SkipRateLimit(), middleware.AdminOnly(), handlers.GetUsersHandler)
+		userGroup.GET("/user/email", middleware.AdminOnly(), middleware.SkipRateLimit(), handlers.SearchUsersPaginatedHandler)
 		userGroup.GET("/user/:id", handlers.GetUserByIDHandler)
 		userGroup.GET("/user/profile/:id", handlers.GetProfileDataByIDHandler)
 		userGroup.PATCH("/user/:id", handlers.UpdateUserByIDHandler)
-		userGroup.DELETE("/user/:id", handlers.DeleteProfileImage)
-		// only admin can update user info
-		userGroup.GET("/", middleware.SkipRateLimit(), middleware.AdminOnly(), handlers.GetUsersHandler)
-		userGroup.GET("/user/email", middleware.AdminOnly(), middleware.SkipRateLimit(), handlers.SearchUsersPaginatedHandler)
 		userGroup.PATCH("/user/ban/:id", middleware.AdminOnly(), handlers.BanUserByIDHandler)
+		userGroup.DELETE("/user/:id", handlers.DeleteProfileImage)
 	}
 	bannedUserGroup := r.Group("/banned-users")
 	bannedUserGroup.Use(middleware.AuthMiddleware())
@@ -97,29 +96,30 @@ func main() {
 	{
 		// Public
 		bookGroup.GET("/", middleware.SkipRateLimit(), handlers.GetBooksHandler)
-		bookGroup.POST("/", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.CreateBookHandler)
 		bookGroup.GET("/search", middleware.SkipRateLimit(), handlers.SearchBooksPaginatedHandler)
 		bookGroup.GET("/genres", handlers.ListGenresHandler)
 		bookGroup.GET("/genre/:genre", handlers.ListBooksByGenreHandler)
-		// Admin-only
 		bookGroup.GET("/:id", handlers.GetBookByIDHandler)
+
+		bookGroup.POST("/", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.CreateBookHandler)
 		bookGroup.PATCH("/:id", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.UpdateBookByIDHandler)
 		bookGroup.DELETE("/:id", middleware.AuthMiddleware(), middleware.AdminOnly(), handlers.DeleteBookHandler)
 	}
 
+	// Reservation routes (protected)
 	reservationGroup := r.Group("/reservations")
 	reservationGroup.Use(middleware.AuthMiddleware())
 	{
-		reservationGroup.POST("/", handlers.CreateReservationHandler)
+		reservationGroup.GET("/", handlers.GetReservationsHandler)
 		reservationGroup.GET("/book/:id", handlers.GetReservationsByBookIDHandler)
 		reservationGroup.GET("/book/:id/user", handlers.GetReservationsByBookIDAndUserIDHandler)
 		reservationGroup.GET("/reservation/:id", handlers.GetReservationsByReservationID)
-		reservationGroup.GET("/", handlers.GetReservationsHandler)
-		reservationGroup.PATCH("/:id/status", middleware.AdminOnly(), handlers.UpdateReservationStatusHandler)
 		reservationGroup.GET("/next/:id", middleware.AdminOnly(), handlers.GetNextReservationHandler)
+		reservationGroup.POST("/", handlers.CreateReservationHandler)
+		reservationGroup.PATCH("/:id/status", middleware.AdminOnly(), handlers.UpdateReservationStatusHandler)
 	}
 
-	// Borrow routes (protected, for any logged-in user)
+	// Borrow routes (protected)
 	borrowGroup := r.Group("/borrows")
 	borrowGroup.Use(middleware.AuthMiddleware())
 	{
@@ -130,21 +130,27 @@ func main() {
 		borrowGroup.POST("/borrow", handlers.BorrowBookHandler)
 		borrowGroup.PATCH("/borrow/:id/return", handlers.ReturnBookHandler)
 	}
+
+	// Review routes (protected)
 	reviewGroup := r.Group("/reviews")
 	reviewGroup.Use(middleware.AuthMiddleware())
 	{
-		reviewGroup.POST("/review", handlers.CreateReviewHandler)
-		reviewGroup.PATCH("/review/:id", handlers.UpdateReviewByIDHandler)
 		reviewGroup.GET("/book/:id", handlers.GetReviewsByBookIDHandler)
 		reviewGroup.GET("/user/:id", handlers.GetReviewsByUserIDHandler)
 		reviewGroup.GET("/review/:id", handlers.GetReviewsByReviewIDHandler)
+		reviewGroup.POST("/review", handlers.CreateReviewHandler)
+		reviewGroup.PATCH("/review/:id", handlers.UpdateReviewByIDHandler)
 		reviewGroup.DELETE("/review/:id", handlers.DeleteReviewsByIDHandler)
 	}
+
+	// Contact routes (protected)
 	contactGroup := r.Group("/contact")
 	contactGroup.Use(middleware.AuthMiddleware())
 	{
 		contactGroup.POST("/send", handlers.ContactHandler)
 	}
+
+	// Notification routes (protected)
 	notificationGroup := r.Group("/notifications")
 	notificationGroup.Use(middleware.AuthMiddleware())
 	{
@@ -152,6 +158,7 @@ func main() {
 		notificationGroup.PATCH("/mark-read", handlers.MarkAllNotificationsAsReadHandler)
 	}
 
+	// Subscription Plan routes (protected)
 	subscriptionPlanGroup := r.Group("/subscription-plan")
 	subscriptionPlanGroup.Use(middleware.AuthMiddleware())
 	{
@@ -161,6 +168,7 @@ func main() {
 		subscriptionPlanGroup.DELETE("/:id", middleware.AdminOnly(), handlers.DeleteSubscriptionPlanByID)
 	}
 
+	// Subscription routes (protected)
 	subscriptionGroup := r.Group("/subscription")
 	subscriptionGroup.Use(middleware.AuthMiddleware())
 	{
@@ -170,31 +178,37 @@ func main() {
 		subscriptionGroup.POST("/", handlers.CreateSubscriptionHandler)
 		subscriptionGroup.DELETE("/:id", middleware.AdminOnly(), handlers.DeleteSubscriptionByIDHandler)
 	}
+
+	// Payment routes (protected)
 	paymentGroup := r.Group("/payments")
 	paymentGroup.Use(middleware.AuthMiddleware())
 	{
-		paymentGroup.GET("/", middleware.AdminOnly(), handlers.ListAllPaymentsHandler) // LIST FIRST
-		paymentGroup.GET("/:id", handlers.GetPaymentHandler)                           // THEN SINGLE
+		paymentGroup.GET("/", middleware.AdminOnly(), handlers.ListAllPaymentsHandler)
+		paymentGroup.GET("/:id", handlers.GetPaymentHandler)
 		paymentGroup.POST("/payment", handlers.CreatePaymentHandler)
 		paymentGroup.PATCH("/payment/:id/status", handlers.UpdatePaymentStatusHandler)
 		paymentGroup.DELETE("/payment/:id", middleware.AdminOnly(), handlers.DeletePaymentByIDHandler)
 	}
 
+	// Refund routes (protected)
 	refundGroup := r.Group("/refunds")
 	refundGroup.Use(middleware.AuthMiddleware())
 	{
-		refundGroup.POST("/", handlers.CreateRefundHandler)                                                   // create refund
-		refundGroup.GET("/:id", handlers.GetRefundHandler)                                                    // get by ID
-		refundGroup.GET("/payment/:payment_id", middleware.AdminOnly(), handlers.ListRefundsByPaymentHandler) // list refunds by payment
-		refundGroup.GET("/status", middleware.AdminOnly(), handlers.ListRefundsByStatusHandler)               // list refunds by status (query param: ?status=requested)
-		refundGroup.PATCH("/:id/status", handlers.UpdateRefundStatusHandler)                                  // update status & processed_at
-		refundGroup.DELETE("/:id", middleware.AdminOnly(), handlers.DeleteRefundHandler)                      // delete refund
+		refundGroup.GET("/:id", handlers.GetRefundHandler)
+		refundGroup.GET("/payment/:payment_id", middleware.AdminOnly(), handlers.ListRefundsByPaymentHandler)
+		refundGroup.GET("/status", middleware.AdminOnly(), handlers.ListRefundsByStatusHandler)
+		refundGroup.POST("/", handlers.CreateRefundHandler)
+		refundGroup.PATCH("/:id/status", handlers.UpdateRefundStatusHandler)
+		refundGroup.DELETE("/:id", middleware.AdminOnly(), handlers.DeleteRefundHandler)
 	}
+
+	// List routes (protected, admin only)
 	listGroup := r.Group("/list")
 	listGroup.Use(middleware.AuthMiddleware(), middleware.AdminOnly()) // ← Auth MUST come before Admin
 	{
 		listGroup.GET("/data-paginated", handlers.ListDataByStatusHandler)
 	}
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"

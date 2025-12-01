@@ -18,7 +18,14 @@ WHERE id = $1;
 
 -- name: FilterBooksByGenre :many
 SELECT * FROM books
+WHERE genre = $1
+LIMIT $2 OFFSET $3;
+
+-- name: CountBooksByGenre :one
+SELECT COUNT(*) AS count
+FROM books
 WHERE genre = $1;
+
 -- name: CountBooks :one
 SELECT COUNT(*) FROM books;
 

@@ -520,17 +520,38 @@ func ListGenresHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, genres)
 }
 func ListBooksByGenreHandler(c *gin.Context) {
+	page := 1
+	limit := 10
+
+	if p := c.Query("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = parsed
+		}
+	}
+
+	if l := c.Query("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	offset := (page - 1) * limit
 	genre := c.Param("genre")
 	if genre == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "genre is required"})
 		return
 	}
 
-	books, err := db.Q.FilterBooksByGenre(c.Request.Context(), genre)
+	books, err := db.Q.FilterBooksByGenre(c.Request.Context(), gen.FilterBooksByGenreParams{
+		Genre:  genre,
+		Limit:  int32(limit),
+		Offset: int32(offset),
+	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	totalCount, _ := db.Q.CountBooksByGenre(c.Request.Context(), genre)
 	// Map to response model
 	var response []models.BookResponse
 	for _, book := range books {
@@ -549,6 +570,13 @@ func ListBooksByGenreHandler(c *gin.Context) {
 			ImageURL:        book.ImageUrl,
 		})
 	}
-
-	c.JSON(http.StatusOK, response)
+	totalPages := int(math.Ceil(float64(totalCount) / float64(limit)))
+	c.JSON(http.StatusOK, gin.H{
+		"page":        page,
+		"limit":       limit,
+		"count":       len(response),
+		"total_count": totalCount,
+		"total_pages": totalPages,
+		"books":       response,
+	})
 }

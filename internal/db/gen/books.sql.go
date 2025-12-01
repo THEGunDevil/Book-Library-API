@@ -22,6 +22,19 @@ func (q *Queries) CountBooks(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countBooksByGenre = `-- name: CountBooksByGenre :one
+SELECT COUNT(*) AS count
+FROM books
+WHERE genre = $1
+`
+
+func (q *Queries) CountBooksByGenre(ctx context.Context, genre string) (int64, error) {
+	row := q.db.QueryRow(ctx, countBooksByGenre, genre)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countSearchBooks = `-- name: CountSearchBooks :one
 SELECT COUNT(*)
 FROM books
@@ -138,10 +151,17 @@ func (q *Queries) DeleteBookByID(ctx context.Context, id pgtype.UUID) (Book, err
 const filterBooksByGenre = `-- name: FilterBooksByGenre :many
 SELECT id, title, author, description, genre, published_year, isbn, total_copies, available_copies, created_at, updated_at, image_url FROM books
 WHERE genre = $1
+LIMIT $2 OFFSET $3
 `
 
-func (q *Queries) FilterBooksByGenre(ctx context.Context, genre string) ([]Book, error) {
-	rows, err := q.db.Query(ctx, filterBooksByGenre, genre)
+type FilterBooksByGenreParams struct {
+	Genre  string `json:"genre"`
+	Limit  int32  `json:"limit"`
+	Offset int32  `json:"offset"`
+}
+
+func (q *Queries) FilterBooksByGenre(ctx context.Context, arg FilterBooksByGenreParams) ([]Book, error) {
+	rows, err := q.db.Query(ctx, filterBooksByGenre, arg.Genre, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
