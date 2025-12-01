@@ -25,24 +25,34 @@ func CreateReviewHandler(c *gin.Context) {
 
 	// Bind JSON
 	var req struct {
-		BookID  string `json:"bookId,omitempty"`
-		Rating  int    `json:"rating,omitempty"`
-		Comment string `json:"comment,omitempty"`
+		BookID  *uuid.UUID `json:"bookId,omitempty"`
+		Rating  *int       `json:"rating,omitempty"`
+		Comment *string    `json:"comment,omitempty"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
 	}
-
+	if req.BookID == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "bookId is required"})
+		return
+	}
+	bookUUID, err := uuid.Parse(req.BookID.String())
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid bookID"})
+		return
+	}
 	// Validate input
-	if req.BookID == "" || req.Comment == "" || req.Rating < 1 || req.Rating > 5 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing or invalid fields"})
+
+	// Must provide at least comment or rating
+	if req.Rating == nil && (req.Comment == nil || *req.Comment == "") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "rating or comment required"})
 		return
 	}
 
-	bookUUID, err := uuid.Parse(req.BookID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid bookID"})
+	// Validate rating if it's provided
+	if req.Rating != nil && (*req.Rating < 1 || *req.Rating > 5) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "rating must be between 1 and 5"})
 		return
 	}
 
@@ -50,9 +60,17 @@ func CreateReviewHandler(c *gin.Context) {
 	review := gen.CreateReviewParams{
 		UserID:  pgtype.UUID{Bytes: userUUID, Valid: true},
 		BookID:  pgtype.UUID{Bytes: bookUUID, Valid: true},
-		Rating:  pgtype.Int4{Int32: int32(req.Rating), Valid: true},
-		Comment: pgtype.Text{String: req.Comment, Valid: true},
+		Rating:  pgtype.Int4{Valid: false},
+		Comment: pgtype.Text{Valid: false},
 	}
+
+if req.Rating != nil {
+    review.Rating = pgtype.Int4{Int32: int32(*req.Rating), Valid: true}
+}
+
+if req.Comment != nil && *req.Comment != "" {
+    review.Comment = pgtype.Text{String: *req.Comment, Valid: true}
+}
 
 	createdReview, err := db.Q.CreateReview(db.Ctx, review)
 	if err != nil {
@@ -122,7 +140,7 @@ func UpdateReviewByIDHandler(c *gin.Context) {
 		params.Comment = pgtype.Text{String: *req.Comment, Valid: true}
 	}
 
-	updatedReview, err := db.Q.UpdateReviewByID(c.Request.Context(), params)
+	updatedReview, err := db.Q.UpdateReviewByID(c, params)
 	if err != nil {
 		log.Printf("UpdateReviewByID error: %v", err)
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -169,15 +187,16 @@ func GetReviewsByBookIDHandler(c *gin.Context) {
 		}
 
 		reviews = append(reviews, models.ReviewResponse{
-			ID:        r.ID.Bytes,
-			UserID:    r.UserID.Bytes,
-			BookID:    r.BookID.Bytes,
-			BookTitle: book.Title,
-			UserName:  user.FirstName + " " + user.LastName,
-			Rating:    int(r.Rating.Int32),
-			Comment:   r.Comment.String,
-			CreatedAt: r.CreatedAt.Time,
-			UpdatedAt: r.UpdatedAt.Time,
+			ID:         r.ID.Bytes,
+			UserID:     r.UserID.Bytes,
+			BookID:     r.BookID.Bytes,
+			BookTitle:  book.Title,
+			UserName:   user.FirstName + " " + user.LastName,
+			ProfileImg: user.ProfileImg.String,
+			Rating:     int(r.Rating.Int32),
+			Comment:    r.Comment.String,
+			CreatedAt:  r.CreatedAt.Time,
+			UpdatedAt:  r.UpdatedAt.Time,
 		})
 	}
 
@@ -279,8 +298,6 @@ func GetReviewsByReviewIDHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, review)
 }
-
-
 
 func DeleteReviewsByIDHandler(c *gin.Context) {
 	reviewParam := c.Param("id")
