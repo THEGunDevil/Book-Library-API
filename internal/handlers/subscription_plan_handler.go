@@ -15,6 +15,39 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+// Helper function to unmarshal features safely
+func unmarshalFeatures(featuresStr string) map[string]interface{} {
+	var features map[string]interface{}
+	
+	if len(featuresStr) == 0 || featuresStr == "{}" {
+		return make(map[string]interface{})
+	}
+	
+	if err := json.Unmarshal([]byte(featuresStr), &features); err != nil {
+		log.Println("❌ Features unmarshal error:", err)
+		return make(map[string]interface{})
+	}
+	
+	return features
+}
+
+// Helper function to build subscription plan response
+func buildSubscriptionPlanResponse(sub gen.SubscriptionPlan) models.SubscriptionPlan {
+	features := unmarshalFeatures(sub.Features.String)
+	
+	return models.SubscriptionPlan{
+		ID:           sub.ID.Bytes,
+		Name:         sub.Name,
+		Price:        sub.Price,
+		DurationDays: int(sub.DurationDays),
+		Description:  sub.Description.String,
+		Features:     features,
+		CreatedAt:    sub.CreatedAt.Time,
+		UpdatedAt:    sub.UpdatedAt.Time,
+	}
+}
+
+// CreateSubscriptionPlanHandler creates a new subscription plan
 func CreateSubscriptionPlanHandler(c *gin.Context) {
 	log.Println("🔹 CreateSubscriptionPlanHandler called")
 	var req models.SubscriptionPlan
@@ -24,21 +57,46 @@ func CreateSubscriptionPlanHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	log.Printf("🔹 Request received: %+v\n", req)
+	log.Printf("🔹 Request received: Name=%s, Price=%f, Duration=%d\n", req.Name, req.Price, req.DurationDays)
 
 	// Validations
-	if len(req.Name) == 0 || len(req.Name) > 100 || req.Price <= 0 || req.DurationDays <= 0 || len(req.Description) > 255 {
-		log.Println("❌ Validation failed")
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid input"})
+	if len(req.Name) == 0 || len(req.Name) > 100 {
+		log.Println("❌ Validation failed: invalid name")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "name must be between 1 and 100 characters"})
 		return
+	}
+
+	if req.Price <= 0 {
+		log.Println("❌ Validation failed: invalid price")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "price must be greater than 0"})
+		return
+	}
+
+	if req.DurationDays <= 0 {
+		log.Println("❌ Validation failed: invalid duration")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "duration days must be greater than 0"})
+		return
+	}
+
+	if len(req.Description) > 255 {
+		log.Println("❌ Validation failed: description too long")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "description must not exceed 255 characters"})
+		return
+	}
+
+	// Initialize features if nil
+	if req.Features == nil {
+		req.Features = make(map[string]interface{})
 	}
 
 	featuresBytes, err := json.Marshal(req.Features)
 	if err != nil {
 		log.Println("❌ Features marshal error:", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid features"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid features format"})
 		return
 	}
+
+	log.Printf("🔹 Features JSON: %s\n", string(featuresBytes))
 
 	params := gen.CreateSubscriptionPlanParams{
 		Name:         req.Name,
@@ -52,49 +110,80 @@ func CreateSubscriptionPlanHandler(c *gin.Context) {
 	sub, err := db.Q.CreateSubscriptionPlan(c.Request.Context(), params)
 	if err != nil {
 		log.Println("❌ DB insert error:", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create subscription plan", "details": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "failed to create subscription plan",
+			"details": err.Error(),
+		})
 		return
 	}
 	log.Println("✅ Subscription plan created with ID:", sub.ID)
 
-	var features map[string]interface{}
-	if err := json.Unmarshal([]byte(sub.Features.String), &features); err != nil {
-		log.Println("❌ Features unmarshal error:", err)
-		features = make(map[string]interface{})
-	}
+	resp := buildSubscriptionPlanResponse(sub)
 
-	resp := models.SubscriptionPlan{
-		ID:           sub.ID.Bytes,
-		Name:         sub.Name,
-		Price:        sub.Price,
-		DurationDays: int(sub.DurationDays),
-		Description:  sub.Description.String,
-		Features:     features,
-		CreatedAt:    sub.CreatedAt.Time,
-		UpdatedAt:    sub.UpdatedAt.Time,
-	}
-
-	log.Println("🔹 Response prepared")
-	c.JSON(http.StatusOK, gin.H{"message": "subscription plan created", "plan": resp})
+	c.JSON(http.StatusOK, gin.H{
+		"message": "subscription plan created successfully",
+		"plan":    resp,
+	})
 }
 
-// ---------------- Update ----------------
+// UpdateSubscriptionPlanHandler updates an existing subscription plan
 func UpdateSubscriptionPlanHandler(c *gin.Context) {
 	log.Println("🔹 UpdateSubscriptionPlanHandler called")
 	var req models.SubscriptionPlan
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		log.Println("❌ JSON bind error:", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	log.Printf("🔹 Request received: %+v\n", req)
+
+	// Validate ID is provided
+	if req.ID == uuid.Nil {
+		log.Println("❌ Validation failed: ID is required")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "subscription plan ID is required"})
+		return
+	}
+
+	log.Printf("🔹 Request received: ID=%s, Name=%s, Price=%f, Duration=%d\n", req.ID, req.Name, req.Price, req.DurationDays)
+
+	// Validations
+	if len(req.Name) == 0 || len(req.Name) > 100 {
+		log.Println("❌ Validation failed: invalid name")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "name must be between 1 and 100 characters"})
+		return
+	}
+
+	if req.Price <= 0 {
+		log.Println("❌ Validation failed: invalid price")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "price must be greater than 0"})
+		return
+	}
+
+	if req.DurationDays <= 0 {
+		log.Println("❌ Validation failed: invalid duration")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "duration days must be greater than 0"})
+		return
+	}
+
+	if len(req.Description) > 255 {
+		log.Println("❌ Validation failed: description too long")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "description must not exceed 255 characters"})
+		return
+	}
+
+	// Initialize features if nil
+	if req.Features == nil {
+		req.Features = make(map[string]interface{})
+	}
 
 	featuresBytes, err := json.Marshal(req.Features)
 	if err != nil {
 		log.Println("❌ Features marshal error:", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid features"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid features format"})
 		return
 	}
+
+	log.Printf("🔹 Features JSON: %s\n", string(featuresBytes))
 
 	params := gen.UpdateSubscriptionPlanParams{
 		ID:           service.UUIDToPGType(req.ID),
@@ -109,73 +198,57 @@ func UpdateSubscriptionPlanHandler(c *gin.Context) {
 	sub, err := db.Q.UpdateSubscriptionPlan(c.Request.Context(), params)
 	if err != nil {
 		log.Println("❌ DB update error:", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update subscription plans", "details": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "failed to update subscription plan",
+			"details": err.Error(),
+		})
 		return
 	}
 	log.Println("✅ Subscription plan updated with ID:", sub.ID)
 
-	var features map[string]interface{}
-	if err := json.Unmarshal([]byte(sub.Features.String), &features); err != nil {
-		log.Println("❌ Features unmarshal error:", err)
-		features = make(map[string]interface{})
-	}
+	resp := buildSubscriptionPlanResponse(sub)
 
-	resp := models.SubscriptionPlan{
-		ID:           sub.ID.Bytes,
-		Name:         sub.Name,
-		Price:        sub.Price,
-		DurationDays: int(sub.DurationDays),
-		Description:  sub.Description.String,
-		Features:     features,
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "subscription plan updated", "plan": resp})
+	c.JSON(http.StatusOK, gin.H{
+		"message": "subscription plan updated successfully",
+		"plan":    resp,
+	})
 }
 
-// ---------------- Get All ----------------
+// GetSubscriptionsPlanHandler retrieves all subscription plans
 func GetSubscriptionsPlanHandler(c *gin.Context) {
 	log.Println("🔹 GetSubscriptionsPlanHandler called")
 
 	sublists, err := db.Q.ListSubscriptionPlans(c.Request.Context())
 	if err != nil {
 		log.Println("❌ DB fetch error:", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get subscription plans", "details": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "failed to get subscription plans",
+			"details": err.Error(),
+		})
 		return
 	}
 	log.Printf("🔹 %d plans fetched\n", len(sublists))
 
 	var response []models.SubscriptionPlan
 	for _, r := range sublists {
-		var features map[string]interface{}
-		if len(r.Features.String) > 0 {
-			if err := json.Unmarshal([]byte(r.Features.String), &features); err != nil {
-				log.Println("❌ Features unmarshal error:", err)
-				features = make(map[string]interface{})
-			}
-		} else {
-			features = map[string]interface{}{}
-		}
-		response = append(response, models.SubscriptionPlan{
-			ID:           r.ID.Bytes,
-			Name:         r.Name,
-			Price:        r.Price,
-			DurationDays: int(r.DurationDays),
-			Description:  r.Description.String,
-			Features:     features,
-		})
+		response = append(response, buildSubscriptionPlanResponse(r))
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "subscription plans retrieved", "plans": response})
+	c.JSON(http.StatusOK, gin.H{
+		"message": "subscription plans retrieved successfully",
+		"plans":   response,
+	})
 }
 
-// ---------------- Get By ID ----------------
+// GetSubscriptionPlanByIDHandler retrieves a single subscription plan by ID
 func GetSubscriptionPlanByIDHandler(c *gin.Context) {
 	log.Println("🔹 GetSubscriptionPlanByIDHandler called")
 	idStr := c.Param("id")
+	
 	parsedID, err := uuid.Parse(idStr)
 	if err != nil {
 		log.Println("❌ Invalid UUID:", idStr)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid subscription plan ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid subscription plan ID format"})
 		return
 	}
 
@@ -187,45 +260,40 @@ func GetSubscriptionPlanByIDHandler(c *gin.Context) {
 			return
 		}
 		log.Println("❌ DB fetch error:", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get subscription plan", "details": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "failed to get subscription plan",
+			"details": err.Error(),
+		})
 		return
 	}
-	var features map[string]interface{}
-	if len(sub.Features.String) > 0 {
-		if err := json.Unmarshal([]byte(sub.Features.String), &features); err != nil {
-			log.Println("❌ Features unmarshal error:", err)
-			features = make(map[string]interface{})
-		}
-	} else {
-		features = map[string]interface{}{}
-	}
-	resp := models.SubscriptionPlan{
-		ID:           sub.ID.Bytes,
-		Name:         sub.Name,
-		Price:        sub.Price,
-		DurationDays: int(sub.DurationDays),
-		Description:  sub.Description.String,
-		Features:     features,
-	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "subscription plan retrieved", "plan": resp})
+	resp := buildSubscriptionPlanResponse(sub)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "subscription plan retrieved successfully",
+		"plan":    resp,
+	})
 }
 
-// ---------------- Delete ----------------
+// DeleteSubscriptionPlanByID deletes a subscription plan by ID
 func DeleteSubscriptionPlanByID(c *gin.Context) {
 	log.Println("🔹 DeleteSubscriptionPlanByID called")
 	idStr := c.Param("id")
+
 	parsedID, err := uuid.Parse(idStr)
 	if err != nil {
 		log.Println("❌ Invalid UUID:", idStr)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid subscription plan ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid subscription plan ID format"})
 		return
 	}
 
 	err = db.Q.DeleteSubscriptionPlan(c.Request.Context(), pgtype.UUID{Bytes: parsedID, Valid: true})
 	if err != nil {
 		log.Println("❌ DB delete error:", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete subscription plan", "details": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "failed to delete subscription plan",
+			"details": err.Error(),
+		})
 		return
 	}
 

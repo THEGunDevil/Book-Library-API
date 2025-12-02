@@ -42,16 +42,18 @@ func (q *Queries) CountPaymentsByEmail(ctx context.Context, dollar_1 interface{}
 const createPayment = `-- name: CreatePayment :one
 INSERT INTO payments (
     user_id,
+    email,
     plan_id,
     amount,
     payment_gateway,
     currency
-) VALUES ($1, $2, $3, $4, $5)
+) VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id, email, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at
 `
 
 type CreatePaymentParams struct {
 	UserID         pgtype.UUID `json:"user_id"`
+	Email          string      `json:"email"`
 	PlanID         pgtype.UUID `json:"plan_id"`
 	Amount         float64     `json:"amount"`
 	PaymentGateway pgtype.Text `json:"payment_gateway"`
@@ -61,6 +63,7 @@ type CreatePaymentParams struct {
 func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (Payment, error) {
 	row := q.db.QueryRow(ctx, createPayment,
 		arg.UserID,
+		arg.Email,
 		arg.PlanID,
 		arg.Amount,
 		arg.PaymentGateway,

@@ -1,11 +1,12 @@
 -- name: CreatePayment :one
 INSERT INTO payments (
     user_id,
+    email,
     plan_id,
     amount,
     payment_gateway,
     currency
-) VALUES ($1, $2, $3, $4, $5)
+) VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING *;
 
 -- name: SearchPaymentsByEmailWithPagination :many
