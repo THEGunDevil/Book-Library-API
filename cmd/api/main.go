@@ -32,11 +32,11 @@ func main() {
 
 	// Load config & connect DB
 	cfg := config.LoadConfig()
-	db.Connect(cfg)
+	// db.Connect(cfg)
 	// fmt.Println("DEBUG DBURL:", cfg.DBURL)
 	fmt.Println("DEBUG LOCAL DB:", cfg.LOCALDBURL)
 	// fmt.Println("DEBUG DB NAME:", cfg.DBName)
-	// db.LocalConnect(cfg)
+	db.LocalConnect(cfg)
 	defer db.Close()
 
 	r := gin.New() // instead of gin.Default() if you want full control
@@ -183,7 +183,8 @@ func main() {
 	paymentGroup := r.Group("/payments")
 	paymentGroup.Use(middleware.AuthMiddleware())
 	{
-		paymentGroup.GET("/", middleware.AdminOnly(), handlers.ListAllPaymentsHandler)
+		paymentGroup.GET("/search-payments", middleware.AdminOnly(), handlers.SearchPaymentsPaginatedHandler)
+		paymentGroup.GET("/all-payments", middleware.AdminOnly(), handlers.ListAllPaymentsHandler)
 		paymentGroup.GET("/:id", handlers.GetPaymentHandler)
 		paymentGroup.POST("/payment", handlers.CreatePaymentHandler)
 		paymentGroup.PATCH("/payment/:id/status", handlers.UpdatePaymentStatusHandler)

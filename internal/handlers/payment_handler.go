@@ -234,7 +234,10 @@ func SearchPaymentsPaginatedHandler(c *gin.Context) {
 	offset := (page - 1) * limit
 
 	// Search query (partial email)
-	query := strings.TrimSpace(c.Query("email"))
+	query := strings.TrimSpace(c.Query("search"))
+	if query == "" {
+        query = strings.TrimSpace(c.Query("email"))
+    }
 	params := gen.SearchPaymentsByEmailWithPaginationParams{
 		Column1: pgtype.Text{String: query, Valid: true},
 		Limit:   int32(limit),
