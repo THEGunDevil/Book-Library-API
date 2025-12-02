@@ -3,8 +3,10 @@ package handlers
 import (
 	"errors"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/THEGunDevil/GoForBackend/internal/db"
@@ -145,7 +147,6 @@ func ListAllPaymentsHandler(c *gin.Context) {
 
 		// --- 2. Fetch User (Safely) ---
 		username := "Unknown User"
-		email := "N/A"
 
 		users, err := db.Q.GetUserByID(c.Request.Context(), r.UserID)
 		if err != nil {
@@ -158,7 +159,6 @@ func ListAllPaymentsHandler(c *gin.Context) {
 			}
 		} else {
 			username = users.FirstName + " " + users.LastName
-			email = users.Email
 		}
 
 		// --- 3. Handle Subscription UUID ---
@@ -185,7 +185,7 @@ func ListAllPaymentsHandler(c *gin.Context) {
 			RequestedAt:    requestedAt,
 			ProcessedAt:    processedAt,
 			UserName:       username,
-			UserEmail:      email,
+			UserEmail:      r.Email,
 		})
 	}
 
@@ -209,7 +209,132 @@ func ListAllPaymentsHandler(c *gin.Context) {
 		},
 	})
 }
+func SearchPaymentsPaginatedHandler(c *gin.Context) {
+	// Pagination
+	page := 1
+	limit := 10
 
+	if p := c.Query("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = parsed
+		}
+	}
+
+	if l := c.Query("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	offset := (page - 1) * limit
+
+	// Search query (partial email)
+	query := strings.TrimSpace(c.Query("email"))
+	params := gen.SearchPaymentsByEmailWithPaginationParams{
+		Column1: pgtype.Text{String: query, Valid: true},
+		Limit:   int32(limit),
+		Offset:  int32(offset),
+	}
+	// Execute search query
+	rows, err := db.Q.SearchPaymentsByEmailWithPagination(c.Request.Context(), params)
+	if err != nil {
+		log.Printf("❌ Search error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch users"})
+		return
+	}
+
+	// Count total matching users
+	count, err := db.Q.CountPaymentsByEmail(c.Request.Context(), pgtype.Text{String: query, Valid: true})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to count payments"})
+		return
+	}
+	totalPages := int(math.Ceil(float64(count) / float64(limit)))
+
+	// Map response
+	var response []models.DashboardPaymentResponse
+	for _, r := range rows {
+		var refundStatus, refundReason string
+		var requestedAt time.Time
+		var processedAt *time.Time
+
+		// --- 1. Fetch Refund (Safely) ---
+		refunds, err := db.Q.GetRefundByPaymentID(c.Request.Context(), r.ID)
+		if err != nil {
+			// ✅ Check if the error is specifically "No Rows"
+			if errors.Is(err, pgx.ErrNoRows) {
+				// This is EXPECTED for most payments (not all payments have refunds).
+				// We do nothing here, just let the variables stay empty.
+			} else {
+				// If it's a real database error (connection, etc), we fail.
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong fetching refunds"})
+				return
+			}
+		} else {
+			// Data found, map it
+			if refunds.PaymentID == r.ID {
+				refundStatus = refunds.Status
+				refundReason = refunds.Reason.String
+				requestedAt = refunds.RequestedAt.Time
+				if refunds.ProcessedAt.Valid {
+					processedAt = &refunds.ProcessedAt.Time
+				}
+			}
+		}
+
+		// --- 2. Fetch User (Safely) ---
+		username := "Unknown User"
+
+		users, err := db.Q.GetUserByID(c.Request.Context(), r.UserID)
+		if err != nil {
+			// ✅ Check if user is missing (e.g., deleted account)
+			if errors.Is(err, pgx.ErrNoRows) {
+				// User not found, keep default "Unknown User"
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong fetching users"})
+				return
+			}
+		} else {
+			username = users.FirstName + " " + users.LastName
+		}
+
+		// --- 3. Handle Subscription UUID ---
+		var subscriptionID *uuid.UUID
+		if r.SubscriptionID.Valid {
+			u, err := uuid.FromBytes(r.SubscriptionID.Bytes[:])
+			if err == nil {
+				subscriptionID = &u
+			}
+		}
+		response = append(response, models.DashboardPaymentResponse{
+			ID:             r.ID.Bytes,
+			UserID:         r.UserID.Bytes,
+			SubscriptionID: subscriptionID,
+			Amount:         r.Amount,
+			Currency:       r.Currency,
+			TransactionID:  r.TransactionID.Bytes,
+			PaymentGateway: r.PaymentGateway.String,
+			Status:         r.Status,
+			CreatedAt:      r.CreatedAt.Time,
+			RefundStatus:   refundStatus,
+			RefundReason:   refundReason,
+			RequestedAt:    requestedAt,
+			ProcessedAt:    processedAt,
+			UserName:       username,
+			UserEmail:      r.Email,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"payments": response,
+		"metadata": gin.H{
+			"total":      count,
+			"page":       page,
+			"limit":      limit,
+			"totalPages": totalPages,
+		},
+	})
+}
 func UpdatePaymentStatusHandler(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)

@@ -22,6 +22,23 @@ func (q *Queries) CountPayments(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countPaymentsByEmail = `-- name: CountPaymentsByEmail :one
+SELECT COUNT(*)
+FROM payments
+WHERE
+    (CASE
+        WHEN $1 = '' THEN TRUE
+        ELSE email ILIKE '%' || $1 || '%'
+    END)
+`
+
+func (q *Queries) CountPaymentsByEmail(ctx context.Context, dollar_1 interface{}) (int64, error) {
+	row := q.db.QueryRow(ctx, countPaymentsByEmail, dollar_1)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createPayment = `-- name: CreatePayment :one
 INSERT INTO payments (
     user_id,
@@ -30,7 +47,7 @@ INSERT INTO payments (
     payment_gateway,
     currency
 ) VALUES ($1, $2, $3, $4, $5)
-RETURNING id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at
+RETURNING id, email, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at
 `
 
 type CreatePaymentParams struct {
@@ -52,6 +69,7 @@ func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (P
 	var i Payment
 	err := row.Scan(
 		&i.ID,
+		&i.Email,
 		&i.UserID,
 		&i.PlanID,
 		&i.SubscriptionID,
@@ -134,7 +152,7 @@ func (q *Queries) DeleteRefund(ctx context.Context, id pgtype.UUID) error {
 }
 
 const getAllPayments = `-- name: GetAllPayments :many
-SELECT id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at FROM payments
+SELECT id, email, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at FROM payments
 ORDER BY created_at DESC
 LIMIT $1 OFFSET $2
 `
@@ -155,6 +173,7 @@ func (q *Queries) GetAllPayments(ctx context.Context, arg GetAllPaymentsParams) 
 		var i Payment
 		if err := rows.Scan(
 			&i.ID,
+			&i.Email,
 			&i.UserID,
 			&i.PlanID,
 			&i.SubscriptionID,
@@ -177,7 +196,7 @@ func (q *Queries) GetAllPayments(ctx context.Context, arg GetAllPaymentsParams) 
 }
 
 const getPaymentByID = `-- name: GetPaymentByID :one
-SELECT id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at FROM payments
+SELECT id, email, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at FROM payments
 WHERE id = $1
 `
 
@@ -186,6 +205,7 @@ func (q *Queries) GetPaymentByID(ctx context.Context, id pgtype.UUID) (Payment, 
 	var i Payment
 	err := row.Scan(
 		&i.ID,
+		&i.Email,
 		&i.UserID,
 		&i.PlanID,
 		&i.SubscriptionID,
@@ -201,7 +221,7 @@ func (q *Queries) GetPaymentByID(ctx context.Context, id pgtype.UUID) (Payment, 
 }
 
 const getPaymentByTransactionID = `-- name: GetPaymentByTransactionID :one
-SELECT id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at FROM payments
+SELECT id, email, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at FROM payments
 WHERE transaction_id = $1
 `
 
@@ -210,6 +230,7 @@ func (q *Queries) GetPaymentByTransactionID(ctx context.Context, transactionID p
 	var i Payment
 	err := row.Scan(
 		&i.ID,
+		&i.Email,
 		&i.UserID,
 		&i.PlanID,
 		&i.SubscriptionID,
@@ -278,7 +299,7 @@ func (q *Queries) GetTotalSales(ctx context.Context) (interface{}, error) {
 }
 
 const listPaymentsByUser = `-- name: ListPaymentsByUser :many
-SELECT id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at FROM payments
+SELECT id, email, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at FROM payments
 WHERE user_id = $1
 ORDER BY created_at DESC
 `
@@ -294,6 +315,7 @@ func (q *Queries) ListPaymentsByUser(ctx context.Context, userID pgtype.UUID) ([
 		var i Payment
 		if err := rows.Scan(
 			&i.ID,
+			&i.Email,
 			&i.UserID,
 			&i.PlanID,
 			&i.SubscriptionID,
@@ -383,12 +405,64 @@ func (q *Queries) ListRefundsByStatus(ctx context.Context, status string) ([]Ref
 	return items, nil
 }
 
+const searchPaymentsByEmailWithPagination = `-- name: SearchPaymentsByEmailWithPagination :many
+SELECT id, email, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at
+FROM payments
+WHERE
+    (CASE 
+        WHEN $1 = '' THEN TRUE
+        ELSE email ILIKE '%' || $1 || '%'
+    END)
+ORDER BY email
+LIMIT $2
+OFFSET $3
+`
+
+type SearchPaymentsByEmailWithPaginationParams struct {
+	Column1 interface{} `json:"column_1"`
+	Limit   int32       `json:"limit"`
+	Offset  int32       `json:"offset"`
+}
+
+func (q *Queries) SearchPaymentsByEmailWithPagination(ctx context.Context, arg SearchPaymentsByEmailWithPaginationParams) ([]Payment, error) {
+	rows, err := q.db.Query(ctx, searchPaymentsByEmailWithPagination, arg.Column1, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Payment
+	for rows.Next() {
+		var i Payment
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.UserID,
+			&i.PlanID,
+			&i.SubscriptionID,
+			&i.Amount,
+			&i.Currency,
+			&i.TransactionID,
+			&i.PaymentGateway,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updatePaymentStatus = `-- name: UpdatePaymentStatus :one
 UPDATE payments
 SET status = $2,
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at
+RETURNING id, email, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at
 `
 
 type UpdatePaymentStatusParams struct {
@@ -401,6 +475,7 @@ func (q *Queries) UpdatePaymentStatus(ctx context.Context, arg UpdatePaymentStat
 	var i Payment
 	err := row.Scan(
 		&i.ID,
+		&i.Email,
 		&i.UserID,
 		&i.PlanID,
 		&i.SubscriptionID,
@@ -420,7 +495,7 @@ UPDATE payments
 SET status = $2,
     updated_at = NOW()
 WHERE transaction_id = $1
-RETURNING id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at
+RETURNING id, email, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at
 `
 
 type UpdatePaymentStatusByTransactionIDParams struct {
@@ -433,6 +508,7 @@ func (q *Queries) UpdatePaymentStatusByTransactionID(ctx context.Context, arg Up
 	var i Payment
 	err := row.Scan(
 		&i.ID,
+		&i.Email,
 		&i.UserID,
 		&i.PlanID,
 		&i.SubscriptionID,
@@ -452,7 +528,7 @@ UPDATE payments
 SET subscription_id = $2,
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at
+RETURNING id, email, user_id, plan_id, subscription_id, amount, currency, transaction_id, payment_gateway, status, created_at, updated_at
 `
 
 type UpdatePaymentSubscriptionIDParams struct {
@@ -465,6 +541,7 @@ func (q *Queries) UpdatePaymentSubscriptionID(ctx context.Context, arg UpdatePay
 	var i Payment
 	err := row.Scan(
 		&i.ID,
+		&i.Email,
 		&i.UserID,
 		&i.PlanID,
 		&i.SubscriptionID,

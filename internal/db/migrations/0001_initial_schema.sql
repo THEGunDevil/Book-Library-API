@@ -50,7 +50,7 @@ CREATE TABLE subscriptions (
 -- Payments table
 CREATE TABLE payments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-
+    email VARCHAR(255) UNIQUE NOT NULL,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     plan_id UUID NOT NULL REFERENCES subscription_plans(id),
     subscription_id UUID REFERENCES subscriptions(id) ON DELETE SET NULL,

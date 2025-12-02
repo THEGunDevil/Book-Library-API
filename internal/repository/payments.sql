@@ -8,6 +8,18 @@ INSERT INTO payments (
 ) VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
 
+-- name: SearchPaymentsByEmailWithPagination :many
+SELECT *
+FROM payments
+WHERE
+    (CASE 
+        WHEN $1 = '' THEN TRUE
+        ELSE email ILIKE '%' || $1 || '%'
+    END)
+ORDER BY email
+LIMIT $2
+OFFSET $3;
+
 
 -- name: GetPaymentByID :one
 SELECT * FROM payments
@@ -55,6 +67,19 @@ SELECT COALESCE(SUM(amount), 0) AS total_sales
 FROM payments
 WHERE status = 'paid';
 
+-- name: CountPayments :one
+SELECT COUNT(*) FROM payments;
+
+-- name: CountPaymentsByEmail :one
+SELECT COUNT(*)
+FROM payments
+WHERE
+    (CASE
+        WHEN $1 = '' THEN TRUE
+        ELSE email ILIKE '%' || $1 || '%'
+    END);
+
+
 -- SELECT COUNT(*) FROM payments WHERE status = 'pending';
 -- SELECT COUNT(*) FROM payments WHERE status = 'failed';
 
@@ -99,5 +124,3 @@ RETURNING *;
 DELETE FROM refunds
 WHERE id = $1;
 
--- name: CountPayments :one
-SELECT COUNT(*) FROM payments;

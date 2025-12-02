@@ -45,6 +45,7 @@ type Event struct {
 
 type Payment struct {
 	ID             pgtype.UUID      `json:"id"`
+	Email          string           `json:"email"`
 	UserID         pgtype.UUID      `json:"user_id"`
 	PlanID         pgtype.UUID      `json:"plan_id"`
 	SubscriptionID pgtype.UUID      `json:"subscription_id"`
