@@ -48,19 +48,17 @@ type UserResponse struct {
 	TokenVersion       int        `json:"token_version"` // added
 	IsBanned           bool       `json:"is_banned"`
 	BanReason          string     `json:"ban_reason"`
-	BanUntil           *time.Time `json:"ban_until,omitempty"` // nil = no ban date
+	BanUntil           *time.Time `json:"ban_until"` // nil = no ban date
 	ProfileImgPublicID *string    `json:"profile_img_public_id"`
 	ProfileImg         *string    `json:"profile_img"`
 	IsPermanentBan     bool       `json:"is_permanent_ban"`
 	LastActivity       time.Time  `json:"last_activity"`
-	TotalBooksRead     int        `json:"total_books_read"`
 	BooksReserved      int        `json:"books_reserved"`
 	TotalReviews       int        `json:"total_reviews"`
-	CurrentlyReading   int        `json:"currently_reading"`
 	OverdueBooks       int        `json:"overdue_books"`
-	ReadingStreak      int        `json:"reading_books"`
-	AllBorrowsCount    int        `json:"all_borrows_count,omitempty"`    // true = permanent ban
-	ActiveBorrowsCount int        `json:"active_borrows_count,omitempty"` // true = permanent ban
+	ReadingStreak      int        `json:"reading_streak"`
+	AllBorrowsCount    int        `json:"all_borrows_count"`    // true = permanent ban
+	ActiveBorrowsCount int        `json:"active_borrows_count"` // true = permanent ban
 }
 type BanRequest struct {
 	IsBanned       bool       `json:"is_banned"`

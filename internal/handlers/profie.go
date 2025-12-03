@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"log"
 	// "fmt"
 	"net/http"
 	"time"
@@ -55,6 +56,23 @@ func GetProfileDataByIDHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
+	activeBorrowsCount, err := db.Q.CountActiveBorrowsByUserID(
+		c.Request.Context(),
+		pgtype.UUID{Bytes: user.ID.Bytes, Valid: true},
+	)
+	if err != nil {
+		log.Printf("Failed to count active borrows for user %v: %v", user.ID, err)
+		activeBorrowsCount = 0
+	}
+
+	allBorrowsCount, err := db.Q.CountBorrowedBooksByUserID(
+		c.Request.Context(),
+		pgtype.UUID{Bytes: user.ID.Bytes, Valid: true},
+	)
+	if err != nil {
+		log.Printf("Failed to count all borrows for user %v: %v", user.ID, err)
+		allBorrowsCount = 0
+	}
 	// Prepare user response
 	userResp := models.UserResponse{
 		ID:                 user.ID.Bytes,
@@ -71,11 +89,11 @@ func GetProfileDataByIDHandler(c *gin.Context) {
 		IsBanned:           user.IsBanned.Bool,
 		IsPermanentBan:     user.IsPermanentBan.Bool,
 		BanUntil:           &user.BanUntil.Time,
+		AllBorrowsCount:    service.SafeInt(allBorrowsCount),
+		ActiveBorrowsCount: service.SafeInt(activeBorrowsCount),
 		LastActivity:       ps.LastActivity.(time.Time),
-		TotalBooksRead:     service.SafeInt(ps.TotalBooksRead),
 		BooksReserved:      service.SafeInt(ps.BooksReserved),
 		TotalReviews:       service.SafeInt(ps.TotalReviews),
-		CurrentlyReading:   service.SafeInt(ps.CurrentlyReading),
 		OverdueBooks:       service.SafeInt(ps.OverdueBooks),
 		ReadingStreak:      service.SafeInt(ps.ReadingStreak),
 	}

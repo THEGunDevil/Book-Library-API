@@ -23,17 +23,11 @@ SELECT
         COALESCE(MAX(res.created_at), '1970-01-01'::timestamp)
     ) AS last_activity,
     
-    -- Total books read (borrowed & returned)
-    COALESCE(SUM(CASE WHEN b.returned_at IS NOT NULL THEN 1 ELSE 0 END), 0) AS total_books_read,
-    
     -- Books reserved (pending or fulfilled)
     COALESCE(COUNT(DISTINCT res.id), 0) AS books_reserved,
     
     -- Total reviews
     COALESCE(COUNT(DISTINCT r.id), 0) AS total_reviews,
-    
-    -- Currently reading (borrowed but not returned)
-    COALESCE(SUM(CASE WHEN b.returned_at IS NULL THEN 1 ELSE 0 END), 0) AS currently_reading,
     
     -- Overdue books (borrowed, not returned, past due date)
     COALESCE(SUM(CASE WHEN b.returned_at IS NULL AND b.due_date < NOW() THEN 1 ELSE 0 END), 0) AS overdue_books,
