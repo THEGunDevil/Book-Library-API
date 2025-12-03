@@ -8,6 +8,7 @@ import (
 
 	"github.com/THEGunDevil/GoForBackend/internal/db"
 	"github.com/THEGunDevil/GoForBackend/internal/models"
+	"github.com/THEGunDevil/GoForBackend/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -49,7 +50,11 @@ func GetProfileDataByIDHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get borrows"})
 		return
 	}
-
+	ps, err := db.Q.GetUserProfileStats(ctx, pgtype.UUID{Bytes: parsedID, Valid: true})
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
 	// Prepare user response
 	userResp := models.UserResponse{
 		ID:                 user.ID.Bytes,
@@ -66,6 +71,13 @@ func GetProfileDataByIDHandler(c *gin.Context) {
 		IsBanned:           user.IsBanned.Bool,
 		IsPermanentBan:     user.IsPermanentBan.Bool,
 		BanUntil:           &user.BanUntil.Time,
+		LastActivity:       ps.LastActivity.(time.Time),
+		TotalBooksRead:     service.SafeInt(ps.TotalBooksRead),
+		BooksReserved:      service.SafeInt(ps.BooksReserved),
+		TotalReviews:       service.SafeInt(ps.TotalReviews),
+		CurrentlyReading:   service.SafeInt(ps.CurrentlyReading),
+		OverdueBooks:       service.SafeInt(ps.OverdueBooks),
+		ReadingStreak:      service.SafeInt(ps.ReadingStreak),
 	}
 
 	// Map borrows

@@ -13,6 +13,44 @@ WHERE id = $1;
 
 -- name: GetAllUser :many
 SELECT * FROM users;
+
+-- name: GetUserProfileStats :one
+SELECT
+    -- Last activity: latest timestamp from borrows, reviews, or reservations
+    GREATEST(
+        COALESCE(MAX(b.borrowed_at), '1970-01-01'::timestamp),
+        COALESCE(MAX(r.created_at), '1970-01-01'::timestamp),
+        COALESCE(MAX(res.created_at), '1970-01-01'::timestamp)
+    ) AS last_activity,
+    
+    -- Total books read (borrowed & returned)
+    COALESCE(SUM(CASE WHEN b.returned_at IS NOT NULL THEN 1 ELSE 0 END), 0) AS total_books_read,
+    
+    -- Books reserved (pending or fulfilled)
+    COALESCE(COUNT(DISTINCT res.id), 0) AS books_reserved,
+    
+    -- Total reviews
+    COALESCE(COUNT(DISTINCT r.id), 0) AS total_reviews,
+    
+    -- Currently reading (borrowed but not returned)
+    COALESCE(SUM(CASE WHEN b.returned_at IS NULL THEN 1 ELSE 0 END), 0) AS currently_reading,
+    
+    -- Overdue books (borrowed, not returned, past due date)
+    COALESCE(SUM(CASE WHEN b.returned_at IS NULL AND b.due_date < NOW() THEN 1 ELSE 0 END), 0) AS overdue_books,
+    
+    -- Reading streak (consecutive days with borrow activity, placeholder logic: count distinct days with borrow)
+    COALESCE(COUNT(DISTINCT DATE(b.borrowed_at)), 0) AS reading_streak
+
+FROM users u
+LEFT JOIN borrows b ON b.user_id = u.id
+LEFT JOIN reviews r ON r.user_id = u.id
+LEFT JOIN reservations res ON res.user_id = u.id
+WHERE u.id = $1
+GROUP BY u.id;
+
+
+
+
 -- name: UpdateUserByID :one
 UPDATE users
 SET
@@ -25,9 +63,6 @@ SET
   updated_at            = NOW()
 WHERE id = sqlc.arg(id)
 RETURNING *;
-
-
-
 
 -- name: UpdateUserBanByUserID :one
 UPDATE users

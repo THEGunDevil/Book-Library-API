@@ -52,6 +52,13 @@ type UserResponse struct {
 	ProfileImgPublicID *string    `json:"profile_img_public_id"`
 	ProfileImg         *string    `json:"profile_img"`
 	IsPermanentBan     bool       `json:"is_permanent_ban"`
+	LastActivity       time.Time  `json:"last_activity"`
+	TotalBooksRead     int        `json:"total_books_read"`
+	BooksReserved      int        `json:"books_reserved"`
+	TotalReviews       int        `json:"total_reviews"`
+	CurrentlyReading   int        `json:"currently_reading"`
+	OverdueBooks       int        `json:"overdue_books"`
+	ReadingStreak      int        `json:"reading_books"`
 	AllBorrowsCount    int        `json:"all_borrows_count,omitempty"`    // true = permanent ban
 	ActiveBorrowsCount int        `json:"active_borrows_count,omitempty"` // true = permanent ban
 }

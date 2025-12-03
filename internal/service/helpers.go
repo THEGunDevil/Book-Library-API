@@ -20,3 +20,18 @@ func StringToPGText(s string) pgtype.Text {
 		Valid:  s != "",
 	}
 }
+func SafeInt(value interface{}) int {
+	if value == nil {
+		return 0
+	}
+	switch v := value.(type) {
+	case int:
+		return v
+	case int64:
+		return int(v)
+	case float64:
+		return int(v)
+	default:
+		return 0
+	}
+}
