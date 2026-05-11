@@ -117,13 +117,13 @@ func parsePagination(c *gin.Context) (page, limit int) {
 func DownloadSearchBooksHandler(c *gin.Context) {
 	format := c.Query("format")
 	genre := c.Query("genre")   // e.g., "fiction" or "all"
-	search := c.Query("search") // search term
+	// search := c.Query("search") // search term
 	page, limit := parsePagination(c)
 	offset := (page - 1) * limit
 
 	params := gen.SearchBooksWithPaginationParams{
 		Column1: genre,
-		Column2: pgtype.Text{String: search, Valid: true},
+		// Column2: pgtype.Text{String: search, Valid: true},
 		Limit:   int32(limit),
 		Offset:  int32(offset),
 	}

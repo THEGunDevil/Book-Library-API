@@ -446,7 +446,7 @@ func SearchBooksPaginatedHandler(c *gin.Context) {
 	genre := strings.TrimSpace(c.Query("genre"))
 
 	// Default to "all" if genre is empty
-	if genre == "" {
+	if genre == "" || genre == "all" {
 		genre = "all"
 	}
 
@@ -460,7 +460,7 @@ func SearchBooksPaginatedHandler(c *gin.Context) {
 	// SQLC params - pass strings directly
 	params := gen.SearchBooksWithPaginationParams{
 		Column1: genre,                                   // genre (can be "all")
-		Column2: pgtype.Text{String: query, Valid: true}, // search query (can be empty)
+		Column2: query, // search query (can be empty)
 		Limit:   int32(limit),
 		Offset:  int32(offset),
 	}
@@ -476,7 +476,7 @@ func SearchBooksPaginatedHandler(c *gin.Context) {
 	// Count total for pagination (optional but useful)
 	totalCount, _ := db.Q.CountSearchBooks(c.Request.Context(), gen.CountSearchBooksParams{
 		Column1: genre,
-		Column2: pgtype.Text{String: query, Valid: true}, // search query (can be empty)
+		Column2: query, // search query (can be empty)
 	})
 
 	// Map response
@@ -543,7 +543,7 @@ func ListBooksByGenreHandler(c *gin.Context) {
 	}
 
 	books, err := db.Q.FilterBooksByGenre(c.Request.Context(), gen.FilterBooksByGenreParams{
-		Genre:  genre,
+		Column1:  genre,
 		Limit:  int32(limit),
 		Offset: int32(offset),
 	})

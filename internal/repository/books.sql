@@ -4,11 +4,13 @@ FROM books
 ORDER BY created_at DESC
 LIMIT $1 OFFSET $2;
 
--- ListBooksPaginatedFiltered.sql
+-- ListBooksPaginatedFiltered :many
 SELECT *
 FROM books
-WHERE ($1 = '' OR title ILIKE '%' || $1 || '%')       -- search query
-  AND ($2 = 'all' OR genre = $2)                     -- genre filter
+WHERE
+    ($1::text = '' OR title ILIKE '%' || $1 || '%')
+AND
+    ($2::text = 'all' OR genre = $2)
 ORDER BY created_at DESC
 LIMIT $3 OFFSET $4;
 
@@ -18,13 +20,13 @@ WHERE id = $1;
 
 -- name: FilterBooksByGenre :many
 SELECT * FROM books
-WHERE genre = $1
+WHERE ($1 = 'all' OR genre = $1)
+ORDER BY created_at DESC
 LIMIT $2 OFFSET $3;
 
 -- name: CountBooksByGenre :one
-SELECT COUNT(*) AS count
-FROM books
-WHERE genre = $1;
+SELECT COUNT(*) FROM books
+WHERE ($1 = 'all' OR genre = $1);
 
 -- name: CountBooks :one
 SELECT COUNT(*) FROM books;
@@ -105,12 +107,14 @@ SELECT
     updated_at
 FROM books
 WHERE
-    (CASE 
-        WHEN $1 = '' OR $1 = 'all' THEN TRUE
-        ELSE genre ILIKE '%' || $1 || '%'
-    END)
+    (
+        $1::text = ''
+        OR $1::text = 'all'
+        OR genre ILIKE '%' || $1 || '%'
+    )
     AND (
-        title ILIKE '%' || $2 || '%' 
+        $2::text = ''
+        OR title ILIKE '%' || $2 || '%'
         OR author ILIKE '%' || $2 || '%'
         OR description ILIKE '%' || $2 || '%'
     )
@@ -121,12 +125,14 @@ OFFSET $4;
 SELECT COUNT(*)
 FROM books
 WHERE
-    (CASE 
-        WHEN $1 = '' OR $1 = 'all' THEN TRUE
-        ELSE genre ILIKE '%' || $1 || '%'
-    END)
+    (
+        $1::text = ''
+        OR $1::text = 'all'
+        OR genre ILIKE '%' || $1 || '%'
+    )
     AND (
-        title ILIKE '%' || $2 || '%' 
+        $2::text = ''
+        OR title ILIKE '%' || $2 || '%'
         OR author ILIKE '%' || $2 || '%'
         OR description ILIKE '%' || $2 || '%'
     );
