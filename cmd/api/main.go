@@ -32,11 +32,12 @@ func main() {
 
 	// Load config & connect DB
 	cfg := config.LoadConfig()
-	// db.Connect(cfg)
-	// fmt.Println("DEBUG DBURL:", cfg.DBURL)
 
-	fmt.Println("DEBUG LOCAL DB:", cfg.LOCALDBURL)
-	db.LocalConnect(cfg)
+	db.Connect(cfg)
+	fmt.Println("DEBUG DBURL:", cfg.DBURL)
+
+	// fmt.Println("DEBUG LOCAL DB:", cfg.LOCALDBURL)
+	// db.LocalConnect(cfg)
 	defer db.Close()
 
 	r := gin.New() // instead of gin.Default() if you want full control
