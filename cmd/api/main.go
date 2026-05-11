@@ -33,8 +33,8 @@ func main() {
 	// Load config & connect DB
 	cfg := config.LoadConfig()
 	db.Connect(cfg)
-	// fmt.Println("DEBUG DBURL:", cfg.DBURL)
-	fmt.Println("DEBUG LOCAL DB:", cfg.LOCALDBURL)
+	fmt.Println("DEBUG DBURL:", cfg.DBURL)
+	// fmt.Println("DEBUG LOCAL DB:", cfg.LOCALDBURL)
 	// fmt.Println("DEBUG DB NAME:", cfg.DBName)
 	// db.LocalConnect(cfg)
 	defer db.Close()

@@ -37,6 +37,7 @@ func CreatePaymentHandler(c *gin.Context) {
 
 	// Fetch plan details
 	plan, err := db.Q.GetSubscriptionPlanByID(ctx, pgtype.UUID{Bytes: req.PlanID, Valid: true})
+	log.Printf("Subscription plan ID: %+v\n", plan.ID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid plan_id"})
 		return
@@ -236,8 +237,8 @@ func SearchPaymentsPaginatedHandler(c *gin.Context) {
 	// Search query (partial email)
 	query := strings.TrimSpace(c.Query("search"))
 	if query == "" {
-        query = strings.TrimSpace(c.Query("email"))
-    }
+		query = strings.TrimSpace(c.Query("email"))
+	}
 	params := gen.SearchPaymentsByEmailWithPaginationParams{
 		Column1: pgtype.Text{String: query, Valid: true},
 		Limit:   int32(limit),
